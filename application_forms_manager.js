@@ -7,38 +7,41 @@ const uuidv1 = require('uuid/v1');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
+const history = require('connect-history-api-fallback'); // To allow refresh of Vue
 
+// Custom modules
+const credentials = require('../common/credentials');
+const utils = require('../common/utils');
+const misc = require('../common/misc');
+
+const port = 9723
 
 var driver = neo4j.driver(
   'bolt://localhost',
-  neo4j.auth.basic('neo4j', 'poketenashi')
+  neo4j.auth.basic(credentials.neo4j.username, credentials.neo4j.password)
 )
 
 const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
-
+// EXTERNALIZE THIS
 function check_authentication(req, res, next) {
   if(!req.session.employee_number) res.status(400).send("Unauthorized");
   else next();
 }
 
-const port = 9723
 const app = express()
 
 app.use(bodyParser.json());
+app.use(history());
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
-  origin: [
-    'http://172.16.98.151:8083',
-    'http://172.16.98.151',
-    'http://mike.jtekt',
-    'http://mike.jtekt:8083',
-  ],
+  origin: misc.cors_origins,
   credentials: true,
 }));
 app.use(cookieSession({
   name: 'session',
-  secret: 'gomadango',
+  secret: credentials.session.secret,
   maxAge: 253402300000000
 }));
 
@@ -52,11 +55,11 @@ app.post('/get_employees', (req, res) => {
     MATCH (e:Employee)
     RETURN e`, {}
   )
-  .then(function(result) {
+  .then((result) => {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch((error) => {
     console.log(error)
     res.status(500).send("error")
   })
@@ -79,11 +82,10 @@ app.post('/create_application',check_authentication, (req, res) => {
     // Relationship with recipients
     WITH a
     UNWIND {recipients} as recipient
-    WITH DISTINCT recipient, a // Avoid duplicate recipients
 
-    // WATNING: recipients passed as list of node properties
+    // WATNING: recipients passed as list of node properties and not list of employee numbers
     MATCH (r:Employee {employee_number: recipient.employee_number} )
-    CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date})}]-(a)
+    CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date}), flow_index: recipient.flow_index}]-(a)
     RETURN a
     `, {
     submitter_employee_number: req.session.employee_number,
@@ -92,11 +94,11 @@ app.post('/create_application',check_authentication, (req, res) => {
     recipients: req.body.recipients,
     submission_date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
-  .then(function(result) {
+  .then((result) => {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch((error) => {
     console.log(error)
     res.status(500).send("error")
   })
@@ -158,10 +160,10 @@ app.post('/get_submitted_applications',check_authentication, (req, res) => {
     console.log(error)
     res.status(500).send("error")
   })
-
 })
 
 app.post('/get_received_applications', (req, res) => {
+
   var session = driver.session()
 
   session
@@ -177,10 +179,72 @@ app.post('/get_received_applications', (req, res) => {
     WITH application, applicant, submitted_by
     MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
 
-
     // Optionally get APPROVED relationships
     WITH application, applicant, submitted_by, recipient, submitted_to
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
+
+    // Return
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
+      recipient_employee_number: req.session.employee_number
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch((error) => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/get_received_applications/pending', (req, res) => {
+  // Returns applications submitted to a user but not yet approved
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get applications submitted to logged user
+    MATCH (application:ApplicationForm)-[:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
+    WHERE NOT (application)<-[:APPROVED]-(e)
+
+    // Get applicant
+    WITH application
+    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+
+    // Get other recipients
+    WITH application, applicant, submitted_by
+    MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
+
+    // Return
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
+      recipient_employee_number: req.session.employee_number
+  })
+  .then(function(result) {
+    res.send(result)
+    session.close()
+  })
+  .catch(function(error) {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/get_received_applications/approved', (req, res) => {
+  // Returns applications approved by a user
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get applications submitted to logged user
+    MATCH (application:ApplicationForm))<-[approval:APPROVED]-(:Employee {employee_number: {recipient_employee_number} } )
+
+    // Get applicant
+    WITH application, approval
+    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+
+    // Get other recipients
+    WITH application, applicant, submitted_by, approval
+    MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
 
     // Return
     RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
@@ -252,12 +316,48 @@ app.post('/approve_application',check_authentication, (req, res) => {
 
     // Mark as approved
     WITH a, approver, submission
-    MERGE (a)<-[:APPROVED {date: date({approval_date})}]-(approver)
+    MERGE (a)<-[:APPROVED {date: date({date})}]-(approver)
 
     RETURN a`, {
     approver_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
-    approval_date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
+    date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
+  })
+  .then(function(result) {
+    res.send(result)
+    session.close()
+  })
+  .catch(function(error) {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/disapprove_application',check_authentication, (req, res) => {
+  // TODO: Check if user is in position to disapprove the application
+  // TODO: CHECK if application_id in the body
+
+
+  var session = driver.session()
+
+  session
+  .run(`
+    // Find oneself as approver
+    MATCH (approver:Employee {employee_number: {approver_employee_number} })
+    WITH approver
+
+    // Find the application to be approved using provided id
+    MATCH (approver)<-[submission:SUBMITTED_TO]-(a:ApplicationForm)
+    WHERE id(a) = {application_id}
+
+    // Mark as approved
+    WITH a, approver, submission
+    MERGE (a)<-[:DISAPPROVED {date: date({date})}]-(approver)
+
+    RETURN a`, {
+    approver_employee_number: req.session.employee_number,
+    application_id: req.body.application_id,
+    date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
   .then(function(result) {
     res.send(result)
