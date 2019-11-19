@@ -59,7 +59,7 @@ app.post('/get_employees', (req, res) => {
     res.send(result)
     session.close()
   })
-  .catch((error) => {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
@@ -74,52 +74,28 @@ app.post('/create_application',check_authentication, (req, res) => {
   .run(`
     // Create the application node
     MATCH (s:Employee {employee_number: {submitter_employee_number}} )
-    CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date({submission_date})}]->(s)
+    CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date({submission_date})} ]->(s)
     SET a.type = {type}
     SET a.form_data = {form_data}
-    SET a.creation_date = {submission_date}
+    SET a.creation_date = date({submission_date})
 
-    // Relationship with recipients
-    WITH a
-    UNWIND {recipients} as recipient
+    // Relationship with recipients with flow index
+    WITH a, {recipients_employee_number} as recipients_employee_number
+    UNWIND range(0, size(recipients_employee_number)-1) as i
+    MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
+    CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date}), flow_index: i} ]-(a)
 
-    // WATNING: recipients passed as list of node properties and not list of employee numbers
-    MATCH (r:Employee {employee_number: recipient.employee_number} )
-    CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date}), flow_index: recipient.flow_index}]-(a)
+    // Return
     RETURN a
     `, {
     submitter_employee_number: req.session.employee_number,
     type: req.body.type,
-    form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props
-    recipients: req.body.recipients,
+    form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
+    recipients_employee_number: req.body.recipients_employee_number,
     submission_date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
   .then((result) => {
-    res.send(result)
-    session.close()
-  })
-  .catch((error) => {
-    console.log(error)
-    res.status(500).send("error")
-  })
-})
-
-app.post('/delete_application',check_authentication, (req, res) => {
-  // TODO: Check if user is in position to delete the application
-  // TODO: CHECK if application_id in the body
-
-  var session = driver.session()
-
-  session
-  .run(`
-    // Find the application to be approved using provided id
-    MATCH (approver)<-[submission:SUBMITTED_TO]-(a:ApplicationForm)
-    WHERE id(a) = {application_id}
-    DETACH DELETE a
-    `, {
-    application_id: req.body.application_id,
-  })
-  .then(result => {
+    console.log(result.records)
     res.send(result)
     session.close()
   })
@@ -130,7 +106,37 @@ app.post('/delete_application',check_authentication, (req, res) => {
 
 })
 
+app.post('/delete_application',check_authentication, (req, res) => {
+
+  // Only the creator can delete the application
+
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find the application to be deleted using provided id
+    MATCH (applicant:Employee{employee_number: {employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)
+    WHERE id(a) = {application_id}
+
+    // Delete it
+    DETACH DELETE a
+    `, {
+    employee_number: req.session.employee_number,
+    application_id: req.body.application_id,
+  })
+  .then(result => {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
 app.post('/get_submitted_applications',check_authentication, (req, res) => {
+
+  // NOT USED ANYMORE
 
   var session = driver.session()
 
@@ -139,30 +145,112 @@ app.post('/get_submitted_applications',check_authentication, (req, res) => {
     // Get applications submitted by logged user
     MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee {employee_number: {applicant_employee_number} } )
 
-    // Get recipients
-    WITH application, applicant, submitted_by
-    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
-
-    // Get Approvers
-    WITH application, applicant, submitted_by, recipient, submitted_to
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
-
     //Return
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval
+    RETURN application
     `, {
     applicant_employee_number: req.session.employee_number
   })
-  .then(function(result) {
+  .then(result => {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
 })
 
+app.post('/get_submitted_applications/pending',check_authentication, (req, res) => {
+
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get all submissions of given application
+    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
+
+    // EXCLUDE REJECTS
+    WHERE NOT ()-[:REJECTED]->(a)
+
+    // Get all approvals of the application
+    WITH a, count(submission) as cs
+    OPTIONAL MATCH (a)<-[approval:APPROVED]-(:Employee)
+
+    WITH a, cs, count(approval) as ca
+    WHERE NOT cs = ca
+
+    RETURN a
+    `, {
+    applicant_employee_number: req.session.employee_number
+  })
+  .then(result => {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/get_submitted_applications/approved',check_authentication, (req, res) => {
+
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get all submissions of given application
+    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+
+    // Get all approvals of the application
+    WITH a, count(submission) as cs
+    MATCH (a)<-[approval:APPROVED]-(:Employee)
+
+    // If the number of approval matches that of submissions, then completely approved
+    WITH a, cs, count(approval) as ca
+    WHERE cs = ca
+    RETURN a
+    `, {
+    applicant_employee_number: req.session.employee_number
+  })
+  .then(result => {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/get_submitted_applications/rejected',check_authentication, (req, res) => {
+
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get applications submitted by logged user
+    MATCH (applicant:Employee {employee_number: {applicant_employee_number} } )<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee)
+
+    //Return
+    RETURN application
+    `, {
+    applicant_employee_number: req.session.employee_number
+  })
+  .then(result => {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+
 app.post('/get_received_applications', (req, res) => {
+
+  // NOT USED ANYMORE
 
   var session = driver.session()
 
@@ -191,7 +279,7 @@ app.post('/get_received_applications', (req, res) => {
     res.send(result.records)
     session.close()
   })
-  .catch((error) => {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
@@ -204,26 +292,19 @@ app.post('/get_received_applications/pending', (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (application:ApplicationForm)-[:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
-    WHERE NOT (application)<-[:APPROVED]-(e)
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
+    WHERE NOT (application)<-[:APPROVED]-(e) AND NOT (application)<-[:REJECTED]-(e)
 
-    // Get applicant
-    WITH application
-    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
-
-    // Get other recipients
-    WITH application, applicant, submitted_by
-    MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
 
     // Return
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
+    RETURN application, applicant`, {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
@@ -236,32 +317,47 @@ app.post('/get_received_applications/approved', (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (application:ApplicationForm))<-[approval:APPROVED]-(:Employee {employee_number: {recipient_employee_number} } )
-
-    // Get applicant
-    WITH application, approval
-    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
-
-    // Get other recipients
-    WITH application, applicant, submitted_by, approval
-    MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(:Employee {employee_number: {recipient_employee_number} } )
 
     // Return
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
+    RETURN application, applicant`, {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/get_received_applications/rejected', (req, res) => {
+  // Returns applications rejected by a user
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get applications submitted to logged user
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee {employee_number: {recipient_employee_number} } )
+
+    // Return
+    RETURN application, applicant`, {
+      recipient_employee_number: req.session.employee_number
+  })
+  .then(function(result) {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
 })
 
 app.post('/get_application',check_authentication, (req, res) => {
-
+  // Get a single application
   var session = driver.session()
 
   session
@@ -278,17 +374,26 @@ app.post('/get_application',check_authentication, (req, res) => {
     WITH application, applicant, submitted_by
     OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
 
-    // Find approvers
+    // Find approvals
     WITH application, applicant, submitted_by, recipient, submitted_to
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
+    // Find rejections
+
+    // MAYBE COULD GET BOTH AT THE SAME TIME WITH WHERE LABEL(r) = "APPROVED" OR LABEL(r)
+
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval
+    OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
+
     // Return everything
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+
+    ORDER BY submitted_to.flow_index DESC
     `, {
     application_id: req.body.application_id,
   })
   .then(result => {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -299,62 +404,50 @@ app.post('/get_application',check_authentication, (req, res) => {
 })
 
 app.post('/approve_application',check_authentication, (req, res) => {
-  // TODO: Check if user is in position to approve the application
-  // TODO: CHECK if application_id in the body
 
   var session = driver.session()
-
   session
   .run(`
-    // Find oneself as approver
-    MATCH (approver:Employee {employee_number: {approver_employee_number} })
-    WITH approver
-
-    // Find the application to be approved using provided id
-    MATCH (approver)<-[submission:SUBMITTED_TO]-(a:ApplicationForm)
-    WHERE id(a) = {application_id}
+    // Find the application and get oneself at the same time
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} })
+    WHERE id(application) = {application_id}
 
     // Mark as approved
-    WITH a, approver, submission
-    MERGE (a)<-[:APPROVED {date: date({date})}]-(approver)
+    WITH application, recipient
+    MERGE (application)<-[:APPROVED {date: date({date})}]-(recipient)
 
-    RETURN a`, {
-    approver_employee_number: req.session.employee_number,
+    // RETURN APPLICATION
+    RETURN application`, {
+    recipient_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
     date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
-  .then(function(result) {
-    res.send(result)
+  .then(result => {
     session.close()
+    res.send(result.records)
   })
-  .catch(function(error) {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
 })
 
-app.post('/disapprove_application',check_authentication, (req, res) => {
-  // TODO: Check if user is in position to disapprove the application
-  // TODO: CHECK if application_id in the body
-
+app.post('/reject_application',check_authentication, (req, res) => {
 
   var session = driver.session()
 
   session
   .run(`
-    // Find oneself as approver
-    MATCH (approver:Employee {employee_number: {approver_employee_number} })
-    WITH approver
-
-    // Find the application to be approved using provided id
-    MATCH (approver)<-[submission:SUBMITTED_TO]-(a:ApplicationForm)
-    WHERE id(a) = {application_id}
+    // Find the application and get oneself at the same time
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
+    WHERE id(application) = {application_id}
 
     // Mark as approved
-    WITH a, approver, submission
-    MERGE (a)<-[:DISAPPROVED {date: date({date})}]-(approver)
+    WITH application, recipient
+    MERGE (application)<-[:REJECTED {date: date({date})}]-(recipient)
 
-    RETURN a`, {
+    // RETURN APPLICATION
+    RETURN application`, {
     approver_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
     date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
@@ -363,15 +456,48 @@ app.post('/disapprove_application',check_authentication, (req, res) => {
     res.send(result)
     session.close()
   })
-  .catch(function(error) {
+  .catch(error => {
     console.log(error)
     res.status(500).send("error")
   })
+})
 
+app.post('/cancel_decision',check_authentication, (req, res) => {
+
+  var session = driver.session()
+
+  session
+  .run(`
+    // Find the application and get oneself at the same time
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
+    WHERE id(application) = {application_id}
+
+    // Delete relationsip, approval or rejection
+    WITH application, recipient
+    MATCH (application)<-[r]-(recipient)
+    WHERE type(r) = "REJECTED" OR  type(r) = "APPROVED"
+    DELETE r
+
+    // RETURN APPLICATION
+    RETURN application`, {
+    approver_employee_number: req.session.employee_number,
+    application_id: req.body.application_id,
+  })
+  .then(function(result) {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
 })
 
 
 app.post('/file_upload',check_authentication, function (req, res) {
+  ////////////////////////
+  // TODO; NEEDS IMPROVEMENTS!!
+  ///////////////////////
   var form = new formidable.IncomingForm();
   form.parse(req, function (err, fields, files) {
     if (err) throw err;
