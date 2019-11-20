@@ -68,14 +68,16 @@ app.post('/get_employees', (req, res) => {
 app.post('/create_application',check_authentication, (req, res) => {
   // Route to create or edit an application
 
-  var session = driver.session()
 
+
+  var session = driver.session();
   session
   .run(`
     // Create the application node
     MATCH (s:Employee {employee_number: {submitter_employee_number}} )
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date({submission_date})} ]->(s)
     SET a.type = {type}
+    SET a.title = {title}
     SET a.form_data = {form_data}
     SET a.creation_date = date({submission_date})
 
@@ -85,14 +87,24 @@ app.post('/create_application',check_authentication, (req, res) => {
     MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
     CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date}), flow_index: i} ]-(a)
 
+    // Referral to application if settlement
+    WITH a
+    MATCH (ra:ApplicationForm)
+    WHERE ID(ra) = {referred_application_id}
+    CREATE (ra)-[:REFERS_TO]->(a)
+
     // Return
     RETURN a
     `, {
     submitter_employee_number: req.session.employee_number,
     type: req.body.type,
+    title: req.body.title,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
     submission_date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
+
+    // If this is a settlement, need to refer to corresponding application
+    referred_application_id: (req.body.referred_application_id ? req.body.referred_application_id : 'no_id'),
   })
   .then((result) => {
     console.log(result.records)
@@ -384,6 +396,12 @@ app.post('/get_application',check_authentication, (req, res) => {
 
     WITH application, applicant, submitted_by, recipient, submitted_to, approval
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
+
+    // Find applications this one refers to
+    // TODO
+
+    // Find applications referred to this one
+    // TODO
 
     // Return everything
     RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
