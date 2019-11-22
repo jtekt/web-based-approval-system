@@ -235,6 +235,43 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
   })
 })
 
+app.post('/get_submitted_applications/not_referred',check_authentication, (req, res) => {
+
+  // Used to find applications in order to refer to them for settlements
+  var session = driver.session()
+
+  session
+  .run(`
+    // Get all submissions of given application
+    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+
+    // Get all approvals of the application
+    WITH a, count(submission) as cs
+    MATCH (a)<-[approval:APPROVED]-(:Employee)
+
+    // If the number of approval matches that of submissions, then completely approved
+    WITH a, cs, count(approval) as ca
+    WHERE cs = ca
+
+
+    //////////////////
+    // TODO Filter out applications already referred to
+    /////////////////
+
+    RETURN a
+    `, {
+    applicant_employee_number: req.session.employee_number
+  })
+  .then(result => {
+    res.send(result)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
 app.post('/get_submitted_applications/rejected',check_authentication, (req, res) => {
 
   var session = driver.session()
@@ -291,10 +328,7 @@ app.post('/get_received_applications', (req, res) => {
     res.send(result.records)
     session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send("error")
-  })
+  .catch(error => res.status(500).send("error"))
 })
 
 app.post('/get_received_applications/pending', (req, res) => {
@@ -306,7 +340,6 @@ app.post('/get_received_applications/pending', (req, res) => {
     // Get applications submitted to logged user
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
     WHERE NOT (application)<-[:APPROVED]-(e) AND NOT (application)<-[:REJECTED]-(e)
-
 
     // Return
     RETURN application, applicant`, {
