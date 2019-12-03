@@ -21,6 +21,8 @@ var driver = neo4j.driver(
   neo4j.auth.basic(credentials.neo4j.username, credentials.neo4j.password)
 )
 
+process.env.TZ = 'Asia/Tokyo';
+
 const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
 // EXTERNALIZE THIS
@@ -68,32 +70,32 @@ app.post('/get_employees', (req, res) => {
 app.post('/create_application',check_authentication, (req, res) => {
   // Route to create or edit an application
 
-
-
+  console.log(req.body)
   var session = driver.session();
   session
   .run(`
     // Create the application node
     MATCH (s:Employee {employee_number: {submitter_employee_number}} )
-    CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date({submission_date})} ]->(s)
+    CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
     SET a.type = {type}
     SET a.title = {title}
     SET a.form_data = {form_data}
-    SET a.creation_date = date({submission_date})
+    SET a.creation_date = date()
 
     // Relationship with recipients with flow index
     WITH a, {recipients_employee_number} as recipients_employee_number
     UNWIND range(0, size(recipients_employee_number)-1) as i
     MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
-    CREATE (r)<-[:SUBMITTED_TO {date: date({submission_date}), flow_index: i} ]-(a)
+    CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
     // Referral to application if settlement
+    // NOT FULLY IMPLEMENTED YET
     WITH a
     MATCH (ra:ApplicationForm)
     WHERE ID(ra) = {referred_application_id}
     CREATE (ra)-[:REFERS_TO]->(a)
 
-    // Return
+    // Return the application
     RETURN a
     `, {
     submitter_employee_number: req.session.employee_number,
@@ -101,7 +103,6 @@ app.post('/create_application',check_authentication, (req, res) => {
     title: req.body.title,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
-    submission_date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
 
     // If this is a settlement, need to refer to corresponding application
     referred_application_id: (req.body.referred_application_id ? req.body.referred_application_id : 'no_id'),
@@ -121,8 +122,6 @@ app.post('/create_application',check_authentication, (req, res) => {
 app.post('/delete_application',check_authentication, (req, res) => {
 
   // Only the creator can delete the application
-
-
   var session = driver.session()
   session
   .run(`
@@ -159,6 +158,7 @@ app.post('/get_submitted_applications',check_authentication, (req, res) => {
 
     //Return
     RETURN application
+
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -192,6 +192,7 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
     WHERE NOT cs = ca
 
     RETURN a
+    ORDER BY a.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -222,43 +223,7 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
     WITH a, cs, count(approval) as ca
     WHERE cs = ca
     RETURN a
-    `, {
-    applicant_employee_number: req.session.employee_number
-  })
-  .then(result => {
-    res.send(result)
-    session.close()
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send("error")
-  })
-})
-
-app.post('/get_submitted_applications/not_referred',check_authentication, (req, res) => {
-
-  // Used to find applications in order to refer to them for settlements
-  var session = driver.session()
-
-  session
-  .run(`
-    // Get all submissions of given application
-    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
-
-    // Get all approvals of the application
-    WITH a, count(submission) as cs
-    MATCH (a)<-[approval:APPROVED]-(:Employee)
-
-    // If the number of approval matches that of submissions, then completely approved
-    WITH a, cs, count(approval) as ca
-    WHERE cs = ca
-
-
-    //////////////////
-    // TODO Filter out applications already referred to
-    /////////////////
-
-    RETURN a
+    ORDER BY a.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -283,6 +248,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
 
     //Return
     RETURN application
+    ORDER BY application.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -342,7 +308,9 @@ app.post('/get_received_applications/pending', (req, res) => {
     WHERE NOT (application)<-[:APPROVED]-(e) AND NOT (application)<-[:REJECTED]-(e)
 
     // Return
-    RETURN application, applicant`, {
+    RETURN application, applicant
+    ORDER BY application.creation_date DESC
+    `, {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
@@ -365,7 +333,8 @@ app.post('/get_received_applications/approved', (req, res) => {
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(:Employee {employee_number: {recipient_employee_number} } )
 
     // Return
-    RETURN application, applicant`, {
+    RETURN application, applicant
+    ORDER BY application.creation_date DESC`, {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
@@ -388,7 +357,9 @@ app.post('/get_received_applications/rejected', (req, res) => {
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee {employee_number: {recipient_employee_number} } )
 
     // Return
-    RETURN application, applicant`, {
+    RETURN application, applicant
+    ORDER BY application.creation_date DESC
+    `, {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
@@ -439,6 +410,7 @@ app.post('/get_application',check_authentication, (req, res) => {
     // Return everything
     RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
 
+    // Ordering flow
     ORDER BY submitted_to.flow_index DESC
     `, {
     application_id: req.body.application_id,
@@ -465,13 +437,12 @@ app.post('/approve_application',check_authentication, (req, res) => {
 
     // Mark as approved
     WITH application, recipient
-    MERGE (application)<-[:APPROVED {date: date({date})}]-(recipient)
+    MERGE (application)<-[:APPROVED {date: date()}]-(recipient)
 
     // RETURN APPLICATION
     RETURN application`, {
     recipient_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
-    date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
   .then(result => {
     session.close()
@@ -495,13 +466,12 @@ app.post('/reject_application',check_authentication, (req, res) => {
 
     // Mark as approved
     WITH application, recipient
-    MERGE (application)<-[:REJECTED {date: date({date})}]-(recipient)
+    MERGE (application)<-[:REJECTED {date: date()}]-(recipient)
 
     // RETURN APPLICATION
     RETURN application`, {
     approver_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
-    date: new Date().toLocaleDateString("ja-JP", toLocaleDateStringOptions),
   })
   .then(function(result) {
     res.send(result)
