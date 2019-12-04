@@ -14,6 +14,8 @@ const credentials = require('../common/credentials');
 const utils = require('../common/utils');
 const misc = require('../common/misc');
 
+const uploads_directory_path = path.join(__dirname, 'uploads')
+
 const port = 9723
 
 var driver = neo4j.driver(
@@ -34,7 +36,12 @@ function check_authentication(req, res, next) {
 const app = express()
 
 app.use(bodyParser.json());
-app.use(history());
+app.use(history({
+  // Ignore route /file
+  rewrites: [
+    { from: '/file', to: '/file'}
+  ]
+}));
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
@@ -70,7 +77,6 @@ app.post('/get_employees', (req, res) => {
 app.post('/create_application',check_authentication, (req, res) => {
   // Route to create or edit an application
 
-  console.log(req.body)
   var session = driver.session();
   session
   .run(`
@@ -108,7 +114,6 @@ app.post('/create_application',check_authentication, (req, res) => {
     referred_application_id: (req.body.referred_application_id ? req.body.referred_application_id : 'no_id'),
   })
   .then((result) => {
-    console.log(result.records)
     res.send(result)
     session.close()
   })
@@ -126,7 +131,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application to be deleted using provided id
-    MATCH (applicant:Employee{employee_number: {employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)
+    MATCH (:Employee{employee_number: {employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)
     WHERE id(a) = {application_id}
 
     // Delete it
@@ -145,32 +150,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   })
 })
 
-app.post('/get_submitted_applications',check_authentication, (req, res) => {
 
-  // NOT USED ANYMORE
-
-  var session = driver.session()
-
-  session
-  .run(`
-    // Get applications submitted by logged user
-    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee {employee_number: {applicant_employee_number} } )
-
-    //Return
-    RETURN application
-
-    `, {
-    applicant_employee_number: req.session.employee_number
-  })
-  .then(result => {
-    res.send(result)
-    session.close()
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send("error")
-  })
-})
 
 app.post('/get_submitted_applications/pending',check_authentication, (req, res) => {
 
@@ -179,20 +159,20 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
   session
   .run(`
     // Get all submissions of given application
-    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
+    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
 
     // EXCLUDE REJECTS
-    WHERE NOT ()-[:REJECTED]->(a)
+    WHERE NOT ()-[:REJECTED]->(application)
 
     // Get all approvals of the application
-    WITH a, count(submission) as cs
-    OPTIONAL MATCH (a)<-[approval:APPROVED]-(:Employee)
+    WITH application, applicant, count(submission) as cs
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:Employee)
 
-    WITH a, cs, count(approval) as ca
+    WITH application, applicant, cs, count(approval) as ca
     WHERE NOT cs = ca
 
-    RETURN a
-    ORDER BY a.creation_date DESC
+    RETURN application, applicant
+    ORDER BY application.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -213,17 +193,17 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
   session
   .run(`
     // Get all submissions of given application
-    MATCH (:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
 
     // Get all approvals of the application
-    WITH a, count(submission) as cs
-    MATCH (a)<-[approval:APPROVED]-(:Employee)
+    WITH application, applicant, count(submission) as cs
+    MATCH (application)<-[approval:APPROVED]-(:Employee)
 
     // If the number of approval matches that of submissions, then completely approved
-    WITH a, cs, count(approval) as ca
+    WITH application, applicant, cs, count(approval) as ca
     WHERE cs = ca
-    RETURN a
-    ORDER BY a.creation_date DESC
+    RETURN application, applicant
+    ORDER BY application.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
   })
@@ -247,7 +227,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
     MATCH (applicant:Employee {employee_number: {applicant_employee_number} } )<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee)
 
     //Return
-    RETURN application
+    RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
     applicant_employee_number: req.session.employee_number
@@ -262,40 +242,6 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
   })
 })
 
-
-app.post('/get_received_applications', (req, res) => {
-
-  // NOT USED ANYMORE
-
-  var session = driver.session()
-
-  session
-  .run(`
-    // Get applications submitted to logged user
-    MATCH (application:ApplicationForm)-[:SUBMITTED_TO]->(:Employee {employee_number: {recipient_employee_number} } )
-
-    // Get applicant
-    WITH application
-    MATCH (application:ApplicationForm)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
-
-    // Get other recipients
-    WITH application, applicant, submitted_by
-    MATCH (application:ApplicationForm)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
-
-    // Optionally get APPROVED relationships
-    WITH application, applicant, submitted_by, recipient, submitted_to
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
-
-    // Return
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval`, {
-      recipient_employee_number: req.session.employee_number
-  })
-  .then((result) => {
-    res.send(result.records)
-    session.close()
-  })
-  .catch(error => res.status(500).send("error"))
-})
 
 app.post('/get_received_applications/pending', (req, res) => {
   // Returns applications submitted to a user but not yet approved
@@ -464,14 +410,16 @@ app.post('/reject_application',check_authentication, (req, res) => {
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
     WHERE id(application) = {application_id}
 
-    // Mark as approved
+    // Mark as REJECTED
     WITH application, recipient
-    MERGE (application)<-[:REJECTED {date: date()}]-(recipient)
+    MERGE (application)<-[rejection:REJECTED {date: date()}]-(recipient)
+    SET rejection.reason = {reason}
 
     // RETURN APPLICATION
     RETURN application`, {
     approver_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
+    reason: req.body.reason,
   })
   .then(function(result) {
     res.send(result)
@@ -515,7 +463,7 @@ app.post('/cancel_decision',check_authentication, (req, res) => {
 })
 
 
-app.post('/file_upload',check_authentication, function (req, res) {
+app.post('/file_upload_legacy',check_authentication, function (req, res) {
   ////////////////////////
   // TODO; NEEDS IMPROVEMENTS!!
   ///////////////////////
@@ -533,6 +481,59 @@ app.post('/file_upload',check_authentication, function (req, res) {
     });
   });
 });
+
+app.post('/file_upload',check_authentication, function (req, res) {
+
+
+
+  var form = new formidable.IncomingForm();
+  form.parse(req, function (err, fields, files) {
+    if (err) throw err;
+
+    var old_path = files.file_to_upload.path;
+    var file_name = files.file_to_upload.name;
+
+    var new_directory_name = uuidv1();
+    var new_directory_path = path.join(uploads_directory_path, new_directory_name);
+
+    // Create the new directory
+    fs.mkdir(new_directory_path, { recursive: true }, (err) => {
+      if (err) throw err;
+
+      var new_file_path = path.join(new_directory_path,file_name);
+
+      fs.rename(old_path, new_file_path, function (err) {
+        if (err) throw err;
+        res.send(new_directory_name)
+      });
+
+
+    });
+
+  });
+
+});
+
+app.get('/file', check_authentication, function (req, res) {
+  // Todo: serve file
+
+  if('id' in req.query){
+
+    var directory_path = path.join(uploads_directory_path, req.query.id)
+
+    fs.readdir(directory_path, function(err, items) {
+      // Send first file in the directory
+      res.sendFile(path.join(directory_path, items[0]))
+    });
+
+
+  }
+  else {
+    res.status(400).send('ID not specified')
+  }
+});
+
+
 
 
 
