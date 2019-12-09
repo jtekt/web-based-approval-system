@@ -54,25 +54,7 @@ app.use(cookieSession({
   maxAge: 253402300000000
 }));
 
-app.post('/get_employees', (req, res) => {
-  // THIS ROUTE IS FOR TESTING PURPOSES
 
-  var session = driver.session()
-
-  session
-  .run(`
-    MATCH (e:Employee)
-    RETURN e`, {}
-  )
-  .then((result) => {
-    res.send(result)
-    session.close()
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send("error")
-  })
-})
 
 app.post('/create_application',check_authentication, (req, res) => {
   // Route to create or edit an application
@@ -94,13 +76,6 @@ app.post('/create_application',check_authentication, (req, res) => {
     MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
-    // Referral to application if settlement
-    // NOT FULLY IMPLEMENTED YET
-    WITH a
-    MATCH (ra:ApplicationForm)
-    WHERE ID(ra) = {referred_application_id}
-    CREATE (ra)-[:REFERS_TO]->(a)
-
     // Return the application
     RETURN a
     `, {
@@ -114,7 +89,7 @@ app.post('/create_application',check_authentication, (req, res) => {
     referred_application_id: (req.body.referred_application_id ? req.body.referred_application_id : 'no_id'),
   })
   .then((result) => {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -141,7 +116,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
     application_id: req.body.application_id,
   })
   .then(result => {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -177,7 +152,8 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
     applicant_employee_number: req.session.employee_number
   })
   .then(result => {
-    res.send(result)
+    // THIS SHOULD BE RECORDS!
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -208,7 +184,8 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
     applicant_employee_number: req.session.employee_number
   })
   .then(result => {
-    res.send(result)
+    // THIS SHOULD BE RECORDS!
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -233,7 +210,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
     applicant_employee_number: req.session.employee_number
   })
   .then(result => {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -260,7 +237,7 @@ app.post('/get_received_applications/pending', (req, res) => {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -284,7 +261,7 @@ app.post('/get_received_applications/approved', (req, res) => {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -309,7 +286,7 @@ app.post('/get_received_applications/rejected', (req, res) => {
       recipient_employee_number: req.session.employee_number
   })
   .then(function(result) {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -422,7 +399,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
     reason: req.body.reason,
   })
   .then(function(result) {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
@@ -453,7 +430,7 @@ app.post('/cancel_decision',check_authentication, (req, res) => {
     application_id: req.body.application_id,
   })
   .then(function(result) {
-    res.send(result)
+    res.send(result.records)
     session.close()
   })
   .catch(error => {
