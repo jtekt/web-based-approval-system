@@ -70,11 +70,18 @@ app.post('/create_application',check_authentication, (req, res) => {
     SET a.form_data = {form_data}
     SET a.creation_date = date()
 
-    // Relationship with recipients with flow index
+    // Relationship with recipients
+    // This also creates flow indices
     WITH a, {recipients_employee_number} as recipients_employee_number
     UNWIND range(0, size(recipients_employee_number)-1) as i
     MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
+
+    // Create references in case of settlements for example
+    WITH a
+    MATCH (referredApplication:ApplicationForm)
+    WHERE ID(referred) = {referred_application_id}
+    CREATE (a)-[:REFERS_TO]->(referredApplication)
 
     // Return the application
     RETURN a
