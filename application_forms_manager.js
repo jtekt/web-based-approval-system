@@ -78,10 +78,10 @@ app.post('/create_application',check_authentication, (req, res) => {
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
     // Create references in case of settlements for example
-    WITH a
-    MATCH (referredApplication:ApplicationForm)
-    WHERE ID(referred) = {referred_application_id}
-    CREATE (a)-[:REFERS_TO]->(referredApplication)
+    //WITH a
+    //MATCH (referredApplication:ApplicationForm)
+    //WHERE ID(referredApplication) = {referred_application_id}
+    //CREATE (a)-[:REFERS_TO]->(referredApplication)
 
     // Return the application
     RETURN a
@@ -521,4 +521,4 @@ app.get('/file', check_authentication, function (req, res) {
 
 
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+app.listen(port, () => console.log(`Application form manager listening on port ${port}!`))
