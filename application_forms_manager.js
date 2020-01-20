@@ -70,6 +70,9 @@ app.post('/create_application',check_authentication, (req, res) => {
     SET a.form_data = {form_data}
     SET a.creation_date = date()
 
+    // EXPERIMENT
+    SET a.current_flow_index = toInt(0)
+
     // Relationship with recipients
     // This also creates flow indices
     WITH a, {recipients_employee_number} as recipients_employee_number
@@ -234,8 +237,9 @@ app.post('/get_received_applications/pending', (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
     WHERE NOT (application)<-[:APPROVED]-(e) AND NOT (application)<-[:REJECTED]-(e)
+    AND submission.flow_index = application.current_flow_index
 
     // Return
     RETURN application, applicant
@@ -358,12 +362,17 @@ app.post('/get_application',check_authentication, (req, res) => {
 
 app.post('/approve_application',check_authentication, (req, res) => {
 
+  // TODO: Add check for application flow index
+
   var session = driver.session()
   session
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} })
     WHERE id(application) = {application_id}
+
+    // EXPERIMENT
+    SET application.current_flow_index = toInt(submission.flow_index + 1)
 
     // Mark as approved
     WITH application, recipient
@@ -394,6 +403,9 @@ app.post('/reject_application',check_authentication, (req, res) => {
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
     WHERE id(application) = {application_id}
 
+    // No need to increase flow index
+
+
     // Mark as REJECTED
     WITH application, recipient
     MERGE (application)<-[rejection:REJECTED {date: date()}]-(recipient)
@@ -416,6 +428,8 @@ app.post('/reject_application',check_authentication, (req, res) => {
 })
 
 app.post('/cancel_decision',check_authentication, (req, res) => {
+
+  // This route is no longer used because it is now imposible to cacnel a hanko
 
   var session = driver.session()
 
