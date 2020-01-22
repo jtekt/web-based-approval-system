@@ -65,13 +65,20 @@ app.post('/create_application',check_authentication, (req, res) => {
     // Create the application node
     MATCH (s:Employee {employee_number: {submitter_employee_number}} )
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
-    SET a.type = {type}
     SET a.title = {title}
     SET a.form_data = {form_data}
     SET a.creation_date = date()
 
+    SET a.type = {type} // WILL NOT BE NEEDED ONCE ABLE TO USE TEMPLATES
+
     // EXPERIMENT
     SET a.current_flow_index = toInt(0)
+
+    // Relationship to template used
+    WITH a
+    MATCH (aft:ApplicationFormTemplate)
+    WHERE id(aft)=toInt({template_id})
+    CREATE (a)-[:BASED_ON]->(aft)
 
     // Relationship with recipients
     // This also creates flow indices
@@ -79,12 +86,6 @@ app.post('/create_application',check_authentication, (req, res) => {
     UNWIND range(0, size(recipients_employee_number)-1) as i
     MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
-
-    // Create references in case of settlements for example
-    //WITH a
-    //MATCH (referredApplication:ApplicationForm)
-    //WHERE ID(referredApplication) = {referred_application_id}
-    //CREATE (a)-[:REFERS_TO]->(referredApplication)
 
     // Return the application
     RETURN a
@@ -94,9 +95,7 @@ app.post('/create_application',check_authentication, (req, res) => {
     title: req.body.title,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
-
-    // If this is a settlement, need to refer to corresponding application
-    referred_application_id: (req.body.referred_application_id ? req.body.referred_application_id : 'no_id'),
+    template_id: req.body.template_id,
   })
   .then((result) => {
     res.send(result.records)
@@ -117,7 +116,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   .run(`
     // Find the application to be deleted using provided id
     MATCH (:Employee{employee_number: {employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)
-    WHERE id(a) = {application_id}
+    WHERE id(a) = toInt({application_id})
 
     // Delete it
     DETACH DELETE a
@@ -247,13 +246,13 @@ app.post('/get_received_applications/pending', (req, res) => {
     `, {
       recipient_employee_number: req.session.employee_number
   })
-  .then(function(result) {
+  .then((result) => {
     res.send(result.records)
     session.close()
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -271,7 +270,7 @@ app.post('/get_received_applications/approved', (req, res) => {
     ORDER BY application.creation_date DESC`, {
       recipient_employee_number: req.session.employee_number
   })
-  .then(function(result) {
+  .then( (result) => {
     res.send(result.records)
     session.close()
   })
@@ -329,25 +328,48 @@ app.post('/get_application',check_authentication, (req, res) => {
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
     // Find rejections
-
     // MAYBE COULD GET BOTH AT THE SAME TIME WITH WHERE LABEL(r) = "APPROVED" OR LABEL(r)
-
     WITH application, applicant, submitted_by, recipient, submitted_to, approval
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
-    // Find applications this one refers to
-    // TODO
+    // get the application template if exists
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+    OPTIONAL MATCH (application)-[:BASED_ON]->(aft:ApplicationFormTemplate)
 
-    // Find applications referred to this one
-    // TODO
 
     // Return everything
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection, aft
 
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
     `, {
     application_id: req.body.application_id,
+  })
+  .then(result => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+
+})
+
+app.post('/find_application_by_hanko',check_authentication, (req, res) => {
+  // Get a single application
+  var session = driver.session()
+
+  session
+  .run(`
+    // Find application and applicant
+    MATCH (application:ApplicationForm)<-[approval:APPROVED]-()
+    WHERE id(approval) = toInt({approval_id})
+
+    // Return everything
+    RETURN application
+    `, {
+    approval_id: req.body.approval_id,
   })
   .then(result => {
     res.send(result.records)
@@ -369,9 +391,9 @@ app.post('/approve_application',check_authentication, (req, res) => {
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} })
-    WHERE id(application) = {application_id}
+    WHERE id(application) = toInt({application_id})
 
-    // EXPERIMENT
+    // Increase flow index to allow next recipient to approve
     SET application.current_flow_index = toInt(submission.flow_index + 1)
 
     // Mark as approved
@@ -394,6 +416,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
 })
 
 app.post('/reject_application',check_authentication, (req, res) => {
+  // basically the opposite of putting a hanko
 
   var session = driver.session()
 
@@ -401,10 +424,9 @@ app.post('/reject_application',check_authentication, (req, res) => {
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
-    WHERE id(application) = {application_id}
+    WHERE id(application) = toInt({application_id})
 
     // No need to increase flow index
-
 
     // Mark as REJECTED
     WITH application, recipient
@@ -429,7 +451,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
 
 app.post('/cancel_decision',check_authentication, (req, res) => {
 
-  // This route is no longer used because it is now imposible to cacnel a hanko
+  // This route is no longer used because it is now imposible to cancel a hanko
 
   var session = driver.session()
 
@@ -437,7 +459,7 @@ app.post('/cancel_decision',check_authentication, (req, res) => {
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
-    WHERE id(application) = {application_id}
+    WHERE id(application) = toInt({application_id})
 
     // Delete relationsip, approval or rejection
     WITH application, recipient
@@ -456,34 +478,192 @@ app.post('/cancel_decision',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
+    res.status(500)
+  })
+})
+
+app.post('/create_application_form_template', check_authentication, (req, res) => {
+
+  // Create application form template
+  var session = driver.session()
+
+  session
+  .run(`
+    // Find creator
+    MATCH (creator:Employee {employee_number: {creator_employee_number} })
+    CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
+
+    // setting all properties
+    SET aft.fields={fields}
+    SET aft.label={label}
+
+    // visibility (shared with)
+    WITH aft
+    MATCH (g)
+    WHERE id(g)=toInt({target_id})
+    CREATE (aft)-[:VISIBLE_TO]->(g)
+
+    // RETURN
+    RETURN aft`, {
+    creator_employee_number: req.session.employee_number,
+    fields: JSON.stringify(req.body.fields),
+    label: req.body.label,
+    target_id: req.body.target_id,
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
     res.status(500).send("error")
   })
 })
 
 
-app.post('/file_upload_legacy',check_authentication, function (req, res) {
-  ////////////////////////
-  // TODO; NEEDS IMPROVEMENTS!!
-  ///////////////////////
-  var form = new formidable.IncomingForm();
-  form.parse(req, function (err, fields, files) {
-    if (err) throw err;
-    var oldpath = files.file_to_upload.path;
 
-    var new_file_name = uuidv1() + path.extname(files.file_to_upload.name)
-    var newpath = __dirname + '/public/uploads/' + new_file_name;
+app.post('/edit_application_form_template', check_authentication, (req, res) => {
 
-    fs.rename(oldpath, newpath, function (err) {
-      if (err) throw err;
-      res.send(new_file_name)
-    });
-  });
-});
+  // Create template
+  var session = driver.session()
+  session
+  .run(`
+    // Find template
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
+    WHERE id(aft) = toInt({id})
 
-app.post('/file_upload',check_authentication, function (req, res) {
+    // set properties
+    SET aft.fields={fields}
+    SET aft.label={label}
+
+    // update visibility (shared with)
+    WITH aft
+    MATCH (aft)-[vis:VISIBLE_TO]->(g)
+    DETACH DELETE vis
+    WITH aft
+    MATCH (g)
+    WHERE id(g)=toInt({target_id})
+    CREATE (aft)-[:VISIBLE_TO]->(g)
 
 
 
+    // RETURN
+    RETURN aft`, {
+    creator_employee_number: req.session.employee_number,
+    id: req.body.id,
+    fields: JSON.stringify(req.body.fields),
+    label: req.body.label,
+    target_id: req.body.target_id
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send("error")
+  })
+})
+
+app.post('/delete_application_form_template', check_authentication, (req, res) => {
+
+  // Delete application form template
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find application
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
+    WHERE id(aft) = toInt({id})
+
+    // Delete the node
+    DETACH DELETE aft
+
+    // RETURN
+    RETURN creator`, {
+    creator_employee_number: req.session.employee_number,
+    id: req.body.id,
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500)
+  })
+})
+
+
+app.post('/get_all_application_form_templates', check_authentication, (req, res) => {
+
+  // Create application form template
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (creator:Employee)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)-[:VISIBLE_TO]->(g)<-[:BELONGS_TO]-(:Employee {employee_number: {employee_number} })
+    RETURN aft, creator, g`, {
+      employee_number: req.session.employee_number
+    })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500)
+  })
+})
+
+app.post('/get_application_form_templates_from_user', check_authentication, (req, res) => {
+
+
+  // Create application form template
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find creator
+    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
+
+    // RETURN
+    RETURN aft, g`, {
+    creator_employee_number: req.session.employee_number,
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500)
+  })
+})
+
+app.post('/get_application_form_template', check_authentication, (req, res) => {
+
+  // get a single  application form template
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    WHERE id(aft) = toInt({id})
+    RETURN aft, g, creator`, {
+    id: req.body.id,
+  })
+  .then((result) => {
+    res.send(result.records)
+    session.close()
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500)
+  })
+})
+
+
+app.post('/file_upload',check_authentication, (req, res) => {
+  // Route to upload an attachment
   var form = new formidable.IncomingForm();
   form.parse(req, function (err, fields, files) {
     if (err) throw err;
@@ -502,24 +682,24 @@ app.post('/file_upload',check_authentication, function (req, res) {
 
       fs.rename(old_path, new_file_path, function (err) {
         if (err) throw err;
+        console.log(`Uploaded file ${new_file_path}`)
         res.send(new_directory_name)
       });
 
-
     });
-
   });
-
 });
 
-app.get('/file', check_authentication, function (req, res) {
+app.get('/file', check_authentication, (req, res) => {
   // Todo: serve file
 
   if('id' in req.query){
 
     var directory_path = path.join(uploads_directory_path, req.query.id)
+    console.log(directory_path)
 
-    fs.readdir(directory_path, function(err, items) {
+    fs.readdir(directory_path, (err, items) => {
+      if(err) console.log(err)
       // Send first file in the directory
       res.sendFile(path.join(directory_path, items[0]))
     });
@@ -532,7 +712,5 @@ app.get('/file', check_authentication, function (req, res) {
 });
 
 
-
-
-
+// Start the server
 app.listen(port, () => console.log(`Application form manager listening on port ${port}!`))
