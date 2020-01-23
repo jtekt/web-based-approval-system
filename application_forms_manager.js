@@ -43,7 +43,6 @@ app.use(history({
   ]
 }));
 app.use(express.static(path.join(__dirname, 'dist')));
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors({
   origin: misc.cors_origins,
   credentials: true,
@@ -164,7 +163,7 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -196,7 +195,7 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -221,7 +220,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -280,7 +279,7 @@ app.post('/get_received_applications/approved', (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -305,7 +304,7 @@ app.post('/get_received_applications/rejected', (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -354,7 +353,7 @@ app.post('/get_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 
 })
@@ -380,7 +379,7 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 
 })
@@ -413,7 +412,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -447,7 +446,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -518,7 +517,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -563,7 +562,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
