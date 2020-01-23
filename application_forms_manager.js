@@ -94,8 +94,9 @@ app.post('/create_application',check_authentication, (req, res) => {
     template_id: req.body.template_id,
   })
   .then((result) => {
-    res.send(result.records)
     session.close()
+    res.send(result.records)
+    console.log(`Application ${result.records[0].get('a').identity.low} created`)
   })
   .catch(error => {
     console.log(error)
@@ -123,6 +124,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   .then(result => {
     res.send(result.records)
     session.close()
+    console.log(`Application ${req.body.application_id} deleted`)
   })
   .catch(error => {
     console.log(error)
@@ -402,13 +404,14 @@ app.post('/approve_application',check_authentication, (req, res) => {
     MERGE (application)<-[:APPROVED {date: date()}]-(recipient)
 
     // RETURN APPLICATION
-    RETURN application`, {
+    RETURN application, recipient`, {
     recipient_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
   })
   .then(result => {
     session.close()
     res.send(result.records)
+    console.log(`Application ${result.records[0].get('application').identity.low} got approved by ${result.records[0].get('recipient').identity.low}`)
   })
   .catch(error => {
     console.log(error)
@@ -435,14 +438,15 @@ app.post('/reject_application',check_authentication, (req, res) => {
     SET rejection.reason = {reason}
 
     // RETURN APPLICATION
-    RETURN application`, {
+    RETURN application, recipient`, {
     approver_employee_number: req.session.employee_number,
     application_id: req.body.application_id,
     reason: req.body.reason,
   })
-  .then(function(result) {
+  .then(result => {
     res.send(result.records)
     session.close()
+    console.log(`Application ${result.records[0].get('application').identity.low} got rejected by ${result.records[0].get('recipient').identity.low}`)
   })
   .catch(error => {
     console.log(error)
@@ -514,6 +518,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
   .then((result) => {
     res.send(result.records)
     session.close()
+    console.log(`Application template ${result.records[0].get('aft').identity.low} created`)
   })
   .catch(error => {
     console.log(error)
@@ -546,8 +551,6 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
     WHERE id(g)=toInt({target_id})
     CREATE (aft)-[:VISIBLE_TO]->(g)
 
-
-
     // RETURN
     RETURN aft`, {
     creator_employee_number: req.session.employee_number,
@@ -559,6 +562,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   .then((result) => {
     res.send(result.records)
     session.close()
+    console.log(`Application template ${result.records[0].get('aft').identity.low} got edited`)
   })
   .catch(error => {
     console.log(error)
@@ -588,6 +592,7 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
   .then((result) => {
     res.send(result.records)
     session.close()
+    console.log(`Application template ${req.body.id} got deleted`)
   })
   .catch(error => {
     console.log(error)
@@ -683,8 +688,8 @@ app.post('/file_upload',check_authentication, (req, res) => {
 
       fs.rename(old_path, new_file_path, function (err) {
         if (err) throw err;
-        console.log(`Uploaded file ${new_file_path}`)
         res.send(new_directory_name)
+        console.log(`Uploaded file ${new_file_path}`)
       });
 
     });
@@ -702,7 +707,9 @@ app.get('/file', check_authentication, (req, res) => {
     fs.readdir(directory_path, (err, items) => {
       if(err) console.log(err)
       // Send first file in the directory
-      res.sendFile(path.join(directory_path, items[0]))
+      res.download( path.join(directory_path, items[0]),items[0] )
+
+      console.log(`File ${path.join(directory_path, items[0])} got downloaded`)
     });
 
 
@@ -714,4 +721,4 @@ app.get('/file', check_authentication, (req, res) => {
 
 
 // Start the server
-app.listen(port, () => console.log(`Application form manager listening on port ${port}!`))
+app.listen(port, () => console.log(`Application form manager listening on 0.0.0.0:${port}`))
