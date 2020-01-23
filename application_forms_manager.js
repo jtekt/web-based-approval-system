@@ -68,11 +68,8 @@ app.post('/create_application',check_authentication, (req, res) => {
     SET a.title = {title}
     SET a.form_data = {form_data}
     SET a.creation_date = date()
+    SET a.type = {type} // even if based on template, keep for record
 
-    SET a.type = {type} // WILL NOT BE NEEDED ONCE ABLE TO USE TEMPLATES
-
-    // EXPERIMENT
-    SET a.current_flow_index = toInt(0)
 
     // Relationship to template used
     WITH a
@@ -103,7 +100,7 @@ app.post('/create_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 
 })
@@ -130,7 +127,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500).send("error")
+    res.status(500)
   })
 })
 
@@ -236,9 +233,16 @@ app.post('/get_received_applications/pending', (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee {employee_number: {recipient_employee_number} } )
-    WHERE NOT (application)<-[:APPROVED]-(e) AND NOT (application)<-[:REJECTED]-(e)
-    AND submission.flow_index = application.current_flow_index
+    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} } )
+    WHERE NOT (application)<-[:APPROVED]-(recipient) AND NOT (application)<-[:REJECTED]-(recipient)
+
+
+    // Check if recipient is next in the flow
+    WITH application, recipient, submission, applicant
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:Employee)
+
+    WITH submission, application, applicant, count(approval) as approvalCount
+    WHERE submission.flow_index = approvalCount
 
     // Return
     RETURN application, applicant
@@ -336,7 +340,6 @@ app.post('/get_application',check_authentication, (req, res) => {
     WITH application, applicant, submitted_by, recipient, submitted_to, approval, rejection
     OPTIONAL MATCH (application)-[:BASED_ON]->(aft:ApplicationFormTemplate)
 
-
     // Return everything
     RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection, aft
 
@@ -393,8 +396,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} })
     WHERE id(application) = toInt({application_id})
 
-    // Increase flow index to allow next recipient to approve
-    SET application.current_flow_index = toInt(submission.flow_index + 1)
+    // TODO: Add check if flow is respected
 
     // Mark as approved
     WITH application, recipient
@@ -426,7 +428,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
     WHERE id(application) = toInt({application_id})
 
-    // No need to increase flow index
+    // TODO: Add check if flow is respected
 
     // Mark as REJECTED
     WITH application, recipient
