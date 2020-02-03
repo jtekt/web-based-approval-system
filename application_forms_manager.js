@@ -10,9 +10,7 @@ const path = require('path');
 const history = require('connect-history-api-fallback'); // To allow refresh of Vue
 
 // Custom modules
-const credentials = require('../common/credentials');
-const utils = require('../common/utils');
-const misc = require('../common/misc');
+const credentials = require('./credentials');
 
 const uploads_directory_path = path.join(__dirname, 'uploads')
 
@@ -44,7 +42,13 @@ app.use(history({
 }));
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(cors({
-  origin: misc.cors_origins,
+  //origin: misc.cors_origins,
+
+  // Hack to allow all origins
+  origin: (origin, callback) => {
+    callback(null, true)
+  },
+
   credentials: true,
 }));
 app.use(cookieSession({
@@ -697,12 +701,10 @@ app.post('/file_upload',check_authentication, (req, res) => {
 });
 
 app.get('/file', check_authentication, (req, res) => {
-  // Todo: serve file
 
   if('id' in req.query){
 
     var directory_path = path.join(uploads_directory_path, req.query.id)
-    console.log(directory_path)
 
     fs.readdir(directory_path, (err, items) => {
       if(err) console.log(err)
