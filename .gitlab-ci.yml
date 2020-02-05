@@ -9,6 +9,7 @@ variables:
 containerization:
   stage: containerization
   script:
+    - echo ${TEST}
     - docker build -t ${DOCKER_IMAGE} .
     - docker push ${DOCKER_IMAGE}
 
