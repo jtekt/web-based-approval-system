@@ -1,0 +1,21 @@
+stages:
+  - containerization
+  - deployment
+
+variables:
+  DOCKER_IMAGE: 172.16.98.151:5000/application_forms_manager
+  DEPLOYMENT: example-deployment
+
+containerization:
+  stage: containerization
+  script:
+    - docker build -t ${DOCKER_IMAGE} .
+    - docker push ${DOCKER_IMAGE}
+
+deployment:
+  stage: deployment
+  script:
+    - kubectl apply -f deployment.yaml
+    - kubectl rollout restart deployment/${DEPLOYMENT}
+  environment:
+    name: staging

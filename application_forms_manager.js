@@ -17,7 +17,7 @@ const uploads_directory_path = path.join(__dirname, 'uploads')
 const port = 9723
 
 var driver = neo4j.driver(
-  'bolt://localhost',
+  'bolt://172.16.98.151',
   neo4j.auth.basic(credentials.neo4j.username, credentials.neo4j.password)
 )
 
@@ -27,8 +27,13 @@ const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'num
 
 // EXTERNALIZE THIS
 function check_authentication(req, res, next) {
-  if(!req.session.employee_number) res.status(400).send("Unauthorized");
-  else next();
+  if(!req.session.employee_number){
+    res.status(403).send("Unauthorized");
+  }
+  else {
+    console.log(`${req.session.employee_number} is authenticated`)
+    next();
+  }
 }
 
 const app = express()
@@ -54,7 +59,9 @@ app.use(cors({
 app.use(cookieSession({
   name: 'session',
   secret: credentials.session.secret,
-  maxAge: 253402300000000
+  maxAge: 253402300000000,
+  sameSite: false,
+  domain: '.maximemoreillon.com',
 }));
 
 
