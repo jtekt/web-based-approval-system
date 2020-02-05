@@ -25,7 +25,7 @@ process.env.TZ = 'Asia/Tokyo';
 
 const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
-// EXTERNALIZE THIS
+// EXTERNALIZE THIS SOON
 function check_authentication(req, res, next) {
   if(!req.session.employee_number){
     res.status(403).send("Unauthorized");
