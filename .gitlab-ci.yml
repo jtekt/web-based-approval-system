@@ -4,7 +4,7 @@ stages:
 
 variables:
   DOCKER_IMAGE: 172.16.98.151:5000/application_forms_manager
-  DEPLOYMENT: example-deployment
+  DEPLOYMENT: afm-deployment
 
 containerization:
   stage: containerization
