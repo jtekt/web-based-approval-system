@@ -15,7 +15,7 @@ containerization:
 deployment:
   stage: deployment
   script:
-    - kubectl apply -f deployment.yaml
+    - kubectl apply -f deployment.yml
     - kubectl rollout restart deployment/${DEPLOYMENT}
   environment:
     name: staging
