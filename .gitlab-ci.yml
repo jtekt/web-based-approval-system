@@ -9,8 +9,9 @@ variables:
 containerization:
   stage: containerization
   script:
-    - echo ${TEST}
-    - echo "exports.neo4j = { username: '${TEST}', password: 'pw', }"
+    - echo ${NEO4J_USERNAME}
+    - echo "exports.neo4j = { username: '${NEO4J_USERNAME}', password: '${NEO4J_PASSWORD}', }"
+    - echo "exports.session = { secret: '${SESSION_SECRET}'}"
     - docker build -t ${DOCKER_IMAGE} .
     - docker push ${DOCKER_IMAGE}
 
