@@ -36,7 +36,7 @@ spec:
         - containerPort: 9723
         volumeMounts:
         - mountPath: "/usr/share/pv"
-          name: image-upload-storage
+          name: afm-storage
 
 ---
 apiVersion: v1
