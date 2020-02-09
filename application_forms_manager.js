@@ -8,11 +8,15 @@ const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
 const history = require('connect-history-api-fallback'); // To allow refresh of Vue
+const mv = require('mv');
+
 
 // Custom modules
 const credentials = require('./credentials');
 
-const uploads_directory_path = path.join(__dirname, 'uploads')
+//const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
+const uploads_directory_path = path.join("/usr/share/pv", 'uploads') // for building
+
 
 const port = 9723
 
@@ -111,7 +115,7 @@ app.post('/create_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 
 })
@@ -139,7 +143,7 @@ app.post('/delete_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -176,7 +180,7 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -208,7 +212,7 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -233,7 +237,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -268,7 +272,7 @@ app.post('/get_received_applications/pending', (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -292,7 +296,7 @@ app.post('/get_received_applications/approved', (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -311,13 +315,13 @@ app.post('/get_received_applications/rejected', (req, res) => {
     `, {
       recipient_employee_number: req.session.employee_number
   })
-  .then(function(result) {
+  .then((result) => {
     res.send(result.records)
     session.close()
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -366,7 +370,7 @@ app.post('/get_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 
 })
@@ -392,7 +396,7 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 
 })
@@ -426,7 +430,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -461,7 +465,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -494,7 +498,7 @@ app.post('/cancel_decision',check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -533,7 +537,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -577,7 +581,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -607,7 +611,7 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -628,7 +632,7 @@ app.post('/get_all_application_form_templates', check_authentication, (req, res)
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -653,7 +657,7 @@ app.post('/get_application_form_templates_from_user', check_authentication, (req
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -674,7 +678,7 @@ app.post('/get_application_form_template', check_authentication, (req, res) => {
   })
   .catch(error => {
     console.log(error)
-    res.status(500)
+    res.status(500).send('Error writing to DB')
   })
 })
 
@@ -683,7 +687,7 @@ app.post('/file_upload',check_authentication, (req, res) => {
   // Route to upload an attachment
   var form = new formidable.IncomingForm();
   form.parse(req, function (err, fields, files) {
-    if (err) throw err;
+    if (err) return res.status(500).send('Error parsing the data')
 
     var old_path = files.file_to_upload.path;
     var file_name = files.file_to_upload.name;
@@ -692,18 +696,13 @@ app.post('/file_upload',check_authentication, (req, res) => {
     var new_directory_path = path.join(uploads_directory_path, new_directory_name);
 
     // Create the new directory
-    fs.mkdir(new_directory_path, { recursive: true }, (err) => {
-      if (err) throw err;
+    var new_file_path = path.join(new_directory_path,file_name);
 
-      var new_file_path = path.join(new_directory_path,file_name);
-
-      fs.rename(old_path, new_file_path, function (err) {
-        if (err) throw err;
-        res.send(new_directory_name)
-        console.log(`Uploaded file ${new_file_path}`)
-      });
-
+    mv(old_path, new_file_path, {mkdirp: true}, (err) => {
+      if (err) return res.status(500).send('Error saving the file')
+      res.send(new_directory_name)
     });
+
   });
 });
 
@@ -714,11 +713,9 @@ app.get('/file', check_authentication, (req, res) => {
     var directory_path = path.join(uploads_directory_path, req.query.id)
 
     fs.readdir(directory_path, (err, items) => {
-      if(err) console.log(err)
+      if(err) return res.status(500).send("Error reading uploads directory")
       // Send first file in the directory
       res.download( path.join(directory_path, items[0]),items[0] )
-
-      console.log(`File ${path.join(directory_path, items[0])} got downloaded`)
     });
 
 

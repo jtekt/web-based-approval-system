@@ -1,3 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: afm-pvc
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,12 +24,20 @@ spec:
       labels:
         app: afm-deployment
     spec:
+      volumes:
+      - name: afm-storage
+        persistentVolumeClaim:
+          claimName: afm-pvc
       containers:
       - name: afm-container
         image: 172.16.98.151:5000/application_forms_manager
         imagePullPolicy: Always
         ports:
         - containerPort: 9723
+        volumeMounts:
+        - mountPath: "/usr/share/pv"
+          name: image-upload-storage
+
 ---
 apiVersion: v1
 kind: Service
