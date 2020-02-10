@@ -17,7 +17,6 @@ const credentials = require('./credentials');
 //const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
 const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for building
 
-
 const port = 9723
 
 var driver = neo4j.driver(
