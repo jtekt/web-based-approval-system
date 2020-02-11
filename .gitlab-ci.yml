@@ -16,7 +16,7 @@ containerization:
 deployment:
   stage: deployment
   script:
-    - kubectl apply -f deployment.yml
-    - kubectl rollout restart deployment/${DEPLOYMENT}
+    - microk8s.kubectl apply -f deployment.yml
+    - microk8s.kubectl rollout restart deployment/${DEPLOYMENT}
   environment:
     name: staging
