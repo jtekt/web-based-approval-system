@@ -9,7 +9,7 @@ variables:
 containerization:
   stage: containerization
   script:
-    - cp ${CREDENTIALS_V2} ./credentials.js
+    - cp ${SECRETS} ./secrets.js
     - docker build -t ${DOCKER_IMAGE} .
     - docker push ${DOCKER_IMAGE}
 

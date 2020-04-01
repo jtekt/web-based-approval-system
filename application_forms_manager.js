@@ -2,17 +2,16 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const neo4j = require('neo4j-driver').v1
 const cors = require('cors')
-const cookieSession = require('cookie-session')
 const uuidv1 = require('uuid/v1');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
 const history = require('connect-history-api-fallback'); // To allow refresh of Vue
 const mv = require('mv');
-
+const axios = require('axios')
 
 // Custom modules
-const credentials = require('./credentials');
+const secrets = require('./secrets');
 
 //const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
 const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for building
@@ -21,24 +20,14 @@ const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for 
 const port = 9723
 
 var driver = neo4j.driver(
-  'bolt://172.16.98.151',
-  neo4j.auth.basic(credentials.neo4j.username, credentials.neo4j.password)
+  secrets.neo4j.url,
+  neo4j.auth.basic(secrets.neo4j.username, secrets.neo4j.password)
 )
 
 process.env.TZ = 'Asia/Tokyo';
 
 const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
-// EXTERNALIZE THIS SOON
-function check_authentication(req, res, next) {
-  if(!req.session.employee_number){
-    res.status(403).send("Unauthorized");
-  }
-  else {
-    console.log(`${req.session.employee_number} is authenticated`)
-    next();
-  }
-}
 
 const app = express()
 
@@ -50,28 +39,28 @@ app.use(history({
   ]
 }));
 app.use(express.static(path.join(__dirname, 'dist')));
-app.use(cors({
-  //origin: misc.cors_origins,
-
-  // Hack to allow all origins
-  origin: (origin, callback) => {
-    callback(null, true)
-  },
-
-  credentials: true,
-}));
-app.use(cookieSession({
-  name: 'session',
-  secret: credentials.session.secret,
-  maxAge: 253402300000000,
-  sameSite: false,
-  domain: '.maximemoreillon.com',
-}));
+app.use(cors());
 
 
 
-app.post('/create_application',check_authentication, (req, res) => {
+// NPM this!
+function check_authentication(req, res, next){
+
+  let token = req.headers.authorization.split(" ")[1];
+  if(!token) return res.status(400).send(`No token in authorization header`)
+
+  axios.post(secrets.authentication_api_url, { jwt: token })
+  .then(response => {
+    res.locals.user = response.data
+    next()
+  })
+  .catch(error => { res.status(400).send(error) })
+
+}
+
+app.post('/create_application', check_authentication, (req, res) => {
   // Route to create or edit an application
+
 
   var session = driver.session();
   session
@@ -101,28 +90,27 @@ app.post('/create_application',check_authentication, (req, res) => {
     // Return the application
     RETURN a
     `, {
-    submitter_employee_number: req.session.employee_number,
+    submitter_employee_number: res.locals.user.properties.employee_number,
+    // Stuff from the body
     type: req.body.type,
     title: req.body.title,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
     template_id: req.body.template_id,
   })
-  .then((result) => {
-    session.close()
-    res.send(result.records)
-    console.log(`Application ${result.records[0].get('a').identity.low} created`)
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
+
+
 
 })
 
 app.post('/delete_application',check_authentication, (req, res) => {
 
   // Only the creator can delete the application
+
   var session = driver.session()
   session
   .run(`
@@ -133,18 +121,16 @@ app.post('/delete_application',check_authentication, (req, res) => {
     // Delete it
     DETACH DELETE a
     `, {
-    employee_number: req.session.employee_number,
+    employee_number: res.locals.user.properties.employee_number,
     application_id: req.body.application_id,
   })
   .then(result => {
     res.send(result.records)
-    session.close()
     console.log(`Application ${req.body.application_id} deleted`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 
@@ -152,7 +138,6 @@ app.post('/delete_application',check_authentication, (req, res) => {
 app.post('/get_submitted_applications/pending',check_authentication, (req, res) => {
 
   var session = driver.session()
-
   session
   .run(`
     // Get all submissions of given application
@@ -171,23 +156,21 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: req.session.employee_number
+    applicant_employee_number: res.locals.user.properties.employee_number,
   })
   .then(result => {
     // THIS SHOULD BE RECORDS!
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 app.post('/get_submitted_applications/approved',check_authentication, (req, res) => {
 
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Get all submissions of given application
@@ -203,23 +186,20 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: req.session.employee_number
+    applicant_employee_number: res.locals.user.properties.employee_number,
   })
   .then(result => {
     // THIS SHOULD BE RECORDS!
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 app.post('/get_submitted_applications/rejected',check_authentication, (req, res) => {
 
   var session = driver.session()
-
   session
   .run(`
     // Get applications submitted by logged user
@@ -229,23 +209,22 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: req.session.employee_number
+    applicant_employee_number: res.locals.user.properties.employee_number,
   })
   .then(result => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 
-app.post('/get_received_applications/pending', (req, res) => {
+app.post('/get_received_applications/pending',check_authentication, (req, res) => {
   // Returns applications submitted to a user but not yet approved
-  var session = driver.session()
 
+
+  var session = driver.session()
   session
   .run(`
     // Get applications submitted to logged user
@@ -264,22 +243,20 @@ app.post('/get_received_applications/pending', (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      recipient_employee_number: req.session.employee_number
+      recipient_employee_number: res.locals.user.properties.employee_number,
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
-app.post('/get_received_applications/approved', (req, res) => {
+app.post('/get_received_applications/approved',check_authentication, (req, res) => {
   // Returns applications approved by a user
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Get applications submitted to logged user
@@ -288,22 +265,20 @@ app.post('/get_received_applications/approved', (req, res) => {
     // Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC`, {
-      recipient_employee_number: req.session.employee_number
+      recipient_employee_number: res.locals.user.properties.employee_number,
   })
   .then( (result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
-app.post('/get_received_applications/rejected', (req, res) => {
+app.post('/get_received_applications/rejected',check_authentication, (req, res) => {
   // Returns applications rejected by a user
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Get applications submitted to logged user
@@ -313,22 +288,20 @@ app.post('/get_received_applications/rejected', (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      recipient_employee_number: req.session.employee_number
+      recipient_employee_number: res.locals.user.properties.employee_number,
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 app.post('/get_application',check_authentication, (req, res) => {
   // Get a single application
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Find application and applicant
@@ -366,19 +339,17 @@ app.post('/get_application',check_authentication, (req, res) => {
   })
   .then(result => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 
 })
 
 app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   // Get a single application
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Find application and applicant
@@ -392,18 +363,17 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   })
   .then(result => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 
 })
 
 app.post('/approve_application',check_authentication, (req, res) => {
 
   // TODO: Add check for application flow index
+
 
   var session = driver.session()
   session
@@ -420,25 +390,22 @@ app.post('/approve_application',check_authentication, (req, res) => {
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
-    recipient_employee_number: req.session.employee_number,
+    recipient_employee_number: res.locals.user.properties.employee_number,
     application_id: req.body.application_id,
   })
   .then(result => {
-    session.close()
     res.send(result.records)
     console.log(`Application ${result.records[0].get('application').identity.low} got approved by ${result.records[0].get('recipient').identity.low}`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 app.post('/reject_application',check_authentication, (req, res) => {
   // basically the opposite of putting a hanko
 
   var session = driver.session()
-
   session
   .run(`
     // Find the application and get oneself at the same time
@@ -454,59 +421,26 @@ app.post('/reject_application',check_authentication, (req, res) => {
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
-    approver_employee_number: req.session.employee_number,
+    approver_employee_number: res.locals.user.properties.employee_number,
     application_id: req.body.application_id,
     reason: req.body.reason,
   })
   .then(result => {
     res.send(result.records)
-    session.close()
     console.log(`Application ${result.records[0].get('application').identity.low} got rejected by ${result.records[0].get('recipient').identity.low}`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
-app.post('/cancel_decision',check_authentication, (req, res) => {
 
-  // This route is no longer used because it is now imposible to cancel a hanko
-
-  var session = driver.session()
-
-  session
-  .run(`
-    // Find the application and get oneself at the same time
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
-    WHERE id(application) = toInt({application_id})
-
-    // Delete relationsip, approval or rejection
-    WITH application, recipient
-    MATCH (application)<-[r]-(recipient)
-    WHERE type(r) = "REJECTED" OR  type(r) = "APPROVED"
-    DELETE r
-
-    // RETURN APPLICATION
-    RETURN application`, {
-    approver_employee_number: req.session.employee_number,
-    application_id: req.body.application_id,
-  })
-  .then(function(result) {
-    res.send(result.records)
-    session.close()
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
-})
 
 app.post('/create_application_form_template', check_authentication, (req, res) => {
 
   // Create application form template
-  var session = driver.session()
 
+  var session = driver.session()
   session
   .run(`
     // Find creator
@@ -525,27 +459,25 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
 
     // RETURN
     RETURN aft`, {
-    creator_employee_number: req.session.employee_number,
+    creator_employee_number: res.locals.user.properties.employee_number,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
     target_id: req.body.target_id,
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
     console.log(`Application template ${result.records[0].get('aft').identity.low} created`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 
 
 app.post('/edit_application_form_template', check_authentication, (req, res) => {
 
-  // Create template
+
   var session = driver.session()
   session
   .run(`
@@ -568,7 +500,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
 
     // RETURN
     RETURN aft`, {
-    creator_employee_number: req.session.employee_number,
+    creator_employee_number: res.locals.user.properties.employee_number,
     id: req.body.id,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
@@ -576,13 +508,11 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
     console.log(`Application template ${result.records[0].get('aft').identity.low} got edited`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 })
 
 app.post('/delete_application_form_template', check_authentication, (req, res) => {
@@ -601,18 +531,15 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
 
     // RETURN
     RETURN creator`, {
-    creator_employee_number: req.session.employee_number,
+    creator_employee_number: res.locals.user.properties.employee_number,
     id: req.body.id,
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
     console.log(`Application template ${req.body.id} got deleted`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 })
 
 
@@ -624,16 +551,13 @@ app.post('/get_all_application_form_templates', check_authentication, (req, res)
   .run(`
     MATCH (creator:Employee)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)-[:VISIBLE_TO]->(g)<-[:BELONGS_TO]-(:Employee {employee_number: {employee_number} })
     RETURN aft, creator, g`, {
-      employee_number: req.session.employee_number
+      employee_number: res.locals.user.properties.employee_number,
     })
   .then((result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 })
 
 app.post('/get_application_form_templates_from_user', check_authentication, (req, res) => {
@@ -649,16 +573,13 @@ app.post('/get_application_form_templates_from_user', check_authentication, (req
 
     // RETURN
     RETURN aft, g`, {
-    creator_employee_number: req.session.employee_number,
+    creator_employee_number: res.locals.user.properties.employee_number,
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 })
 
 app.post('/get_application_form_template', check_authentication, (req, res) => {
@@ -674,12 +595,9 @@ app.post('/get_application_form_template', check_authentication, (req, res) => {
   })
   .then((result) => {
     res.send(result.records)
-    session.close()
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send('Error writing to DB')
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 })
 
 
