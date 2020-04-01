@@ -134,6 +134,23 @@ app.post('/delete_application',check_authentication, (req, res) => {
 })
 
 
+app.post('/get_submitted_applications',check_authentication, (req, res) => {
+  // Get all applications submitted by the logged in user
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    RETURN application
+    ORDER BY application.creation_date DESC
+    `, {
+    applicant_employee_number: res.locals.user.properties.employee_number,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
+})
+
 
 app.post('/get_submitted_applications/pending',check_authentication, (req, res) => {
 
@@ -158,10 +175,7 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
     `, {
     applicant_employee_number: res.locals.user.properties.employee_number,
   })
-  .then(result => {
-    // THIS SHOULD BE RECORDS!
-    res.send(result.records)
-  })
+  .then(result => {res.send(result.records)})
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
@@ -219,6 +233,27 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
 
 })
 
+
+app.post('/get_received_applications',check_authentication, (req, res) => {
+  // Returns applications rceived by the logged in user
+
+  var session = driver.session()
+  session
+  .run(`
+    // Get applications submitted to logged user
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} } )
+
+    // Return
+    RETURN application
+    ORDER BY application.creation_date DESC
+    `, {
+      recipient_employee_number: res.locals.user.properties.employee_number,
+  })
+  .then((result) => {   res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
+})
 
 app.post('/get_received_applications/pending',check_authentication, (req, res) => {
   // Returns applications submitted to a user but not yet approved
@@ -299,7 +334,7 @@ app.post('/get_received_applications/rejected',check_authentication, (req, res) 
 })
 
 app.post('/get_application',check_authentication, (req, res) => {
-  // Get a single application
+  // Get a single application using its ID
 
   var session = driver.session()
   session
@@ -337,9 +372,7 @@ app.post('/get_application',check_authentication, (req, res) => {
     `, {
     application_id: req.body.application_id,
   })
-  .then(result => {
-    res.send(result.records)
-  })
+  .then(result => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
@@ -347,7 +380,7 @@ app.post('/get_application',check_authentication, (req, res) => {
 })
 
 app.post('/find_application_by_hanko',check_authentication, (req, res) => {
-  // Get a single application
+  // Get a single application using the ID of its approval
 
   var session = driver.session()
   session
@@ -361,9 +394,7 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
     `, {
     approval_id: req.body.approval_id,
   })
-  .then(result => {
-    res.send(result.records)
-  })
+  .then(result => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
@@ -373,6 +404,7 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
 app.post('/approve_application',check_authentication, (req, res) => {
 
   // TODO: Add check for application flow index
+  // REALLY?
 
 
   var session = driver.session()
