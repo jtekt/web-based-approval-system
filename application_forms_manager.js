@@ -13,8 +13,8 @@ const axios = require('axios')
 // Custom modules
 const secrets = require('./secrets');
 
-//const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
-const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for building
+const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
+//const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for building
 
 
 const port = 9723
@@ -656,23 +656,20 @@ app.post('/file_upload',check_authentication, (req, res) => {
   });
 });
 
-app.get('/file', check_authentication, (req, res) => {
+app.get('/file', (req, res) => {
 
-  if('id' in req.query){
+if(!('id' in req.query)) return res.status(400).send('ID not specified')
 
-    var directory_path = path.join(uploads_directory_path, req.query.id)
+var directory_path = path.join(uploads_directory_path, req.query.id)
 
-    fs.readdir(directory_path, (err, items) => {
-      if(err) return res.status(500).send("Error reading uploads directory")
-      // Send first file in the directory
-      res.download( path.join(directory_path, items[0]),items[0] )
-    });
+fs.readdir(directory_path, (err, items) => {
+  if(err) return res.status(500).send("Error reading uploads directory")
+  // Send first file in the directory
+  res.download( path.join(directory_path, items[0]),items[0] )
+});
 
 
-  }
-  else {
-    res.status(400).send('ID not specified')
-  }
+
 });
 
 
