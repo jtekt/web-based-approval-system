@@ -39,29 +39,39 @@ app.use(cors());
 // NPM this!
 function check_authentication(req, res, next){
 
-  let token = req.headers.authorization.split(" ")[1];
-  if(!token) return res.status(400).send(`No token in authorization header`)
+  let jwt = undefined
 
-  axios.post(secrets.authentication_api_url, { jwt: token })
-  .then(response => {
-    res.locals.user = response.data
-    next()
-  })
-  .catch(error => { res.status(400).send(error) })
-}
+  // See if jwt available from authorization header
+  if(!jwt){
+    if(('authorization' in req.headers)) {
+      jwt = req.headers.authorization.split(" ")[1]
+    }
+  }
 
-function cookie_based_authentication(req, res, next){
-  var cookies = new Cookies(req, res)
+  // Try to get JWT from cookies
+  if(!jwt) {
+    var cookies = new Cookies(req, res)
+    jwt = cookies.get('jwt')
+  }
 
-  let jwt = cookies.get('jwt')
-  if(!jwt) return res.status(403)
+  // if no JWT available, reject requst
+  if(!jwt) {
+    res.status(403).send('JWT not found in either cookies or authorization header')
+  }
 
+  // Send JWT to authentication manager for decoding
   axios.post(secrets.authentication_api_url, { jwt: jwt })
   .then(response => {
+
+    // make the response available to the rest of the route
     res.locals.user = response.data
+
+    // Go to the route
     next()
   })
-  .catch(error => { res.status(400).send(error) })
+  .catch(error => {
+    res.status(400).send(error)
+  })
 }
 
 app.post('/create_application', check_authentication, (req, res) => {
@@ -162,14 +172,8 @@ app.post('/update_privacy_of_application', check_authentication, (req, res) => {
     private: req.body.private,
   })
   .then((result) => { res.send(result.records) })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
-
-
-
 
 })
 
@@ -722,59 +726,59 @@ app.post('/file_upload',check_authentication, (req, res) => {
   });
 });
 
-app.get('/file', cookie_based_authentication, (req, res) => {
-// UNPROTECTED!
-if(!('file_id' in req.query)) return res.status(400).send('File ID not specified')
+app.get('/file', check_authentication, (req, res) => {
 
-// Application ID not strictly neccessary but helps find the file more easily
-if(!('application_id' in req.query)) return res.status(400).send('Application ID not specified')
+  if(!('file_id' in req.query)) return res.status(400).send('File ID not specified')
 
-var session = driver.session()
-session
-.run(`
-  // Find current user to check for authorization
-  MATCH (user:Employee)
-  WHERE id(user)=toInt({user_id})
+  // Application ID not strictly neccessary but helps find the file more easily
+  if(!('application_id' in req.query)) return res.status(400).send('Application ID not specified')
 
-  // Find application and applicant
-  WITH user
-  MATCH (application:ApplicationForm)
-  WHERE id(application) = toInt({application_id})
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:Employee)
+    WHERE id(user)=toInt({user_id})
 
-  // The requested file must be a file of the application
-  WITH user, application
-  // THIS IS REALLY DIRTY BUT IT'S THE BEST I CAN DO SO FAR
-  WHERE application.form_data CONTAINS {file_id}
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
 
-  // Enforce privacy
-  WITH user, application
-  WHERE NOT application.private
-    OR NOT EXISTS(application.private)
-    OR (application)-[:SUBMITTED_BY]->(user)
-    OR (application)-[:SUBMITTED_TO]->(user)
+    // The requested file must be a file of the application
+    WITH user, application
+    // THIS IS REALLY DIRTY BUT IT'S THE BEST I CAN DO SO FAR
+    WHERE application.form_data CONTAINS {file_id}
 
-  return application
-  `, {
-  file_id: req.query.file_id,
-  application_id: req.query.application_id,
-  user_id: res.locals.user.identity.low,
-})
-.then((result) => {
-  if(result.records.length === 0) return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
-  else {
+    // Enforce privacy
+    WITH user, application
+    WHERE NOT application.private
+      OR NOT EXISTS(application.private)
+      OR (application)-[:SUBMITTED_BY]->(user)
+      OR (application)-[:SUBMITTED_TO]->(user)
 
-    var directory_path = path.join(uploads_directory_path, req.query.file_id)
+    return application
+    `, {
+    file_id: req.query.file_id,
+    application_id: req.query.application_id,
+    user_id: res.locals.user.identity.low,
+  })
+  .then((result) => {
+    if(result.records.length === 0) return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
+    else {
 
-    fs.readdir(directory_path, (err, items) => {
-      if(err) return res.status(500).send("Error reading uploads directory")
-      // Send first file in the directory
-      res.download( path.join(directory_path, items[0]),items[0] )
-    });
+      var directory_path = path.join(uploads_directory_path, req.query.file_id)
 
-  }
-})
-.catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-.finally(() => { session.close() })
+      fs.readdir(directory_path, (err, items) => {
+        if(err) return res.status(500).send("Error reading uploads directory")
+        // Send first file in the directory
+        res.download( path.join(directory_path, items[0]),items[0] )
+      });
+
+    }
+  })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 
 });
 
