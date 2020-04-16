@@ -172,7 +172,7 @@ app.post('/update_privacy_of_application', check_authentication, (req, res) => {
 })
 
 
-app.post('/get_submitted_applications',check_authentication, (req, res) => {
+app.get('/submitted_applications',check_authentication, (req, res) => {
   // Get all applications submitted by the logged in user
   var session = driver.session()
   session
@@ -190,7 +190,7 @@ app.post('/get_submitted_applications',check_authentication, (req, res) => {
 })
 
 
-app.post('/get_submitted_applications/pending',check_authentication, (req, res) => {
+app.get('/submitted_applications/pending',check_authentication, (req, res) => {
 
   var session = driver.session()
   session
@@ -219,7 +219,7 @@ app.post('/get_submitted_applications/pending',check_authentication, (req, res) 
 
 })
 
-app.post('/get_submitted_applications/approved',check_authentication, (req, res) => {
+app.get('/submitted_applications/approved',check_authentication, (req, res) => {
 
 
   var session = driver.session()
@@ -249,7 +249,7 @@ app.post('/get_submitted_applications/approved',check_authentication, (req, res)
 
 })
 
-app.post('/get_submitted_applications/rejected',check_authentication, (req, res) => {
+app.get('/submitted_applications/rejected',check_authentication, (req, res) => {
 
   var session = driver.session()
   session
@@ -272,7 +272,7 @@ app.post('/get_submitted_applications/rejected',check_authentication, (req, res)
 })
 
 
-app.post('/get_received_applications',check_authentication, (req, res) => {
+app.get('/received_applications',check_authentication, (req, res) => {
   // Returns applications rceived by the logged in user
 
   var session = driver.session()
@@ -293,7 +293,7 @@ app.post('/get_received_applications',check_authentication, (req, res) => {
 
 })
 
-app.post('/get_received_applications/pending',check_authentication, (req, res) => {
+app.get('/received_applications/pending',check_authentication, (req, res) => {
   // Returns applications submitted to a user but not yet approved
 
 
@@ -326,7 +326,7 @@ app.post('/get_received_applications/pending',check_authentication, (req, res) =
 
 })
 
-app.post('/get_received_applications/approved',check_authentication, (req, res) => {
+app.get('/received_applications/approved',check_authentication, (req, res) => {
   // Returns applications approved by a user
 
   var session = driver.session()
@@ -348,7 +348,7 @@ app.post('/get_received_applications/approved',check_authentication, (req, res) 
 
 })
 
-app.post('/get_received_applications/rejected',check_authentication, (req, res) => {
+app.get('/received_applications/rejected',check_authentication, (req, res) => {
   // Returns applications rejected by a user
 
   var session = driver.session()
@@ -371,7 +371,7 @@ app.post('/get_received_applications/rejected',check_authentication, (req, res) 
 
 })
 
-app.post('/get_application',check_authentication, (req, res) => {
+app.get('/application',check_authentication, (req, res) => {
   // Get a single application using its ID
 
   var session = driver.session()
@@ -422,7 +422,7 @@ app.post('/get_application',check_authentication, (req, res) => {
     ORDER BY submitted_to.flow_index DESC
     `, {
     user_id: res.locals.user.identity.low,
-    application_id: req.body.application_id,
+    application_id: req.query.application_id,
   })
   .then(result => { res.send(result.records) })
   .catch(error => {
@@ -436,6 +436,8 @@ app.post('/get_application',check_authentication, (req, res) => {
 
 app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   // Get a single application using the ID of its approval
+
+  // TODO: Make it a GET request
 
   var session = driver.session()
   session
@@ -630,7 +632,7 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
 })
 
 
-app.post('/get_all_application_form_templates', check_authentication, (req, res) => {
+app.get('/all_application_form_templates_visible_to_user', check_authentication, (req, res) => {
 
   // Create application form template
   var session = driver.session()
@@ -645,11 +647,8 @@ app.post('/get_all_application_form_templates', check_authentication, (req, res)
   .finally(() => { session.close() })
 })
 
-app.post('/get_application_form_templates_from_user', check_authentication, (req, res) => {
-
-
-  // Create application form template
-
+app.get('/application_form_templates_from_user', check_authentication, (req, res) => {
+  // Get application form template of a the current user
   var session = driver.session()
   session
   .run(`
@@ -665,7 +664,7 @@ app.post('/get_application_form_templates_from_user', check_authentication, (req
   .finally(() => { session.close() })
 })
 
-app.post('/get_application_form_template', check_authentication, (req, res) => {
+app.get('/application_form_template', check_authentication, (req, res) => {
 
   // get a single  application form template
   var session = driver.session()
@@ -674,7 +673,7 @@ app.post('/get_application_form_template', check_authentication, (req, res) => {
     MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
     WHERE id(aft) = toInt({id})
     RETURN aft, g, creator`, {
-    id: req.body.id,
+    id: req.query.id,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
