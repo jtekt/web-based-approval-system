@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const mv = require('mv');
 const axios = require('axios')
+const Cookies = require('cookies')
 
 // Custom modules
 const secrets = require('./secrets');
@@ -47,7 +48,20 @@ function check_authentication(req, res, next){
     next()
   })
   .catch(error => { res.status(400).send(error) })
+}
 
+function cookie_based_authentication(req, res, next){
+  var cookies = new Cookies(req, res)
+
+  let jwt = cookies.get('jwt')
+  if(!jwt) return res.status(403)
+
+  axios.post(secrets.authentication_api_url, { jwt: jwt })
+  .then(response => {
+    res.locals.user = response.data
+    next()
+  })
+  .catch(error => { res.status(400).send(error) })
 }
 
 app.post('/create_application', check_authentication, (req, res) => {
@@ -691,19 +705,59 @@ app.post('/file_upload',check_authentication, (req, res) => {
   });
 });
 
-app.get('/file', (req, res) => {
+app.get('/file', cookie_based_authentication, (req, res) => {
 // UNPROTECTED!
-if(!('id' in req.query)) return res.status(400).send('ID not specified')
+if(!('file_id' in req.query)) return res.status(400).send('File ID not specified')
 
-var directory_path = path.join(uploads_directory_path, req.query.id)
+// Application ID not strictly neccessary but helps find the file more easily
+if(!('application_id' in req.query)) return res.status(400).send('Application ID not specified')
 
-fs.readdir(directory_path, (err, items) => {
-  if(err) return res.status(500).send("Error reading uploads directory")
-  // Send first file in the directory
-  res.download( path.join(directory_path, items[0]),items[0] )
-});
+var session = driver.session()
+session
+.run(`
+  // Find current user to check for authorization
+  MATCH (user:Employee)
+  WHERE id(user)=toInt({user_id})
 
+  // Find application and applicant
+  WITH user
+  MATCH (application:ApplicationForm)
+  WHERE id(application) = toInt({application_id})
 
+  // The requested file must be a file of the application
+  WITH user, application
+  // THIS IS REALLY DIRTY BUT IT'S THE BEST I CAN DO SO FAR
+  WHERE application.form_data CONTAINS {file_id}
+
+  // Enforce privacy
+  WITH user, application
+  WHERE NOT application.private
+    OR NOT EXISTS(application.private)
+    OR (application)-[:SUBMITTED_BY]->(user)
+    OR (application)-[:SUBMITTED_TO]->(user)
+
+  return application
+  `, {
+  file_id: req.query.file_id,
+  application_id: req.query.application_id,
+  user_id: res.locals.user.identity.low,
+})
+.then((result) => {
+  if(result.records.length === 0) return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
+  else {
+
+    var directory_path = path.join(uploads_directory_path, req.query.file_id)
+
+    fs.readdir(directory_path, (err, items) => {
+      if(err) return res.status(500).send("Error reading uploads directory")
+      // Send first file in the directory
+      res.download( path.join(directory_path, items[0]),items[0] )
+    });
+
+  }
+})
+.catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+.finally(() => { session.close() })
 
 });
 
