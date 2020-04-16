@@ -6,7 +6,6 @@ const uuidv1 = require('uuid/v1');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
-const history = require('connect-history-api-fallback'); // To allow refresh of Vue
 const mv = require('mv');
 const axios = require('axios')
 
@@ -32,13 +31,6 @@ const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'num
 const app = express()
 
 app.use(bodyParser.json());
-app.use(history({
-  // Ignore route /file
-  rewrites: [
-    { from: '/file', to: '/file'}
-  ]
-}));
-app.use(express.static(path.join(__dirname, 'dist')));
 app.use(cors());
 
 
@@ -68,11 +60,13 @@ app.post('/create_application', check_authentication, (req, res) => {
     // Create the application node
     MATCH (s:Employee {employee_number: {submitter_employee_number}} )
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
+
+    // Set the application properties
     SET a.title = {title}
+    SET a.private = {private}
     SET a.form_data = {form_data}
     SET a.creation_date = date()
     SET a.type = {type} // even if based on template, keep for record
-
 
     // Relationship to template used
     WITH a
@@ -94,12 +88,16 @@ app.post('/create_application', check_authentication, (req, res) => {
     // Stuff from the body
     type: req.body.type,
     title: req.body.title,
+    private: req.body.private,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
     template_id: req.body.template_id,
   })
   .then((result) => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 
@@ -130,6 +128,39 @@ app.post('/delete_application',check_authentication, (req, res) => {
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
+
+})
+
+app.post('/update_privacy_of_application', check_authentication, (req, res) => {
+  // Route to create or edit an application
+
+  var session = driver.session();
+  session
+  .run(`
+    // Find the application
+    MATCH (a:ApplicationForm)-[:SUBMITTED_BY]->(s)
+    WHERE id(a)=toInt({application_id}) AND id(s)=toInt({user_id})
+
+    // Set the privacy property
+    SET a.private = {private}
+
+    // Return the application
+    RETURN a
+
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.body.application_id,
+    private: req.body.private,
+  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+
+
+
 
 })
 
@@ -339,9 +370,21 @@ app.post('/get_application',check_authentication, (req, res) => {
   var session = driver.session()
   session
   .run(`
+    // Find current user to check for authorization
+    MATCH (user:Employee)
+    WHERE id(user)=toInt({user_id})
+
     // Find application and applicant
+    WITH user
     MATCH (application:ApplicationForm)
     WHERE id(application) = toInt({application_id})
+
+    // Enforce privacy
+    WITH user, application
+    WHERE NOT application.private
+      OR NOT EXISTS(application.private)
+      OR (application)-[:SUBMITTED_BY]->(user)
+      OR (application)-[:SUBMITTED_TO]->(user)
 
     // Find applicant
     WITH application
@@ -370,10 +413,14 @@ app.post('/get_application',check_authentication, (req, res) => {
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
     `, {
+    user_id: res.locals.user.identity.low,
     application_id: req.body.application_id,
   })
   .then(result => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 
@@ -585,9 +632,7 @@ app.post('/get_all_application_form_templates', check_authentication, (req, res)
     RETURN aft, creator, g`, {
       employee_number: res.locals.user.properties.employee_number,
     })
-  .then((result) => {
-    res.send(result.records)
-  })
+  .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 })
@@ -607,9 +652,7 @@ app.post('/get_application_form_templates_from_user', check_authentication, (req
     RETURN aft, g`, {
     creator_employee_number: res.locals.user.properties.employee_number,
   })
-  .then((result) => {
-    res.send(result.records)
-  })
+  .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 })
@@ -625,9 +668,7 @@ app.post('/get_application_form_template', check_authentication, (req, res) => {
     RETURN aft, g, creator`, {
     id: req.body.id,
   })
-  .then((result) => {
-    res.send(result.records)
-  })
+  .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 })
