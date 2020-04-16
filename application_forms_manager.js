@@ -66,13 +66,7 @@ app.post('/create_application', check_authentication, (req, res) => {
     SET a.private = {private}
     SET a.form_data = {form_data}
     SET a.creation_date = date()
-    SET a.type = {type} // even if based on template, keep for record
-
-    // Relationship to template used
-    WITH a
-    MATCH (aft:ApplicationFormTemplate)
-    WHERE id(aft)=toInt({template_id})
-    CREATE (a)-[:BASED_ON]->(aft)
+    SET a.type = {type}
 
     // Relationship with recipients
     // This also creates flow indices
@@ -91,7 +85,6 @@ app.post('/create_application', check_authentication, (req, res) => {
     private: req.body.private,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_employee_number: req.body.recipients_employee_number,
-    template_id: req.body.template_id,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -404,6 +397,7 @@ app.post('/get_application',check_authentication, (req, res) => {
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
     // get the application template if exists
+    // THIS IS NOT REALLY USEFUL AND ADDS COMPLEXITY
     WITH application, applicant, submitted_by, recipient, submitted_to, approval, rejection
     OPTIONAL MATCH (application)-[:BASED_ON]->(aft:ApplicationFormTemplate)
 
