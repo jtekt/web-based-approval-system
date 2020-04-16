@@ -72,7 +72,8 @@ app.post('/create_application', check_authentication, (req, res) => {
   session
   .run(`
     // Create the application node
-    MATCH (s:Employee {employee_number: {submitter_employee_number}} )
+    MATCH (s:Employee)
+    WHERE id(s)=toInt({user_id})
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
 
     // Set the application properties
@@ -84,21 +85,22 @@ app.post('/create_application', check_authentication, (req, res) => {
 
     // Relationship with recipients
     // This also creates flow indices
-    WITH a, {recipients_employee_number} as recipients_employee_number
-    UNWIND range(0, size(recipients_employee_number)-1) as i
-    MATCH (r:Employee {employee_number: recipients_employee_number[i]} )
+    WITH a, {recipients_ids} as recipients_ids
+    UNWIND range(0, size(recipients_ids)-1) as i
+    MATCH (r:Employee)
+    WHERE id(r)=toInt(recipients_ids[i])
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
     // Return the application
     RETURN a
     `, {
-    submitter_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     // Stuff from the body
     type: req.body.type,
     title: req.body.title,
     private: req.body.private,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
-    recipients_employee_number: req.body.recipients_employee_number,
+    recipients_ids: req.body.recipients_ids,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -120,13 +122,13 @@ app.post('/delete_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application to be deleted using provided id
-    MATCH (:Employee{employee_number: {employee_number}})<-[:SUBMITTED_BY]-(a:ApplicationForm)
-    WHERE id(a) = toInt({application_id})
+    MATCH (user:Employee)<-[:SUBMITTED_BY]-(a:ApplicationForm)
+    WHERE id(a) = toInt({application_id}) AND id(user)=toInt({user_id})
 
     // Delete it
     DETACH DELETE a
     `, {
-    employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     application_id: req.body.application_id,
   })
   .then(result => {
@@ -177,11 +179,13 @@ app.get('/submitted_applications',check_authentication, (req, res) => {
   var session = driver.session()
   session
   .run(`
-    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    WHERE id(applicant)=toInt({user_id})
+
     RETURN application
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
   })
   .then(result => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -196,9 +200,11 @@ app.get('/submitted_applications/pending',check_authentication, (req, res) => {
   session
   .run(`
     // Get all submissions of given application
-    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
+    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
+    WHERE id(applicant)=toInt({user_id})
 
     // EXCLUDE REJECTS
+    WITH application, applicant, submission
     WHERE NOT ()-[:REJECTED]->(application)
 
     // Get all approvals of the application
@@ -211,10 +217,12 @@ app.get('/submitted_applications/pending',check_authentication, (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
   })
   .then(result => {res.send(result.records)})
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
 })
@@ -226,7 +234,8 @@ app.get('/submitted_applications/approved',check_authentication, (req, res) => {
   session
   .run(`
     // Get all submissions of given application
-    MATCH (applicant:Employee {employee_number:{applicant_employee_number}})<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+    WHERE id(applicant)=toInt({user_id})
 
     // Get all approvals of the application
     WITH application, applicant, count(submission) as cs
@@ -238,7 +247,7 @@ app.get('/submitted_applications/approved',check_authentication, (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
   })
   .then(result => {
     // THIS SHOULD BE RECORDS!
@@ -255,13 +264,14 @@ app.get('/submitted_applications/rejected',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted by logged user
-    MATCH (applicant:Employee {employee_number: {applicant_employee_number} } )<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee)
+    MATCH (applicant:Employee)<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee)
+    WHERE id(applicant)=toInt({user_id})
 
     //Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-    applicant_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
   })
   .then(result => {
     res.send(result.records)
@@ -279,13 +289,14 @@ app.get('/received_applications',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} } )
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    WHERE id(recipient)=toInt({user_id})
 
     // Return
     RETURN application
     ORDER BY application.creation_date DESC
     `, {
-      recipient_employee_number: res.locals.user.properties.employee_number,
+      user_id: res.locals.user.identity.low,
   })
   .then((result) => {   res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -301,8 +312,10 @@ app.get('/received_applications/pending',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} } )
-    WHERE NOT (application)<-[:APPROVED]-(recipient) AND NOT (application)<-[:REJECTED]-(recipient)
+    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    WHERE id(recipient)=toInt({user_id})
+      AND NOT (application)<-[:APPROVED]-(recipient)
+      AND NOT (application)<-[:REJECTED]-(recipient)
 
 
     // Check if recipient is next in the flow
@@ -316,7 +329,7 @@ app.get('/received_applications/pending',check_authentication, (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      recipient_employee_number: res.locals.user.properties.employee_number,
+      user_id: res.locals.user.identity.low,
   })
   .then((result) => {
     res.send(result.records)
@@ -333,12 +346,13 @@ app.get('/received_applications/approved',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(:Employee {employee_number: {recipient_employee_number} } )
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:Employee)
+    WHERE id(recipient)=toInt({user_id})
 
     // Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC`, {
-      recipient_employee_number: res.locals.user.properties.employee_number,
+      user_id: res.locals.user.identity.low,
   })
   .then( (result) => {
     res.send(result.records)
@@ -355,13 +369,14 @@ app.get('/received_applications/rejected',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee {employee_number: {recipient_employee_number} } )
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(recipient:Employee)
+    WHERE id(recipient)=toInt({user_id})
 
     // Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      recipient_employee_number: res.locals.user.properties.employee_number,
+      user_id: res.locals.user.identity.low,
   })
   .then((result) => {
     res.send(result.records)
@@ -468,8 +483,8 @@ app.post('/approve_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application and get oneself at the same time
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {recipient_employee_number} })
-    WHERE id(application) = toInt({application_id})
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
 
     // TODO: Add check if flow is respected
 
@@ -479,7 +494,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
-    recipient_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     application_id: req.body.application_id,
   })
   .then(result => {
@@ -498,8 +513,8 @@ app.post('/reject_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application and get oneself at the same time
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee {employee_number: {approver_employee_number} })
-    WHERE id(application) = toInt({application_id})
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
 
     // TODO: Add check if flow is respected
 
@@ -510,7 +525,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
-    approver_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     application_id: req.body.application_id,
     reason: req.body.reason,
   })
@@ -533,7 +548,8 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
   session
   .run(`
     // Find creator
-    MATCH (creator:Employee {employee_number: {creator_employee_number} })
+    MATCH (creator:Employee)
+    WHERE id(creator) = toInt({user_id})
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
 
     // setting all properties
@@ -548,7 +564,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
 
     // RETURN
     RETURN aft`, {
-    creator_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
     target_id: req.body.target_id,
@@ -571,8 +587,8 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   session
   .run(`
     // Find template
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
-    WHERE id(aft) = toInt({id})
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
 
     // set properties
     SET aft.fields={fields}
@@ -589,7 +605,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
 
     // RETURN
     RETURN aft`, {
-    creator_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     id: req.body.id,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
@@ -612,15 +628,15 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
   session
   .run(`
     // Find application
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
-    WHERE id(aft) = toInt({id})
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
 
     // Delete the node
     DETACH DELETE aft
 
     // RETURN
     RETURN creator`, {
-    creator_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     id: req.body.id,
   })
   .then((result) => {
@@ -638,9 +654,10 @@ app.get('/all_application_form_templates_visible_to_user', check_authentication,
   var session = driver.session()
   session
   .run(`
-    MATCH (creator:Employee)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)-[:VISIBLE_TO]->(g)<-[:BELONGS_TO]-(:Employee {employee_number: {employee_number} })
+    MATCH (creator:Employee)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)-[:VISIBLE_TO]->(g)<-[:BELONGS_TO]-(employee:Employee)
+    WHERE id(employee) = toInt({user_id})
     RETURN aft, creator, g`, {
-      employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
     })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -653,11 +670,12 @@ app.get('/application_form_templates_from_user', check_authentication, (req, res
   session
   .run(`
     // Find creator
-    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee {employee_number: {creator_employee_number} })
+    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    WHERE id(creator) = toInt({user_id})
 
     // RETURN
     RETURN aft, g`, {
-    creator_employee_number: res.locals.user.properties.employee_number,
+    user_id: res.locals.user.identity.low,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
