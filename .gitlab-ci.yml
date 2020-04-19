@@ -3,7 +3,7 @@ stages:
   - deployment
 
 variables:
-  APPLICATION_NAME: shinsei_manager
+  APPLICATION_NAME: shinsei-manager
   DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME} # Docker registry is obtained from the GitLab runner
   SERVICE_PORT: 30111
 
