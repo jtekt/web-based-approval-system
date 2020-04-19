@@ -29,7 +29,7 @@ spec:
         persistentVolumeClaim:
           claimName: ${APPLICATION_NAME}
       containers:
-      - name: afm-container
+      - name: ${APPLICATION_NAME}
         image: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
         imagePullPolicy: Always
         ports:
