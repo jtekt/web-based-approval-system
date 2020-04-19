@@ -13,8 +13,9 @@ const Cookies = require('cookies')
 // Custom modules
 const secrets = require('./secrets');
 
+// Make this an environment variable
 //const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
-const uploads_directory_path = path.join("/usr/share/pv", 'afm_uploads') // for building
+const uploads_directory_path = "/usr/share/pv" // For production
 
 
 const port = 9723

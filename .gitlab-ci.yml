@@ -3,20 +3,30 @@ stages:
   - deployment
 
 variables:
-  DOCKER_IMAGE: 172.16.98.151:5000/application_forms_manager
-  DEPLOYMENT: afm-deployment
+  APPLICATION_NAME: shinsei_manager
+  DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME} # Docker registry is obtained from the GitLab runner
+  SERVICE_PORT: 30111
 
 containerization:
   stage: containerization
   script:
+    - cp ${ENV} ./.env
     - cp ${SECRETS} ./secrets.js
-    - docker build -t ${DOCKER_IMAGE} .
+    - >
+      docker build
+      --build-arg HTTP_PROXY=$HTTP_PROXY
+      --build-arg HTTPS_PROXY=$HTTPS_PROXY
+      -t ${DOCKER_IMAGE}
+      .
     - docker push ${DOCKER_IMAGE}
+    - docker image rm ${DOCKER_IMAGE} # Cleanup
 
 deployment:
   stage: deployment
   script:
-    - kubectl apply -f deployment.yml
-    - kubectl rollout restart deployment/${DEPLOYMENT}
+    - envsubst < deployment.yml | kubectl apply -f -
+    - kubectl rollout restart deployment/${APPLICATION_NAME}
   environment:
-    name: staging
+    name: production
+    kubernetes:
+      namespace: ${KUBERNETES_NAMESPACE}

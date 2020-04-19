@@ -1,54 +1,52 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: afm-pvc
+  name: ${APPLICATION_NAME}
 spec:
   storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 50Gi
+      storage: 1000Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: afm-deployment
+  name: ${APPLICATION_NAME}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: afm-deployment
+      app: ${APPLICATION_NAME}
   template:
     metadata:
       labels:
-        app: afm-deployment
+        app: ${APPLICATION_NAME}
     spec:
       volumes:
-      - name: afm-storage
+      - name: ${APPLICATION_NAME}
         persistentVolumeClaim:
-          claimName: afm-pvc
+          claimName: ${APPLICATION_NAME}
       containers:
       - name: afm-container
-        image: 172.16.98.151:5000/application_forms_manager
+        image: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
         imagePullPolicy: Always
         ports:
         - containerPort: 9723
         volumeMounts:
         - mountPath: "/usr/share/pv"
-          name: afm-storage
+          name: ${APPLICATION_NAME}
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    run: afm-service
-  name: afm-service
+  name: ${APPLICATION_NAME}
 spec:
   ports:
   - port: 9723
-    nodePort: 30111
+    nodePort: ${SERVICE_PORT}
   selector:
-    app: afm-deployment
-  type: LoadBalancer
+    app: ${APPLICATION_NAME}
+  type: NodePort
