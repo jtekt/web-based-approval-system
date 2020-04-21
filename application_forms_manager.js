@@ -35,7 +35,14 @@ const app = express()
 app.use(bodyParser.json());
 app.use(cors());
 
-
+const visibility_enforcement = `
+  WITH user, application
+  WHERE NOT application.private
+    OR NOT EXISTS(application.private)
+    OR (application)-[:SUBMITTED_BY]->(user)
+    OR (application)-[:SUBMITTED_TO]->(user)
+    OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+`
 
 // NPM this!
 function check_authentication(req, res, next){
@@ -77,8 +84,7 @@ function check_authentication(req, res, next){
 
 app.post('/create_application', check_authentication, (req, res) => {
   // Route to create or edit an application
-
-
+  // Todo: replace a with application
   var session = driver.session();
   session
   .run(`
@@ -87,7 +93,7 @@ app.post('/create_application', check_authentication, (req, res) => {
     WHERE id(s)=toInt({user_id})
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
 
-    // Set the application properties
+    // Set the application properties using data passed in the requestr body
     SET a.title = {title}
     SET a.private = {private}
     SET a.form_data = {form_data}
@@ -96,13 +102,29 @@ app.post('/create_application', check_authentication, (req, res) => {
 
     // Relationship with recipients
     // This also creates flow indices
+    // Note: flow cannot be empty
     WITH a, {recipients_ids} as recipients_ids
     UNWIND range(0, size(recipients_ids)-1) as i
     MATCH (r:Employee)
     WHERE id(r)=toInt(recipients_ids[i])
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
-    // Return the application
+    // Groups to which the aplication is visible
+    // Note: can be an empty set so the logic to deal with it looks terrible
+    WITH a
+    UNWIND
+      CASE
+        WHEN {group_ids} = []
+          THEN [null]
+        ELSE {group_ids}
+      END AS group_id
+
+    OPTIONAL MATCH (group:Group)
+    WHERE id(group) = toInt(group_id)
+    WITH collect(group) as groups, a
+    FOREACH(group IN groups | MERGE (a)-[:VISIBLE_TO]->(group))
+
+    // Finally, Return the application
     RETURN a
     `, {
     user_id: res.locals.user.identity.low,
@@ -112,6 +134,7 @@ app.post('/create_application', check_authentication, (req, res) => {
     private: req.body.private,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
     recipients_ids: req.body.recipients_ids,
+    group_ids: req.body.group_ids,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -119,24 +142,21 @@ app.post('/create_application', check_authentication, (req, res) => {
     res.status(500).send(`Error accessing DB: ${error}`)
   })
   .finally(() => { session.close() })
-
-
-
-
 })
 
-app.post('/delete_application',check_authentication, (req, res) => {
 
+function delete_application(req, res){
+  // Deleting an application
   // Only the creator can delete the application
-
   var session = driver.session()
   session
   .run(`
     // Find the application to be deleted using provided id
     MATCH (user:Employee)<-[:SUBMITTED_BY]-(a:ApplicationForm)
-    WHERE id(a) = toInt({application_id}) AND id(user)=toInt({user_id})
+    WHERE id(a) = toInt({application_id})
+      AND id(user)=toInt({user_id})
 
-    // Delete it
+    // Delete the application and all of its relationships
     DETACH DELETE a
     `, {
     user_id: res.locals.user.identity.low,
@@ -146,10 +166,15 @@ app.post('/delete_application',check_authentication, (req, res) => {
     res.send(result.records)
     console.log(`Application ${req.body.application_id} deleted`)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
+}
 
-})
+app.post('/delete_application',check_authentication, delete_application)
+app.delete('/delete_application',check_authentication, delete_application)
 
 app.post('/update_privacy_of_application', check_authentication, (req, res) => {
   // Route to create or edit an application
@@ -159,7 +184,8 @@ app.post('/update_privacy_of_application', check_authentication, (req, res) => {
   .run(`
     // Find the application
     MATCH (a:ApplicationForm)-[:SUBMITTED_BY]->(s)
-    WHERE id(a)=toInt({application_id}) AND id(s)=toInt({user_id})
+    WHERE id(a)=toInt({application_id})
+      AND id(s)=toInt({user_id})
 
     // Set the privacy property
     SET a.private = {private}
@@ -176,6 +202,110 @@ app.post('/update_privacy_of_application', check_authentication, (req, res) => {
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
+})
+
+app.post('/update_application_visibility', check_authentication, (req, res) => {
+  // Deletes all relationships to groups and recreate them
+  var session = driver.session();
+  session
+  .run(`
+    // Find the application
+    // Only the applicant can make the update
+    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
+    WHERE id(application)=toInt({application_id})
+      AND id(user)=toInt({user_id})
+
+    // delete all visibility relationships
+    WITH application
+    MATCH (application)-[rel:VISIBLE_TO]->(:Group)
+    DELETE rel
+
+    // Now recreate all relationships
+    WITH application
+    UNWIND
+      CASE
+        WHEN {group_ids} = []
+          THEN [null]
+        ELSE {group_ids}
+      END AS group_id
+
+    OPTIONAL MATCH (group:Group)
+    WHERE id(group) = toInt(group_id)
+    WITH collect(group) as groups, application
+    FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
+
+    // Return the application
+    RETURN application
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.body.application_id,
+    group_ids: req.body.group_ids,
+  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+})
+
+app.post('/make_application_visible_to_group', check_authentication, (req, res) => {
+  // Deletes all relationships to groups and recreate them
+  var session = driver.session();
+  session
+  .run(`
+    // Find the application
+    // Only the applicant can make the update
+    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
+    WHERE id(application)=toInt({application_id})
+      AND id(user)=toInt({user_id})
+
+    // Find the group
+    WITH application
+    MATCH (group:Group)
+    WHERE id(group)=toInt({group_id})
+
+    // Create the application
+    MERGE (application)-[:VISIBLE_TO]->(group)
+
+    // Return the application
+    RETURN application
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.body.application_id,
+    group_id: req.body.group_id,
+  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+})
+
+app.post('/remove_application_visibility_to_group', check_authentication, (req, res) => {
+  // Deletes all relationships to groups and recreate them
+  var session = driver.session();
+  session
+  .run(`
+    // Find the application
+    // Only the applicant can make the update
+    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
+    WHERE id(application)=toInt({application_id})
+      AND id(user)=toInt({user_id})
+
+    // Find the group
+    WITH application
+    MATCH (application)-[rel:VISIBLE_TO]->(group)
+    WHERE id(group)=toInt({group_id})
+
+    // delete the relationship
+    DELETE rel
+
+    // Return the application
+    RETURN application
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.body.application_id,
+    group_id: req.body.group_id,
+  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
 })
 
 
@@ -394,6 +524,8 @@ app.get('/received_applications/rejected',check_authentication, (req, res) => {
 app.get('/application',check_authentication, (req, res) => {
   // Get a single application using its ID
 
+  // TODO: should return a single record
+
   var session = driver.session()
   session
   .run(`
@@ -407,11 +539,7 @@ app.get('/application',check_authentication, (req, res) => {
     WHERE id(application) = toInt({application_id})
 
     // Enforce privacy
-    WITH user, application
-    WHERE NOT application.private
-      OR NOT EXISTS(application.private)
-      OR (application)-[:SUBMITTED_BY]->(user)
-      OR (application)-[:SUBMITTED_TO]->(user)
+    ${visibility_enforcement}
 
     // Find applicant
     WITH application
@@ -426,17 +554,11 @@ app.get('/application',check_authentication, (req, res) => {
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
     // Find rejections
-    // MAYBE COULD GET BOTH AT THE SAME TIME WITH WHERE LABEL(r) = "APPROVED" OR LABEL(r)
     WITH application, applicant, submitted_by, recipient, submitted_to, approval
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
-    // get the application template if exists
-    // THIS IS NOT REALLY USEFUL AND ADDS COMPLEXITY
-    WITH application, applicant, submitted_by, recipient, submitted_to, approval, rejection
-    OPTIONAL MATCH (application)-[:BASED_ON]->(aft:ApplicationFormTemplate)
-
     // Return everything
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection, aft
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
 
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
@@ -450,14 +572,139 @@ app.get('/application',check_authentication, (req, res) => {
     res.status(500).send(`Error accessing DB: ${error}`)
   })
   .finally(() => { session.close() })
+})
 
+app.get('/application/applicant',check_authentication, (req, res) => {
+  // Get the applicant of an application
+  // Todo: return a single record
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:Employee)
+    WHERE id(user)=toInt({user_id})
 
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Find applicant
+    WITH application
+    MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+
+    // Return queried items
+    RETURN applicant, submitted_by, application
+
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.query.application_id,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+})
+
+app.get('/application/recipients',check_authentication, (req, res) => {
+  // Get a the recipients of a single application
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:Employee)
+    WHERE id(user)=toInt({user_id})
+
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Find applicant (not necessary here but doens't cost much to add in the query)
+    WITH application
+    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+
+    // Find recipients
+    WITH application, applicant, submitted_by
+    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
+
+    // Find approvals
+    WITH application, applicant, submitted_by, recipient, submitted_to
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
+
+    // Find rejections
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval
+    OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
+
+    // Return everything
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+
+    // Ordering flow
+    ORDER BY submitted_to.flow_index DESC
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.query.application_id,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+})
+
+app.get('/application/visibility',check_authentication, (req, res) => {
+  // Get a the recipients of a single application
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:Employee)
+    WHERE id(user)=toInt({user_id})
+
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Find groups the application is visible to
+    WITH application
+    MATCH (application)-[:VISIBLE_TO]->(group:Group)
+
+    // Return
+    RETURN group
+
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.query.application_id,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
 })
 
 app.post('/find_application_by_hanko',check_authentication, (req, res) => {
   // Get a single application using the ID of its approval
 
-  // TODO: Make it a GET request
+  // TODO: Make it a GET request?
+
+  // NOT SECURE!
 
   var session = driver.session()
   session
@@ -498,7 +745,8 @@ app.post('/approve_application',check_authentication, (req, res) => {
     MERGE (application)<-[:APPROVED {date: date()}]-(recipient)
 
     // RETURN APPLICATION
-    RETURN application, recipient`, {
+    RETURN application, recipient
+    `, {
     user_id: res.locals.user.identity.low,
     application_id: req.body.application_id,
   })
@@ -522,6 +770,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
     WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
 
     // TODO: Add check if flow is respected
+    // Working fine without apparently
 
     // Mark as REJECTED
     WITH application, recipient
@@ -546,9 +795,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
 
 
 app.post('/create_application_form_template', check_authentication, (req, res) => {
-
   // Create application form template
-
   var session = driver.session()
   session
   .run(`
