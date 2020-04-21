@@ -542,18 +542,22 @@ app.get('/application',check_authentication, (req, res) => {
     ${visibility_enforcement}
 
     // Find applicant
+    // (not necessary here but doesn't cost much to add in the query)
     WITH application
     OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
 
     // Find recipients
+    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by
     OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
 
     // Find approvals
+    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by, recipient, submitted_to
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
     // Find rejections
+    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by, recipient, submitted_to, approval
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
@@ -663,7 +667,7 @@ app.get('/application/recipients',check_authentication, (req, res) => {
 })
 
 app.get('/application/visibility',check_authentication, (req, res) => {
-  // Get a the recipients of a single application
+  // Get a the groups an application is visible to
 
   var session = driver.session()
   session
@@ -810,16 +814,24 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
 
     // visibility (shared with)
     WITH aft
-    MATCH (g)
-    WHERE id(g)=toInt({target_id})
-    CREATE (aft)-[:VISIBLE_TO]->(g)
+    UNWIND
+      CASE
+        WHEN {group_ids} = []
+          THEN [null]
+        ELSE {group_ids}
+      END AS group_id
+
+    OPTIONAL MATCH (group:Group)
+    WHERE id(group) = toInt(group_id)
+    WITH collect(group) as groups, aft
+    FOREACH(group IN groups | CREATE (aft)-[:VISIBLE_TO]->(group))
 
     // RETURN
     RETURN aft`, {
     user_id: res.locals.user.identity.low,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
-    target_id: req.body.target_id,
+    group_ids: req.body.group_ids,
   })
   .then((result) => {
     res.send(result.records)
@@ -834,7 +846,6 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
 
 app.post('/edit_application_form_template', check_authentication, (req, res) => {
 
-
   var session = driver.session()
   session
   .run(`
@@ -847,27 +858,42 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
     SET aft.label={label}
 
     // update visibility (shared with)
+    // first delete everything
     WITH aft
-    MATCH (aft)-[vis:VISIBLE_TO]->(g)
+    MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
     DETACH DELETE vis
+
+    // recreate
+    // Note: can be an empty set so the logic to deal with it looks terrible
     WITH aft
-    MATCH (g)
-    WHERE id(g)=toInt({target_id})
-    CREATE (aft)-[:VISIBLE_TO]->(g)
+    UNWIND
+      CASE
+        WHEN {group_ids} = []
+          THEN [null]
+        ELSE {group_ids}
+      END AS group_id
+
+    OPTIONAL MATCH (group:Group)
+    WHERE id(group) = toInt(group_id)
+    WITH collect(group) as groups, aft
+    FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
 
     // RETURN
     RETURN aft`, {
     user_id: res.locals.user.identity.low,
     id: req.body.id,
-    fields: JSON.stringify(req.body.fields),
+    fields: JSON.stringify(req.body.fields), // cannot have nested props
     label: req.body.label,
-    target_id: req.body.target_id
+    group_ids: req.body.group_ids
   })
   .then((result) => {
     res.send(result.records)
     console.log(`Application template ${result.records[0].get('aft').identity.low} got edited`)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`DB error: ${error}`)
+  })
   .finally(() => { session.close() })
 
 })
@@ -906,27 +932,62 @@ app.get('/all_application_form_templates_visible_to_user', check_authentication,
   var session = driver.session()
   session
   .run(`
-    MATCH (creator:Employee)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)-[:VISIBLE_TO]->(g)<-[:BELONGS_TO]-(employee:Employee)
-    WHERE id(employee) = toInt({user_id})
-    RETURN aft, creator, g`, {
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+
+    MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
+    WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+
+    RETURN DISTINCT aft, creator`, {
     user_id: res.locals.user.identity.low,
     })
   .then((result) => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+})
+
+app.get('/application_form_templates_shared_with_user', check_authentication, (req, res) => {
+
+  // Create application form template
+  var session = driver.session()
+  session
+  .run(`
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+
+    MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
+    WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+      AND NOT id(user)=id(creator)
+
+    RETURN DISTINCT aft, creator`, {
+    user_id: res.locals.user.identity.low,
+    })
+  .then((result) => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 })
 
 app.get('/application_form_templates_from_user', check_authentication, (req, res) => {
   // Get application form template of a the current user
+  // This is not secure
   var session = driver.session()
   session
   .run(`
-    // Find creator
-    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    // Find user
+    MATCH (creator:User)
     WHERE id(creator) = toInt({user_id})
 
+    // Find the templates of the user
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+
     // RETURN
-    RETURN aft, g`, {
+    RETURN aft`, {
     user_id: res.locals.user.identity.low,
   })
   .then((result) => { res.send(result.records) })
@@ -935,14 +996,44 @@ app.get('/application_form_templates_from_user', check_authentication, (req, res
 })
 
 app.get('/application_form_template', check_authentication, (req, res) => {
-
   // get a single  application form template
   var session = driver.session()
   session
   .run(`
-    MATCH (g)<-[:VISIBLE_TO]-(aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    MATCH (g)<-[:VISIBLE_TO]-(aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
     WHERE id(aft) = toInt({id})
-    RETURN aft, g, creator`, {
+    RETURN aft, creator`, {
+    user_id: res.locals.user.identity.low,
+    id: req.query.id,
+  })
+  .then((result) => { res.send(result.records) })
+  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+})
+
+app.get('/application_form_template/visibility', check_authentication, (req, res) => {
+  // get a single  application form template
+  var session = driver.session()
+  session
+  .run(`
+    // Find the template
+    MATCH (aft:ApplicationFormTemplate)
+    WHERE id(aft) = toInt({id})
+
+    // Find the current user
+    WITH aft
+    MATCH (user:User)
+    WHERE id(user) = toInt({user_id})
+
+    // enforce visibility
+    WITH aft, user
+    WHERE (aft)-[:CREATED_BY]->(user)
+      OR (user)-[:BELONGS_TO]->(:Group)<-[:VISIBLE_TO]-(aft)
+
+    MATCH (group:Group)<-[:VISIBLE_TO]-(aft)
+
+    RETURN group`, {
+    user_id: res.locals.user.identity.low,
     id: req.query.id,
   })
   .then((result) => { res.send(result.records) })
@@ -999,11 +1090,7 @@ app.get('/file', check_authentication, (req, res) => {
     WHERE application.form_data CONTAINS {file_id}
 
     // Enforce privacy
-    WITH user, application
-    WHERE NOT application.private
-      OR NOT EXISTS(application.private)
-      OR (application)-[:SUBMITTED_BY]->(user)
-      OR (application)-[:SUBMITTED_TO]->(user)
+    ${visibility_enforcement}
 
     return application
     `, {
