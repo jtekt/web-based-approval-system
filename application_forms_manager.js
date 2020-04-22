@@ -703,7 +703,7 @@ app.get('/application/visibility',check_authentication, (req, res) => {
   .finally(() => { session.close() })
 })
 
-app.post('/find_application_by_hanko',check_authentication, (req, res) => {
+app.post('/find_application_id_by_hanko',check_authentication, (req, res) => {
   // Get a single application using the ID of its approval
 
   // TODO: Make it a GET request?
@@ -718,12 +718,18 @@ app.post('/find_application_by_hanko',check_authentication, (req, res) => {
     WHERE id(approval) = toInt({approval_id})
 
     // Return everything
-    RETURN application
+    RETURN id(application) as id
     `, {
     approval_id: req.body.approval_id,
   })
-  .then(result => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .then(result => {
+    if(result.records.length < 1) return res.status(404).send(`Application not found`)
+    res.send({id: result.records[0].get('id').low})
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 
