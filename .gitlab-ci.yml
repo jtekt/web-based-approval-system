@@ -9,15 +9,24 @@ variables:
 containerization:
   stage: containerization
   script:
+    # If docker registry password provided, attempt login
+    - if [ -z ${CONTAINER_REGISTRY_PASSWORD} ];
+    then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
+    else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
+    fi
+    # Copy the environment variables file from GitLab
     - cp ${ENV} ./.env
+    # Build the docker image. Pass proxy variables if set
     - >
       docker build
       --build-arg HTTP_PROXY=$HTTP_PROXY
       --build-arg HTTPS_PROXY=$HTTPS_PROXY
       -t ${DOCKER_IMAGE}
       .
+    # Pushing image to registry
     - docker push ${DOCKER_IMAGE}
-    - docker image rm ${DOCKER_IMAGE} # Cleanup
+    # Cleanup
+    - docker image rm ${DOCKER_IMAGE}
 
 deployment:
   stage: deployment
@@ -25,10 +34,18 @@ deployment:
     - envsubst < deployment.yml | kubectl apply -f -
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
-    - if [ -z ${SERVICE_PORT} ]; then echo "SERVICE_PORT not set"; else envsubst < nodeport_service.yml | kubectl apply -f -; fi
+    - >
+      if [ -z ${SERVICE_PORT} ];
+      then echo "SERVICE_PORT not set";
+      else envsubst < nodeport_service.yml | kubectl apply -f -;
+      fi
     # if a domain name is specified, serve app through an ingress
-    # - [[ -z ${CERTIFICATE_DOMAIN}]] || - envsubst < ingress.yml | kubectl apply -f -
+    - >
+      if [ -z ${CERTIFICATE_DOMAIN} ];
+      then echo "CERTIFICATE_DOMAIN not set";
+      else envsubst < ingress.yml | kubectl apply -f -;
+      fi
   environment:
     name: production
     kubernetes:
-      namespace: ${KUBERNETES_NAMESPACE}
+      namespace: ${KUBERNETES_NAMESPACE} # Obtained from GitLab
