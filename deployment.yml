@@ -33,11 +33,12 @@ spec:
         image: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
         imagePullPolicy: Always
         ports:
-        - containerPort: 9723
+        - containerPort: 80
         volumeMounts:
         - mountPath: "/usr/share/pv"
           name: ${APPLICATION_NAME}
-
+      imagePullSecrets:
+      - name: registry-credentials # Credentials to pull image from registry
 ---
 apiVersion: v1
 kind: Service
@@ -45,7 +46,7 @@ metadata:
   name: ${APPLICATION_NAME}
 spec:
   ports:
-  - port: 9723
+  - port: 80
     nodePort: ${SERVICE_PORT}
   selector:
     app: ${APPLICATION_NAME}

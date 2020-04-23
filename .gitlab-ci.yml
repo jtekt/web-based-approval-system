@@ -5,7 +5,7 @@ stages:
 variables:
   APPLICATION_NAME: shinsei-manager
   DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME} # Docker registry is obtained from the GitLab runner
-  SERVICE_PORT: 30111
+  SERVICE_PORT: 30111 # <= this depends on the environment
 
 containerization:
   stage: containerization
@@ -26,6 +26,10 @@ deployment:
   script:
     - envsubst < deployment.yml | kubectl apply -f -
     - kubectl rollout restart deployment/${APPLICATION_NAME}
+    # If a nodeport is specified, serve app through a nodeport service
+    # - [[ -z ${SERVICE_PORT}]] || - envsubst < nodeport_service.yml | kubectl apply -f -
+    # if a domain name is specified, serve app through an ingress
+    # - [[ -z ${CERTIFICATE_DOMAIN}]] || - envsubst < ingress.yml | kubectl apply -f -
   environment:
     name: production
     kubernetes:
