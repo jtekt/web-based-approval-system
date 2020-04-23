@@ -39,15 +39,3 @@ spec:
           name: ${APPLICATION_NAME}
       imagePullSecrets:
       - name: registry-credentials # Credentials to pull image from registry
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${APPLICATION_NAME}
-spec:
-  ports:
-  - port: 80
-    nodePort: ${SERVICE_PORT}
-  selector:
-    app: ${APPLICATION_NAME}
-  type: NodePort
