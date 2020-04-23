@@ -10,10 +10,11 @@ containerization:
   stage: containerization
   script:
     # If docker registry password provided, attempt login
-    - if [ -z ${CONTAINER_REGISTRY_PASSWORD} ];
-    then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
-    else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
-    fi
+    - >
+      if [ -z ${CONTAINER_REGISTRY_PASSWORD} ];
+      then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
+      else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
+      fi
     # Copy the environment variables file from GitLab
     - cp ${ENV} ./.env
     # Build the docker image. Pass proxy variables if set
