@@ -13,9 +13,6 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Custom modules
-const secrets = require('./secrets');
-
 // Make this an environment variable
 //const uploads_directory_path = path.join(__dirname, 'uploads') // for PM2 / Nodemon
 const uploads_directory_path = "/usr/share/pv" // For production
@@ -26,10 +23,10 @@ if(process.env.APP_PORT) port=process.env.APP_PORT
 
 // Switch to environment variables for those!
 var driver = neo4j.driver(
-  secrets.neo4j.url,
+  process.env.NEO4J_URL,
   neo4j.auth.basic(
-    secrets.neo4j.username,
-    secrets.neo4j.password
+    process.env.NEO4J_USERNAME,
+    process.env.NEO4J_PASSWORD
   )
 )
 
@@ -76,7 +73,7 @@ function check_authentication(req, res, next){
   }
 
   // Send JWT to authentication manager for decoding
-  axios.post(secrets.authentication_api_url, { jwt: jwt })
+  axios.post(`${process.env.AUTHENTICATION_API_URL}/decode_jwt`, { jwt: jwt })
   .then(response => {
 
     // make the response available to the rest of the route
