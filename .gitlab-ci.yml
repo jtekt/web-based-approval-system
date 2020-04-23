@@ -25,7 +25,7 @@ deployment:
     - envsubst < deployment.yml | kubectl apply -f -
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
-    - [[ -z ${SERVICE_PORT}]] || - envsubst < nodeport_service.yml | kubectl apply -f -
+    - if [ -z ${SERVICE_PORT} ]; then echo "SERVICE_PORT not set"; else - envsubst < nodeport_service.yml | kubectl apply -f -; fi
     # if a domain name is specified, serve app through an ingress
     # - [[ -z ${CERTIFICATE_DOMAIN}]] || - envsubst < ingress.yml | kubectl apply -f -
   environment:
