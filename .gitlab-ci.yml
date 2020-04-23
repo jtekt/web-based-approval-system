@@ -5,7 +5,6 @@ stages:
 variables:
   APPLICATION_NAME: shinsei-manager
   DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME} # Docker registry is obtained from the GitLab runner
-  # SERVICE PORT DEFINED IN GITLAB PROJECT VARIABLE
 
 containerization:
   stage: containerization
