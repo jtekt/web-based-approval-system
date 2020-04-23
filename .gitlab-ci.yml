@@ -37,13 +37,13 @@ deployment:
     # If a nodeport is specified, serve app through a nodeport service
     - >
       if [ -z ${SERVICE_PORT} ];
-      then echo "SERVICE_PORT not set";
+      then echo "SERVICE_PORT not set, skipping creation of NodePort service";
       else envsubst < nodeport_service.yml | kubectl apply -f -;
       fi
     # if a domain name is specified, serve app through an ingress
     - >
       if [ -z ${CERTIFICATE_DOMAIN} ];
-      then echo "CERTIFICATE_DOMAIN not set";
+      then echo "CERTIFICATE_DOMAIN not set, skipping creation of ingress";
       else envsubst < ingress.yml | kubectl apply -f -;
       fi
   environment:

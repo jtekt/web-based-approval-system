@@ -8,7 +8,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1000Gi
+      storage: ${PVC_STORAGE}
 ---
 apiVersion: apps/v1
 kind: Deployment
