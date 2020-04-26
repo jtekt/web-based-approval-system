@@ -93,7 +93,7 @@ app.post('/create_application', check_authentication, (req, res) => {
   session
   .run(`
     // Create the application node
-    MATCH (s:Employee)
+    MATCH (s:User)
     WHERE id(s)=toInt({user_id})
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
 
@@ -109,7 +109,7 @@ app.post('/create_application', check_authentication, (req, res) => {
     // Note: flow cannot be empty
     WITH a, {recipients_ids} as recipients_ids
     UNWIND range(0, size(recipients_ids)-1) as i
-    MATCH (r:Employee)
+    MATCH (r:User)
     WHERE id(r)=toInt(recipients_ids[i])
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
@@ -156,7 +156,7 @@ function delete_application(req, res){
   session
   .run(`
     // Find the application to be deleted using provided id
-    MATCH (user:Employee)<-[:SUBMITTED_BY]-(a:ApplicationForm)
+    MATCH (user:User)<-[:SUBMITTED_BY]-(a:ApplicationForm)
     WHERE id(a) = toInt({application_id})
       AND id(user)=toInt({user_id})
 
@@ -318,7 +318,7 @@ app.get('/submitted_applications',check_authentication, (req, res) => {
   var session = driver.session()
   session
   .run(`
-    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
     WHERE id(applicant)=toInt({user_id})
 
     RETURN application
@@ -339,7 +339,7 @@ app.get('/submitted_applications/pending',check_authentication, (req, res) => {
   session
   .run(`
     // Get all submissions of given application
-    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:Employee)
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:User)
     WHERE id(applicant)=toInt({user_id})
 
     // EXCLUDE REJECTS
@@ -348,7 +348,7 @@ app.get('/submitted_applications/pending',check_authentication, (req, res) => {
 
     // Get all approvals of the application
     WITH application, applicant, count(submission) as cs
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:Employee)
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
 
     WITH application, applicant, cs, count(approval) as ca
     WHERE NOT cs = ca
@@ -373,12 +373,12 @@ app.get('/submitted_applications/approved',check_authentication, (req, res) => {
   session
   .run(`
     // Get all submissions of given application
-    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:Employee)
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:User)
     WHERE id(applicant)=toInt({user_id})
 
     // Get all approvals of the application
     WITH application, applicant, count(submission) as cs
-    MATCH (application)<-[approval:APPROVED]-(:Employee)
+    MATCH (application)<-[approval:APPROVED]-(:User)
 
     // If the number of approval matches that of submissions, then completely approved
     WITH application, applicant, cs, count(approval) as ca
@@ -403,7 +403,7 @@ app.get('/submitted_applications/rejected',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted by logged user
-    MATCH (applicant:Employee)<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:Employee)
+    MATCH (applicant:User)<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:User)
     WHERE id(applicant)=toInt({user_id})
 
     //Return
@@ -428,7 +428,7 @@ app.get('/received_applications',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(recipient)=toInt({user_id})
 
     // Return
@@ -451,7 +451,7 @@ app.get('/received_applications/pending',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant:Employee)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(recipient)=toInt({user_id})
       AND NOT (application)<-[:APPROVED]-(recipient)
       AND NOT (application)<-[:REJECTED]-(recipient)
@@ -459,7 +459,7 @@ app.get('/received_applications/pending',check_authentication, (req, res) => {
 
     // Check if recipient is next in the flow
     WITH application, recipient, submission, applicant
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:Employee)
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
 
     WITH submission, application, applicant, count(approval) as approvalCount
     WHERE submission.flow_index = approvalCount
@@ -485,7 +485,7 @@ app.get('/received_applications/approved',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:Employee)
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:User)
     WHERE id(recipient)=toInt({user_id})
 
     // Return
@@ -508,7 +508,7 @@ app.get('/received_applications/rejected',check_authentication, (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(recipient:Employee)
+    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(recipient:User)
     WHERE id(recipient)=toInt({user_id})
 
     // Return
@@ -534,7 +534,7 @@ app.get('/application',check_authentication, (req, res) => {
   session
   .run(`
     // Find current user to check for authorization
-    MATCH (user:Employee)
+    MATCH (user:User)
     WHERE id(user)=toInt({user_id})
 
     // Find application and applicant
@@ -548,12 +548,12 @@ app.get('/application',check_authentication, (req, res) => {
     // Find applicant
     // (not necessary here but doesn't cost much to add in the query)
     WITH application
-    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
 
     // Find recipients
     // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by
-    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
+    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:User)
 
     // Find approvals
     // TODO: This should now be done using the /application/recipients route
@@ -589,7 +589,7 @@ app.get('/application/applicant',check_authentication, (req, res) => {
   session
   .run(`
     // Find current user to check for authorization
-    MATCH (user:Employee)
+    MATCH (user:User)
     WHERE id(user)=toInt({user_id})
 
     // Find application and applicant
@@ -602,7 +602,7 @@ app.get('/application/applicant',check_authentication, (req, res) => {
 
     // Find applicant
     WITH application
-    MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+    MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
 
     // Return queried items
     RETURN applicant, submitted_by, application
@@ -626,7 +626,7 @@ app.get('/application/recipients',check_authentication, (req, res) => {
   session
   .run(`
     // Find current user to check for authorization
-    MATCH (user:Employee)
+    MATCH (user:User)
     WHERE id(user)=toInt({user_id})
 
     // Find application and applicant
@@ -639,11 +639,11 @@ app.get('/application/recipients',check_authentication, (req, res) => {
 
     // Find applicant (not necessary here but doens't cost much to add in the query)
     WITH application
-    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:Employee)
+    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
 
     // Find recipients
     WITH application, applicant, submitted_by
-    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:Employee)
+    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:User)
 
     // Find approvals
     WITH application, applicant, submitted_by, recipient, submitted_to
@@ -677,7 +677,7 @@ app.get('/application/visibility',check_authentication, (req, res) => {
   session
   .run(`
     // Find current user to check for authorization
-    MATCH (user:Employee)
+    MATCH (user:User)
     WHERE id(user)=toInt({user_id})
 
     // Find application and applicant
@@ -749,7 +749,7 @@ app.post('/approve_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application and get oneself at the same time
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
 
     // TODO: Add check if flow is respected
@@ -780,7 +780,7 @@ app.post('/reject_application',check_authentication, (req, res) => {
   session
   .run(`
     // Find the application and get oneself at the same time
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:Employee)
+    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
 
     // TODO: Add check if flow is respected
@@ -814,7 +814,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
   session
   .run(`
     // Find creator
-    MATCH (creator:Employee)
+    MATCH (creator:User)
     WHERE id(creator) = toInt({user_id})
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
 
@@ -860,7 +860,7 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
   session
   .run(`
     // Find template
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
     WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
 
     // set properties
@@ -916,7 +916,7 @@ app.post('/delete_application_form_template', check_authentication, (req, res) =
   session
   .run(`
     // Find application
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
     WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
 
     // Delete the node
@@ -994,7 +994,7 @@ app.get('/application_form_templates_from_user', check_authentication, (req, res
     WHERE id(creator) = toInt({user_id})
 
     // Find the templates of the user
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
 
     // RETURN
     RETURN aft`, {
@@ -1010,7 +1010,7 @@ app.get('/application_form_template', check_authentication, (req, res) => {
   var session = driver.session()
   session
   .run(`
-    MATCH (g)<-[:VISIBLE_TO]-(aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:Employee)
+    MATCH (g)<-[:VISIBLE_TO]-(aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
     WHERE id(aft) = toInt({id})
     RETURN aft, creator`, {
     user_id: res.locals.user.identity.low,
@@ -1086,7 +1086,7 @@ app.get('/file', check_authentication, (req, res) => {
   session
   .run(`
     // Find current user to check for authorization
-    MATCH (user:Employee)
+    MATCH (user:User)
     WHERE id(user)=toInt({user_id})
 
     // Find application and applicant
