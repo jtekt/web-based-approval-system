@@ -32,7 +32,9 @@ containerization:
 deployment:
   stage: deployment
   script:
+    # create/update the deployment
     - envsubst < deployment.yml | kubectl apply -f -
+    # Pull latest image of deployment
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
     - >

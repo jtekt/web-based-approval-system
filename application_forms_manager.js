@@ -34,7 +34,6 @@ process.env.TZ = 'Asia/Tokyo';
 
 const toLocaleDateStringOptions = { year: 'numeric', month: 'numeric', day: 'numeric' };
 
-
 const app = express()
 
 app.use(bodyParser.json());
