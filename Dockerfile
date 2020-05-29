@@ -11,7 +11,7 @@ COPY . .
 RUN npm install
 
 # Expose port
-EXPOSE 9723
+EXPOSE 80
 
 # Run the app
 CMD [ "node", "application_forms_manager.js" ]

@@ -821,6 +821,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
     // setting all properties
     SET aft.fields={fields}
     SET aft.label={label}
+    SET aft.description={description}
 
     // visibility (shared with)
     WITH aft
@@ -841,6 +842,7 @@ app.post('/create_application_form_template', check_authentication, (req, res) =
     user_id: res.locals.user.identity.low,
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
+    description: req.body.description,
     group_ids: req.body.group_ids,
   })
   .then((result) => {
@@ -866,9 +868,11 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
     // set properties
     SET aft.fields={fields}
     SET aft.label={label}
+    SET aft.description={description}
 
     // update visibility (shared with)
     // first delete everything
+    // THIS IS A PROBLEM IF NOT VISIBLE TO ANY GROUP
     WITH aft
     MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
     DETACH DELETE vis
@@ -894,11 +898,15 @@ app.post('/edit_application_form_template', check_authentication, (req, res) => 
     id: req.body.id,
     fields: JSON.stringify(req.body.fields), // cannot have nested props
     label: req.body.label,
+    description: req.body.description,
     group_ids: req.body.group_ids
   })
   .then((result) => {
     res.send(result.records)
-    console.log(`Application template ${result.records[0].get('aft').identity.low} got edited`)
+    if(result.records.length>0){
+      console.log(`Application template ${result.records[0].get('aft').identity.low} got edited`)
+    }
+
   })
   .catch(error => {
     console.log(error)
@@ -1010,7 +1018,7 @@ app.get('/application_form_template', check_authentication, (req, res) => {
   var session = driver.session()
   session
   .run(`
-    MATCH (g)<-[:VISIBLE_TO]-(aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
+    MATCH (aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
     WHERE id(aft) = toInt({id})
     RETURN aft, creator`, {
     user_id: res.locals.user.identity.low,

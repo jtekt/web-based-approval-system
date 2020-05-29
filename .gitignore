@@ -1,6 +1,5 @@
 node_modules/
-public/uploads/
-uploads
+uploads/*
 credentials.js
 secrets.js
 .env
