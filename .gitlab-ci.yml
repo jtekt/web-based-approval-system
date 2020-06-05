@@ -18,12 +18,7 @@ containerization:
     # Copy the environment variables file from GitLab
     - cp ${ENV} ./.env
     # Build the docker image. Pass proxy variables if set
-    - >
-      docker build
-      --build-arg HTTP_PROXY=$HTTP_PROXY
-      --build-arg HTTPS_PROXY=$HTTPS_PROXY
-      -t ${DOCKER_IMAGE}
-      .
+    - docker build -t ${DOCKER_IMAGE} .
     # Pushing image to registry
     - docker push ${DOCKER_IMAGE}
     # Cleanup
