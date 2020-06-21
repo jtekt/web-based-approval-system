@@ -107,8 +107,6 @@ let delete_application = (req, res) => {
 let get_application = (req, res) => {
   // Get a single application using its ID
 
-  // TODO: should return a single record
-
   var session = driver.session()
   session
   .run(`
@@ -163,7 +161,6 @@ let get_application = (req, res) => {
 
 let get_application_applicant = (req, res) => {
   // Get the applicant of an application
-  // Todo: return a single record
   var session = driver.session()
   session
   .run(`
