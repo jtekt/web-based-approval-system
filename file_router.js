@@ -3,12 +3,16 @@ const fs = require('fs')
 const path = require('path')
 const uuidv1 = require('uuid/v1')
 const formidable = require('formidable')
+const express = require('express')
+const auth = require('./auth.js')
 
-var driver = require('./neo4j_driver.js')
+const driver = require('./neo4j_driver.js')
+
+const router = express.Router()
 
 const uploads_directory_path = "/usr/share/pv" // For production in k8s
 
-exports.file_upload = (req, res) => {
+let file_upload = (req, res) => {
   // Route to upload an attachment
   var form = new formidable.IncomingForm();
   form.parse(req, function (err, fields, files) {
@@ -31,7 +35,7 @@ exports.file_upload = (req, res) => {
   })
 }
 
-exports.get_file = (req, res) => {
+let get_file = (req, res) => {
 
   if(!('file_id' in req.query)) return res.status(400).send('File ID not specified')
 
@@ -87,3 +91,10 @@ exports.get_file = (req, res) => {
   .finally(() => { session.close() })
 
 }
+
+router.use(auth.check_auth)
+router.route('/')
+  .get(get_file)
+  .post(file_upload)
+
+module.exports = router
