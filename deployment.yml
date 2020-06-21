@@ -31,11 +31,18 @@ spec:
       containers:
       - name: ${APPLICATION_NAME}
         image: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
+        # Pull new images on restart
         imagePullPolicy: Always
         ports:
         - containerPort: 80
+        # Get environment variables from K8s
+        envFrom:
+        - secretRef:
+           name: environment-variables
+        # Mount storage to the PVC
         volumeMounts:
         - mountPath: "/usr/share/pv"
           name: ${APPLICATION_NAME}
+      # Login to the registry to pull the image
       imagePullSecrets:
-      - name: registry-credentials # Credentials to pull image from registry
+      - name: registry-credentials

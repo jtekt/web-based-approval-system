@@ -13,8 +13,7 @@ var file_management = require('./file_management.js')
 dotenv.config();
 
 
-var port = 80
-if(process.env.APP_PORT) port=process.env.APP_PORT
+const port = process.env.APP_PORT || 80
 
 process.env.TZ = 'Asia/Tokyo'
 
