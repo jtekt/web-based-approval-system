@@ -1,4 +1,9 @@
-var driver = require('./neo4j_driver.js')
+const driver = require('./neo4j_driver.js')
+const express = require('express')
+const auth = require('./auth.js')
+
+const router = express.Router()
+
 
 const visibility_enforcement = `
   WITH user, application
@@ -9,7 +14,7 @@ const visibility_enforcement = `
     OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 `
 
-exports.create_application = (req, res) => {
+let create_application = (req, res) => {
   // Route to create or edit an application
   // Todo: replace a with application
   var session = driver.session();
@@ -71,7 +76,7 @@ exports.create_application = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.delete_application = (req, res) => {
+let delete_application = (req, res) => {
   // Deleting an application
   // Only the creator can delete the application
   var session = driver.session()
@@ -86,11 +91,11 @@ exports.delete_application = (req, res) => {
     DETACH DELETE a
     `, {
     user_id: res.locals.user.identity.low,
-    application_id: req.body.application_id,
+    application_id: req.query.application_id,
   })
   .then(result => {
     res.send(result.records)
-    console.log(`Application ${req.body.application_id} deleted`)
+    console.log(`Application ${req.query.application_id} deleted`)
   })
   .catch(error => {
     console.log(error)
@@ -99,7 +104,7 @@ exports.delete_application = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.get_application = (req, res) => {
+let get_application = (req, res) => {
   // Get a single application using its ID
 
   // TODO: should return a single record
@@ -156,7 +161,7 @@ exports.get_application = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.get_application_applicant = (req, res) => {
+let get_application_applicant = (req, res) => {
   // Get the applicant of an application
   // Todo: return a single record
   var session = driver.session()
@@ -193,7 +198,7 @@ exports.get_application_applicant = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.get_application_recipients = (req, res) => {
+let get_application_recipients = (req, res) => {
   // Get a the recipients of a single application
 
   var session = driver.session()
@@ -244,7 +249,7 @@ exports.get_application_recipients = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.get_application_visibility = (req, res) => {
+let get_application_visibility = (req, res) => {
   // Get a the groups an application is visible to
 
   var session = driver.session()
@@ -281,7 +286,7 @@ exports.get_application_visibility = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.approve_application = (req, res) => {
+let approve_application = (req, res) => {
 
   // TODO: Add check for application flow index
   // REALLY?
@@ -315,7 +320,7 @@ exports.approve_application = (req, res) => {
 
 }
 
-exports.reject_application = (req, res) => {
+let reject_application = (req, res) => {
   // basically the opposite of putting a hanko
 
   var session = driver.session()
@@ -348,7 +353,7 @@ exports.reject_application = (req, res) => {
 
 }
 
-exports.update_privacy_of_application = (req, res) => {
+let update_privacy_of_application = (req, res) => {
   // Route to create or edit an application
 
   var session = driver.session();
@@ -376,7 +381,7 @@ exports.update_privacy_of_application = (req, res) => {
 
 }
 
-exports.update_application_visibility = (req, res) => {
+let update_application_visibility = (req, res) => {
   // Deletes all relationships to groups and recreate them
   var session = driver.session();
   session
@@ -419,7 +424,7 @@ exports.update_application_visibility = (req, res) => {
 }
 
 
-exports.make_application_visible_to_group = (req, res) => {
+let make_application_visible_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
   var session = driver.session();
   session
@@ -450,7 +455,7 @@ exports.make_application_visible_to_group = (req, res) => {
   .finally(() => { session.close() })
 }
 
-exports.remove_application_visibility_to_group = (req, res) => {
+let remove_application_visibility_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
   var session = driver.session();
   session
@@ -473,229 +478,17 @@ exports.remove_application_visibility_to_group = (req, res) => {
     RETURN application
     `, {
     user_id: res.locals.user.identity.low,
-    application_id: req.body.application_id,
-    group_id: req.body.group_id,
+    application_id: req.query.application_id,
+    group_id: req.query.group_id,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
 
-exports.get_submitted_applications = (req, res) => {
-  // Get all applications submitted by the logged in user
-  var session = driver.session()
-  session
-  .run(`
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-    WHERE id(applicant)=toInt({user_id})
 
-    RETURN application
-    ORDER BY application.creation_date DESC
-    `, {
-    user_id: res.locals.user.identity.low,
-  })
-  .then(result => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-exports.get_submitted_applications_pending = (req, res) => {
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get all submissions of given application
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    // EXCLUDE REJECTS
-    WITH application, applicant, submission
-    WHERE NOT ()-[:REJECTED]->(application)
-
-    // Get all approvals of the application
-    WITH application, applicant, count(submission) as cs
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
-
-    WITH application, applicant, cs, count(approval) as ca
-    WHERE NOT cs = ca
-
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
-    user_id: res.locals.user.identity.low,
-  })
-  .then(result => {res.send(result.records)})
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-exports.get_submitted_applications_approved = (req, res) => {
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get all submissions of given application
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    // Get all approvals of the application
-    WITH application, applicant, count(submission) as cs
-    MATCH (application)<-[approval:APPROVED]-(:User)
-
-    // If the number of approval matches that of submissions, then completely approved
-    WITH application, applicant, cs, count(approval) as ca
-    WHERE cs = ca
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
-    user_id: res.locals.user.identity.low,
-  })
-  .then(result => {
-    // THIS SHOULD BE RECORDS!
-    res.send(result.records)
-  })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-}
-
-
-exports.get_submitted_applications_rejected = (req, res) => {
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get applications submitted by logged user
-    MATCH (applicant:User)<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    //Return
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
-    user_id: res.locals.user.identity.low,
-  })
-  .then(result => {
-    res.send(result.records)
-  })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-
-exports.get_received_applications = (req, res) => {
-  // Returns applications rceived by the logged in user
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get applications submitted to logged user
-    MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
-
-    // Return
-    RETURN application
-    ORDER BY application.creation_date DESC
-    `, {
-      user_id: res.locals.user.identity.low,
-  })
-  .then((result) => {   res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-exports.get_received_applications_pending = (req, res) => {
-  // Returns applications submitted to a user but not yet approved
-  var session = driver.session()
-  session
-  .run(`
-    // Get applications submitted to logged user
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
-      AND NOT (application)<-[:APPROVED]-(recipient)
-      AND NOT (application)<-[:REJECTED]-(recipient)
-
-
-    // Check if recipient is next in the flow
-    WITH application, recipient, submission, applicant
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
-
-    WITH submission, application, applicant, count(approval) as approvalCount
-    WHERE submission.flow_index = approvalCount
-
-    // Return
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
-      user_id: res.locals.user.identity.low,
-  })
-  .then((result) => {
-    res.send(result.records)
-  })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-
-exports.get_received_applications_approved = (req, res) => {
-  // Returns applications approved by a user
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
-
-    // Return
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC`, {
-      user_id: res.locals.user.identity.low,
-  })
-  .then( (result) => {
-    res.send(result.records)
-  })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-
-exports.get_received_applications_rejected = (req, res) => {
-  // Returns applications rejected by a user
-
-  var session = driver.session()
-  session
-  .run(`
-    // Get applications submitted to logged user
-    MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
-
-    // Return
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
-      user_id: res.locals.user.identity.low,
-  })
-  .then((result) => {
-    res.send(result.records)
-  })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-
-}
-
-
-exports.find_application_id_by_hanko = (req, res) => {
+let find_application_id_by_hanko = (req, res) => {
   // Get a single application using the ID of its approval
-
-  // TODO: Make it a GET request?
 
   // NOT SECURE!
 
@@ -709,7 +502,7 @@ exports.find_application_id_by_hanko = (req, res) => {
     // Return everything
     RETURN id(application) as id
     `, {
-    approval_id: req.body.approval_id,
+    approval_id: req.query.approval_id,
   })
   .then(result => {
     if(result.records.length < 1) return res.status(404).send(`Application not found`)
@@ -720,6 +513,43 @@ exports.find_application_id_by_hanko = (req, res) => {
     res.status(500).send(`Error accessing DB: ${error}`)
   })
   .finally(() => { session.close() })
-
-
 }
+
+router.use(auth.check_auth)
+
+router.route('/')
+  .get(get_application)
+  .post(create_application)
+  .delete(delete_application)
+
+router.route('/approve')
+  .post(approve_application)
+  .put(approve_application)
+
+router.route('/reject')
+  .post(reject_application)
+  .put(reject_application)
+
+router.route('/privacy')
+  .put(update_privacy_of_application)
+
+router.route('/visibility')
+  .get(get_application_visibility)
+  .put(update_application_visibility)
+
+router.route('/visibility_to_group')
+  .post(make_application_visible_to_group)
+  .delete(remove_application_visibility_to_group)
+
+router.route('/applicant')
+  .get(get_application_applicant)
+
+router.route('/recipients')
+  .get(get_application_recipients)
+
+router.route('/by_hanko')
+  .get(find_application_id_by_hanko)
+
+
+
+module.exports = router

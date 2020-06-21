@@ -6,7 +6,9 @@ const dotenv = require('dotenv')
 // Local imports
 var driver = require('./neo4j_driver.js')
 var auth = require('./auth.js')
-var application_management = require('./application_management.js')
+var application_router = require('./application_router.js')
+var applications_router = require('./applications_router.js')
+
 var template_management = require('./template_management.js')
 var file_management = require('./file_management.js')
 
@@ -22,42 +24,14 @@ const app = express()
 app.use(bodyParser.json())
 app.use(cors())
 
+app.get('/', (req,res) => {
+  res.send('Shinsei manager API, Maxime MOREILLON')
+})
+
 // Application management
-app.get('/application',auth.check_auth, application_management.get_application)
-app.get('/application/applicant',auth.check_auth, application_management.get_application_applicant)
-app.get('/application/recipients',auth.check_auth, application_management.get_application_recipients)
-app.get('/application/visibility',auth.check_auth, application_management.get_application_visibility)
+app.use('/application', application_router)
+app.use('/applications', applications_router)
 
-app.get('/submitted_applications',auth.check_auth, application_management.get_submitted_applications)
-app.get('/submitted_applications/pending',auth.check_auth, application_management.get_submitted_applications_pending)
-app.get('/submitted_applications/approved',auth.check_auth, application_management.get_submitted_applications_approved)
-app.get('/submitted_applications/rejected',auth.check_auth, application_management.get_submitted_applications_rejected)
-
-app.get('/received_applications',auth.check_auth, application_management.get_received_applications)
-app.get('/received_applications/pending',auth.check_auth, application_management.get_received_applications_pending)
-app.get('/received_applications/approved',auth.check_auth, application_management.get_received_applications_approved)
-app.get('/received_applications/rejected',auth.check_auth, application_management.get_received_applications_rejected)
-
-app.post('/application', auth.check_auth, application_management.create_application)
-app.post('/create_application', auth.check_auth, application_management.create_application) // Route alias for legacy support
-
-app.delete('/application',auth.check_auth, application_management.delete_application)
-app.delete('/delete_application',auth.check_auth, application_management.delete_application) // Route alias for legacy support
-app.post('/delete_application',auth.check_auth, application_management.delete_application)// Route alias for legacy support
-
-app.post('/approve_application',auth.check_auth, application_management.approve_application)
-app.post('/reject_application',auth.check_auth, application_management.reject_application)
-
-app.put('/privacy_of_application', auth.check_auth, application_management.update_privacy_of_application)
-app.post('/update_privacy_of_application', auth.check_auth, application_management.update_privacy_of_application) // Route alias for legacy support
-
-app.put('/application_visibility', auth.check_auth, application_management.update_application_visibility) // Route alias for legacy support
-app.post('/update_application_visibility', auth.check_auth, application_management.update_application_visibility) // Route alias for legacy support
-
-app.post('/make_application_visible_to_group', auth.check_auth, application_management.make_application_visible_to_group) // Not sure if  used anymore
-app.post('/remove_application_visibility_to_group', auth.check_auth, application_management.remove_application_visibility_to_group) // Not sure if  used anymore
-
-app.post('/find_application_id_by_hanko',auth.check_auth, application_management.find_application_id_by_hanko)
 
 
 // Templates management
