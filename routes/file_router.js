@@ -4,9 +4,9 @@ const path = require('path')
 const uuidv1 = require('uuid/v1')
 const formidable = require('formidable')
 const express = require('express')
-const auth = require('./auth.js')
 
-const driver = require('./neo4j_driver.js')
+const driver = require('../neo4j_driver.js')
+const auth = require('../auth.js')
 
 const router = express.Router()
 
@@ -30,6 +30,7 @@ let file_upload = (req, res) => {
     mv(old_path, new_file_path, {mkdirp: true}, (err) => {
       if (err) return res.status(500).send('Error saving the file')
       res.send(new_directory_name)
+      console.log(`${file_name} uploaded`)
     });
 
   })

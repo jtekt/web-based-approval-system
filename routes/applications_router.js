@@ -1,6 +1,7 @@
-const driver = require('./neo4j_driver.js')
 const express = require('express')
-const auth = require('./auth.js')
+
+const driver = require('../neo4j_driver.js')
+const auth = require('../auth.js')
 
 const router = express.Router()
 const submitted_applications_router = express.Router()

@@ -6,10 +6,12 @@ const dotenv = require('dotenv')
 // Local imports
 var driver = require('./neo4j_driver.js')
 var auth = require('./auth.js')
-var application_router = require('./application_router.js')
-var applications_router = require('./applications_router.js')
-var template_router = require('./template_router.js')
-var file_router = require('./file_router.js')
+
+// routes
+var application_router = require('./routes/application_router.js')
+var applications_router = require('./routes/applications_router.js')
+var template_router = require('./routes/template_router.js')
+var file_router = require('./routes/file_router.js')
 
 dotenv.config()
 
