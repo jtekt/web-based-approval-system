@@ -29,8 +29,6 @@ router.route('/:application_id')
   .get(controller.get_application)
   .delete(controller.delete_application)
 
-
-
 router.route('/:application_id/approve')
   .post(controller.approve_application)
   .put(controller.approve_application)

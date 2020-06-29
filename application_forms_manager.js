@@ -8,6 +8,7 @@ dotenv.config()
 process.env.TZ = 'Asia/Tokyo'
 
 const port = process.env.APP_PORT || 80
+
 const app = express()
 
 app.use(bodyParser.json())
@@ -19,6 +20,4 @@ app.use('/applications', require('./routes/applications.js'))
 app.use('/application_form_templates', require('./routes/templates.js'))
 app.use('/files', require('./routes/files.js'))
 
-
-// Start the server
-app.listen(port, () => console.log(`Application form manager listening on 0.0.0.0:${port}`))
+app.listen(port, () => console.log(`Application form manager listening on port ${port}`))
