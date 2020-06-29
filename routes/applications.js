@@ -22,12 +22,14 @@ router.route('/received/pending').get(controller.get_received_applications_pendi
 router.route('/received/approved').get(controller.get_received_applications_approved)
 router.route('/received/rejected').get(controller.get_received_applications_rejected)
 
+router.route('/find_by_hanko')
+  .get(controller.find_application_id_by_hanko)
+
 router.route('/:application_id')
   .get(controller.get_application)
   .delete(controller.delete_application)
 
-router.route('/:application_id/by_hanko')
-  .get(controller.find_application_id_by_hanko)
+
 
 router.route('/:application_id/approve')
   .post(controller.approve_application)
