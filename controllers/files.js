@@ -3,16 +3,12 @@ const fs = require('fs')
 const path = require('path')
 const uuidv1 = require('uuid/v1')
 const formidable = require('formidable')
-const express = require('express')
-
 const driver = require('../neo4j_driver.js')
-const auth = require('../auth.js')
-
-const router = express.Router()
 
 const uploads_directory_path = "/usr/share/pv" // For production in k8s
 
-let file_upload = (req, res) => {
+
+exports.file_upload = (req, res) => {
   // Route to upload an attachment
   var form = new formidable.IncomingForm();
   form.parse(req, function (err, fields, files) {
@@ -36,12 +32,18 @@ let file_upload = (req, res) => {
   })
 }
 
-let get_file = (req, res) => {
+exports.get_file = (req, res) => {
 
-  if(!('file_id' in req.query)) return res.status(400).send('File ID not specified')
+  let file_id = req.params.file_id
+    || req.query.file_id
+
+  if(!file_id) return res.status(400).send('File ID not specified')
 
   // Application ID not strictly neccessary but helps find the file more easily
-  if(!('application_id' in req.query)) return res.status(400).send('Application ID not specified')
+  let application_id = req.params.application_id
+    || req.query.application_id
+
+  if(!application_id) return res.status(400).send('Application ID not specified')
 
   var session = driver.session()
   session
@@ -70,32 +72,24 @@ let get_file = (req, res) => {
 
     return application
     `, {
-    file_id: req.query.file_id,
-    application_id: req.query.application_id,
-    user_id: res.locals.user.identity.low,
+      user_id: res.locals.user.identity.low,
+      file_id: file_id,
+      application_id: application_id,
   })
   .then((result) => {
     if(result.records.length === 0) return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
-    else {
 
-      var directory_path = path.join(uploads_directory_path, req.query.file_id)
 
-      fs.readdir(directory_path, (err, items) => {
-        if(err) return res.status(500).send("Error reading uploads directory")
-        // Send first file in the directory
-        res.download( path.join(directory_path, items[0]),items[0] )
-      });
+    let directory_path = path.join(uploads_directory_path, file_id)
 
-    }
+    fs.readdir(directory_path, (err, items) => {
+      if(err) return res.status(500).send("Error reading uploads directory")
+      // Send first file in the directory
+      res.download( path.join(directory_path, items[0]),items[0] )
+    });
+
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
 }
-
-router.use(auth.check_auth)
-router.route('/')
-  .get(get_file)
-  .post(file_upload)
-
-module.exports = router

@@ -1,13 +1,9 @@
-const express = require('express')
-
 const driver = require('../neo4j_driver.js')
-const auth = require('../auth.js')
-
-const router = express.Router()
 
 
-let create_application_form_template = (req, res) => {
+exports.create_application_form_template = (req, res) => {
   // Create application form template
+
   var session = driver.session()
   session
   .run(`
@@ -53,14 +49,21 @@ let create_application_form_template = (req, res) => {
 }
 
 
-let edit_application_form_template = (req, res) => {
+exports.edit_application_form_template = (req, res) => {
+
+  let template_id = req.params.template_id
+    || req.query.template_id
+    || req.query.id
+    || req.body.template_id
+    || req.body.id
 
   var session = driver.session()
   session
   .run(`
     // Find template
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
+    WHERE id(aft) = toInt({template_id})
+      AND id(creator) = toInt({user_id})
 
     // set properties
     SET aft.fields={fields}
@@ -90,9 +93,10 @@ let edit_application_form_template = (req, res) => {
     FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
 
     // RETURN
-    RETURN aft`, {
+    RETURN aft
+    `, {
     user_id: res.locals.user.identity.low,
-    id: req.body.id,
+    template_id: template_id,
     fields: JSON.stringify(req.body.fields), // cannot have nested props
     label: req.body.label,
     description: req.body.description,
@@ -108,19 +112,20 @@ let edit_application_form_template = (req, res) => {
 }
 
 
-let delete_application_form_template = (req, res) => {
+exports.delete_application_form_template = (req, res) => {
   // Delete application form template
 
-  var id = undefined
-  if('id' in req.query) id = req.query.id
-  if('id' in req.body) id = req.body.id
+  let template_id = req.params.template_id
+    || req.query.template_id
+    || req.query.id
 
   var session = driver.session()
   session
   .run(`
     // Find application
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({id}) AND id(creator) = toInt({user_id})
+    WHERE id(aft) = toInt({template_id})
+      AND id(creator) = toInt({user_id})
 
     // Delete the node
     DETACH DELETE aft
@@ -128,41 +133,51 @@ let delete_application_form_template = (req, res) => {
     // RETURN
     RETURN creator`, {
     user_id: res.locals.user.identity.low,
-    id: id,
+    template_id: template_id,
   })
   .then((result) => {
     res.send(result.records)
-    console.log(`Application template ${req.body.id} got deleted`)
+    console.log(`Application template ${template_id} got deleted`)
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
 
 
-let get_application_form_template = (req, res) => {
+exports.get_application_form_template = (req, res) => {
   // get a single  application form template
+
+  let template_id = req.params.template_id
+    || req.query.template_id
+    || req.query.id
+
   var session = driver.session()
   session
   .run(`
     MATCH (aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({id})
+    WHERE id(aft) = toInt({template_id})
     RETURN aft, creator`, {
     user_id: res.locals.user.identity.low,
-    id: req.query.id,
+    template_id: template_id,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
 
-let get_application_form_template_visibility = (req, res) => {
+exports.get_application_form_template_visibility = (req, res) => {
   // get a single  application form template
+
+  let template_id = req.params.template_id
+    || req.query.template_id
+    || req.query.id
+
   var session = driver.session()
   session
   .run(`
     // Find the template
     MATCH (aft:ApplicationFormTemplate)
-    WHERE id(aft) = toInt({id})
+    WHERE id(aft) = toInt({template_id})
 
     // Find the current user
     WITH aft
@@ -178,14 +193,14 @@ let get_application_form_template_visibility = (req, res) => {
 
     RETURN group`, {
     user_id: res.locals.user.identity.low,
-    id: req.query.id,
+    template_id: template_id,
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
 
-let get_all_application_form_templates_visible_to_user = (req, res) => {
+exports.get_all_application_form_templates_visible_to_user = (req, res) => {
 
   // Create application form template
   var session = driver.session()
@@ -208,7 +223,7 @@ let get_all_application_form_templates_visible_to_user = (req, res) => {
   .finally(() => { session.close() })
 }
 
-let get_application_form_templates_shared_with_user = (req, res) => {
+exports.get_application_form_templates_shared_with_user = (req, res) => {
   var session = driver.session()
   session
   .run(`
@@ -231,7 +246,7 @@ let get_application_form_templates_shared_with_user = (req, res) => {
 }
 
 
-let get_application_form_templates_from_user = (req, res) => {
+exports.get_application_form_templates_from_user = (req, res) => {
   // Get application form template of a the current user
   var session = driver.session()
   session
@@ -251,19 +266,3 @@ let get_application_form_templates_from_user = (req, res) => {
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
-
-
-
-router.use(auth.check_auth)
-router.route('/')
-  .get(get_application_form_template)
-  .post(create_application_form_template)
-  .put(edit_application_form_template)
-  .delete(delete_application_form_template)
-
-router.route('/visibility').get(get_application_form_template_visibility)
-router.route('/visible_to_user').get(get_all_application_form_templates_visible_to_user)
-router.route('/shared_with_user').get(get_application_form_templates_shared_with_user)
-router.route('/made_by_user').get(get_application_form_templates_from_user)
-
-module.exports = router
