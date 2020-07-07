@@ -11,7 +11,7 @@ const visibility_enforcement = `
 
 exports.create_application = (req, res) => {
   // Route to create or edit an application
-  // Todo: replace a with application
+
   var session = driver.session();
   session
   .run(`
@@ -577,6 +577,9 @@ exports.find_application_id_by_hanko = (req, res) => {
 
 exports.get_submitted_applications = (req, res) => {
   // Get all applications submitted by the logged in user
+
+  // UNUSED
+  
   var session = driver.session()
   session
   .run(`
@@ -596,27 +599,38 @@ exports.get_submitted_applications = (req, res) => {
 
 exports.get_submitted_applications_pending = (req, res) => {
 
+  let query = `
+  // Get applications of applicant
+  MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+  WHERE id(applicant)=toInteger({user_id})
+
+  // Filter out rejects
+  WITH application, applicant
+  WHERE NOT (:User)-[:REJECTED]->(application)
+
+  // Get submission_count and approval_count
+  WITH application, applicant
+  MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
+  WITH application, applicant, COUNT(recipient) AS recipient_count
+  OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
+  WITH application, applicant, recipient_count, count(approval) as approval_count
+
+  // Filter out completed applications
+  WITH application, applicant, recipient_count, approval_count
+  WHERE NOT recipient_count = approval_count
+
+  // Find next recipient
+  WITH application, applicant, recipient_count, approval_count
+  MATCH (application)-[submission:SUBMITTED_TO]->(next_recipient:User)
+  WHERE submission.flow_index = approval_count
+
+  RETURN application, recipient_count, approval_count, next_recipient
+  ORDER BY application.creation_date DESC
+  `
+
   var session = driver.session()
   session
-  .run(`
-    // Get all submissions of given application
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(e:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    // EXCLUDE REJECTS
-    WITH application, applicant, submission
-    WHERE NOT ()-[:REJECTED]->(application)
-
-    // Get all approvals of the application
-    WITH application, applicant, count(submission) as cs
-    OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
-
-    WITH application, applicant, cs, count(approval) as ca
-    WHERE NOT cs = ca
-
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
+  .run(query, {
     user_id: res.locals.user.identity.low,
   })
   .then(result => {res.send(result.records)})
@@ -629,23 +643,33 @@ exports.get_submitted_applications_pending = (req, res) => {
 
 exports.get_submitted_applications_approved = (req, res) => {
 
+  let query = `
+  // Get applications of applicant
+  MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+  WHERE id(applicant)=toInteger({user_id})
+
+  // Filter out rejects
+  WITH application, applicant
+  WHERE NOT (:User)-[:REJECTED]->(application)
+
+  // Get submission_count and approval_count
+  WITH application, applicant
+  MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
+  WITH application, applicant, COUNT(recipient) AS recipient_count
+  OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
+  WITH application, applicant, recipient_count, count(approval) as approval_count
+
+  // Filter out completed applications
+  WITH application, applicant, recipient_count, approval_count
+  WHERE recipient_count = approval_count
+
+  RETURN application, recipient_count, approval_count
+  ORDER BY application.creation_date DESC
+  `
+
   var session = driver.session()
   session
-  .run(`
-    // Get all submissions of given application
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    // Get all approvals of the application
-    WITH application, applicant, count(submission) as cs
-    MATCH (application)<-[approval:APPROVED]-(:User)
-
-    // If the number of approval matches that of submissions, then completely approved
-    WITH application, applicant, cs, count(approval) as ca
-    WHERE cs = ca
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
+  .run(query, {
     user_id: res.locals.user.identity.low,
   })
   .then(result => {
@@ -659,17 +683,34 @@ exports.get_submitted_applications_approved = (req, res) => {
 
 exports.get_submitted_applications_rejected = (req, res) => {
 
+  let query = `
+  // Get applications of applicant
+  MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+  WHERE id(applicant)=toInteger({user_id})
+
+  // Filter out rejects
+  WITH application, applicant
+  WHERE (:User)-[:REJECTED]->(application)
+
+  // Get submission_count and approval_count
+  WITH application, applicant
+  MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
+  WITH application, applicant, COUNT(recipient) AS recipient_count
+  OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
+  WITH application, applicant, recipient_count, count(approval) as approval_count
+
+  // Find next recipient (recipient who rejected the application)
+  WITH application, applicant, recipient_count, approval_count
+  MATCH (application)-[submission:SUBMITTED_TO]->(next_recipient:User)
+  WHERE submission.flow_index = approval_count
+
+  RETURN application, recipient_count, approval_count, next_recipient
+  ORDER BY application.creation_date DESC
+  `
+
   var session = driver.session()
   session
-  .run(`
-    // Get applications submitted by logged user
-    MATCH (applicant:User)<-[submitted_by:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(:User)
-    WHERE id(applicant)=toInt({user_id})
-
-    //Return
-    RETURN application, applicant
-    ORDER BY application.creation_date DESC
-    `, {
+  .run(query, {
     user_id: res.locals.user.identity.low,
   })
   .then(result => {
@@ -683,6 +724,8 @@ exports.get_submitted_applications_rejected = (req, res) => {
 
 exports.get_received_applications = (req, res) => {
   // Returns applications rceived by the logged in user
+
+  // UNUSED
 
   var session = driver.session()
   session
@@ -709,6 +752,7 @@ exports.get_received_applications_pending = (req, res) => {
   session
   .run(`
     // Get applications submitted to logged user
+    // The application must be neither approved nor rejected by the recpient
     MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(recipient)=toInt({user_id})
       AND NOT (application)<-[:APPROVED]-(recipient)
