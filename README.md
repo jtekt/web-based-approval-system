@@ -13,22 +13,22 @@ A web-based application approval system
 | /applications/received/pending | GET | - | Gets all pending received application forms |
 | /applications/received/rejected | GET | - | Gets all rejected received application forms |
 | /applications/received/approved | GET | - | Gets all approved received application forms |
-| /application/{application_id} | GET | - | gets an application forms using its ID |
-| /application/{application_id} | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application forms |
-| /application/{application_id} | DELETE | - | Deletes an application forms |
-| /application/{application_id}/approve | POST/PUT | - | Approves an application forms |
-| /application/{application_id}/reject | POST/PUT | - | Rejects an application forms |
-| /application/{application_id}/applicant | GET | - | Gets the applicant of an application |
-| /application/{application_id}/recipients | GET | - | Gets the recipients of an application |
-| /application/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |
+| /applications/{application_id} | GET | - | gets an application forms using its ID |
+| /applications/{application_id} | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application forms |
+| /applications/{application_id} | DELETE | - | Deletes an application forms |
+| /applications/{application_id}/approve | POST/PUT | - | Approves an application forms |
+| /applications/{application_id}/reject | POST/PUT | - | Rejects an application forms |
+| /applications/{application_id}/applicant | GET | - | Gets the applicant of an application |
+| /applications/{application_id}/recipients | GET | - | Gets the recipients of an application |
+| /applications/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |
 
 ### Application form templates
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
-| /application_form_template/{template_id} | GET | - | gets an application form template using its ID |
-| /application_form_template/{template_id} | POST | fields, label, description, group_ids | Creates an application form template |
-| /application_form_template/{template_id} | PUT | fields, label, description, group_ids | Updates an application form template |
-| /application_form_template/{template_id} | DELETE | - | Deletes an application form template |
+| /application_form_templates/{template_id} | GET | - | gets an application form template using its ID |
+| /application_form_templates/{template_id} | POST | fields, label, description, group_ids | Creates an application form template |
+| /application_form_templates/{template_id} | PUT | fields, label, description, group_ids | Updates an application form template |
+| /application_form_templates/{template_id} | DELETE | - | Deletes an application form template |
 
 ### Attachments
 | Endpoint | Method | body/query | Description
