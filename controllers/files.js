@@ -57,11 +57,6 @@ exports.get_file = (req, res) => {
     MATCH (application:ApplicationForm)
     WHERE id(application) = toInt({application_id})
 
-    // The requested file must be a file of the application
-    WITH user, application
-    // THIS IS REALLY DIRTY BUT IT'S THE BEST I CAN DO SO FAR
-    WHERE application.form_data CONTAINS {file_id}
-
     // Enforce privacy
     WITH user, application
     WHERE NOT application.private
@@ -77,16 +72,29 @@ exports.get_file = (req, res) => {
       application_id: application_id,
   })
   .then((result) => {
-    if(result.records.length === 0) return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
 
+    // Check if the application exists (i.e. can be seen by the user)
+    if(result.records.length === 0) {
+      return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
+    }
 
+    // Check if the application has a file with the given ID
+    let application_node = result.records[0].get('application')
+    let form_data = JSON.parse(application_node.properties.form_data)
+    let found_file = form_data.find( (field) => {
+      return field.value === file_id
+    })
+    if(!found_file) return res.send(400).send('This application does not contain a file with the provided file ID')
+
+    // Now download the file
     let directory_path = path.join(uploads_directory_path, file_id)
-
     fs.readdir(directory_path, (err, items) => {
       if(err) return res.status(500).send("Error reading uploads directory")
-      // Send first file in the directory
-      res.download( path.join(directory_path, items[0]),items[0] )
-    });
+      // Send first file in the directory (one directory per file)
+      let file_to_download = items[0]
+      res.download( path.join(directory_path, file_to_download), file_to_download )
+      console.log(`File ${file_to_download} has been downloaded`)
+    })
 
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
