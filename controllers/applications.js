@@ -167,6 +167,47 @@ exports.get_application = (req, res) => {
   .finally(() => { session.close() })
 }
 
+exports.update_application_form_data = (req, res) => {
+
+  let new_form_data = req.body.form_data
+    || req.body.new_form_data
+
+  if(!new_form_data) return res.status(400).send(`New form data missing`)
+
+
+  let application_id = req.params.application_id
+    || req.body.application_id
+    || req.body.id
+    || req.query.application_id
+    || req.query.id
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find the application to be deleted using provided id
+    MATCH (applicant:User)-[:APPROVED]->(application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
+      AND id(applicant)=toInt({user_id})
+
+    SET application.form_data = {application_form_data}
+
+    RETURN application
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: application_id,
+    application_form_data: JSON.stringify(new_form_data), // Neo4J does not support nested props so convert to string
+  })
+  .then(result => {
+    res.send(result.records)
+    console.log(`Application ${application_id} got updated`)
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
 exports.get_application_applicant = (req, res) => {
   // Get the applicant of an application
 
@@ -579,7 +620,7 @@ exports.get_submitted_applications = (req, res) => {
   // Get all applications submitted by the logged in user
 
   // UNUSED
-  
+
   var session = driver.session()
   session
   .run(`

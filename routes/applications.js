@@ -28,6 +28,7 @@ router.route('/find_by_hanko')
 router.route('/:application_id')
   .get(controller.get_application)
   .delete(controller.delete_application)
+  .put(controller.update_application_form_data)
 
 router.route('/:application_id/approve')
   .post(controller.approve_application)

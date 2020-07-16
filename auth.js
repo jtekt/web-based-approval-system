@@ -22,7 +22,7 @@ exports.check_auth = (req, res, next) => {
 
   // if no JWT available, reject requst
   if(!jwt) {
-    res.status(403).send('JWT not found in either cookies or authorization header')
+    return res.status(403).send('JWT not found in either cookies or authorization header')
   }
 
   // Send JWT to authentication manager for decoding
