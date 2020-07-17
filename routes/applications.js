@@ -28,7 +28,6 @@ router.route('/find_by_hanko')
 router.route('/:application_id')
   .get(controller.get_application)
   .delete(controller.delete_application)
-  .put(controller.update_application_form_data)
 
 router.route('/:application_id/approve')
   .post(controller.approve_application)
@@ -54,6 +53,9 @@ router.route('/:application_id/applicant')
 
 router.route('/:application_id/recipients')
   .get(controller.get_application_recipients)
+
+router.route('/:application_id/approvals/:approval_id')
+  .put(controller.update_attachment_hankos)
 
 router.route('/:application_id/files/:file_id')
   .get(require('../controllers/files.js').get_file)
