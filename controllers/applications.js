@@ -168,7 +168,7 @@ exports.get_application = (req, res) => {
 }
 
 exports.update_attachment_hankos = (req, res) => {
-  
+
   let approval_id = req.params.approval_id
     || req.body.approval_id
     || req.body.id
@@ -679,6 +679,9 @@ exports.get_submitted_applications_pending = (req, res) => {
 
 exports.get_submitted_applications_approved = (req, res) => {
 
+  let start_index = req.query.start_index || 0
+  let batch_size = req.query.batch_size || 10
+
   let query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
@@ -695,11 +698,17 @@ exports.get_submitted_applications_approved = (req, res) => {
   OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
   WITH application, applicant, recipient_count, count(approval) as approval_count
 
-  // Filter out completed applications
+  // Filter in completed applications
   WITH application, applicant, recipient_count, approval_count
   WHERE recipient_count = approval_count
 
-  RETURN application, recipient_count, approval_count
+  // Batching
+  WITH collect(application) AS application_collection
+  WITH application_collection[toInteger({start_index})..toInt({start_index})+toInt({batch_size})] AS application_batch
+  UNWIND application_batch AS application
+
+  // here no need to return the counts as it is necessarily the number of recipients
+  RETURN application
   ORDER BY application.creation_date DESC
   `
 
@@ -707,12 +716,18 @@ exports.get_submitted_applications_approved = (req, res) => {
   session
   .run(query, {
     user_id: res.locals.user.identity.low,
+    start_index: start_index,
+    batch_size: batch_size,
+
   })
   .then(result => {
     // THIS SHOULD BE RECORDS!
     res.send(result.records)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 }
 
@@ -820,6 +835,9 @@ exports.get_received_applications_pending = (req, res) => {
 exports.get_received_applications_approved = (req, res) => {
   // Returns applications approved by a user
 
+  let start_index = req.query.start_index || 0
+  let batch_size = req.query.batch_size || 10
+
   var session = driver.session()
   session
   .run(`
@@ -827,15 +845,25 @@ exports.get_received_applications_approved = (req, res) => {
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:User)
     WHERE id(recipient)=toInt({user_id})
 
+    // Batching
+    WITH collect(application) AS application_collection, applicant
+    WITH application_collection[toInteger({start_index})..toInt({start_index})+toInt({batch_size})] AS application_batch, applicant
+    UNWIND application_batch AS application
+
     // Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC`, {
       user_id: res.locals.user.identity.low,
+      start_index: start_index,
+      batch_size: batch_size,
   })
   .then( (result) => {
     res.send(result.records)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 }
