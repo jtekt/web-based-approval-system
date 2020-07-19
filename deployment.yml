@@ -30,7 +30,7 @@ spec:
           claimName: ${APPLICATION_NAME}
       containers:
       - name: ${APPLICATION_NAME}
-        image: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
+        image: ${DOCKER_IMAGE}
         # Pull new images on restart
         imagePullPolicy: Always
         ports:

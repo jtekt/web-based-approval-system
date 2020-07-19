@@ -4,17 +4,13 @@ stages:
 
 variables:
   APPLICATION_NAME: shinsei-manager
-  DOCKER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME} # Docker registry is obtained from the GitLab runner
+  DOCKER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
 
 containerization:
   stage: containerization
   script:
-    # If docker registry password provided, attempt login
-    - >
-      if [ -z ${CONTAINER_REGISTRY_PASSWORD} ];
-      then echo "CONTAINER_REGISTRY_PASSWORD not set, skipping login";
-      else echo "${CONTAINER_REGISTRY_PASSWORD}" | docker login ${CONTAINER_REGISTRY} --username ${CONTAINER_REGISTRY_USERNAME} --password-stdin;
-      fi
+    # Docker hub login
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${DOCKER_IMAGE} .
     # Pushing image to registry
@@ -27,7 +23,7 @@ deployment:
   script:
     # create/update the deployment
     - envsubst < deployment.yml | kubectl apply -f -
-    # Pull latest image of deployment
+    # Pull latest image by restarting the deployment
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
     - >
@@ -44,4 +40,5 @@ deployment:
   environment:
     name: production
     kubernetes:
-      namespace: ${KUBERNETES_NAMESPACE} # Obtained from GitLab
+      # Obtained from GitLab
+      namespace: ${KUBERNETES_NAMESPACE}
