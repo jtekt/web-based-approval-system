@@ -167,6 +167,130 @@ exports.get_application = (req, res) => {
   .finally(() => { session.close() })
 }
 
+
+exports.search_applications = (req, res) => {
+  // Get a list of applications matching a certain search pattern
+
+  /*
+  Queries:
+    - ID
+    - Hanko ID
+    - Type
+    - Date
+    - Relationship type
+  */
+
+  let relationship_query = ''
+  let relationship_types = ['APPROVED', 'REJECTED', 'SUBMITTED_BY', 'SUBMITTED_TO']
+  let relationship_type = req.query.relationship_type
+  if (relationship_type && !relationship_types.includes(relationship_type)) return res.status(400).send(`Invalid relationship type`)
+  if(relationship_type) {
+    relationship_query = `
+    WITH application, user
+    MATCH (application)-[r]-(user)
+    WHERE type(r) = {relationship_type}
+      AND id(user) = toInteger({user_id})
+    `
+  }
+
+  let hanko_id_query = ''
+  if(req.query.hanko_id && req.query.hanko_id !== '') {
+    hanko_id_query = `
+    WITH application
+    MATCH (application)-[r:APPROVED]-(:User)
+    WHERE id(r) = toInteger({hanko_id})
+    `
+  }
+
+  let application_id_query = ''
+  if(req.query.application_id && req.query.application_id !== '') {
+    application_id_query = `
+    WITH application
+    WHERE id(application) = toInteger({application_id})
+    `
+  }
+
+  let start_date_query = ''
+  if(req.query.start_date && req.query.start_date !== '') {
+    start_date_query = `
+    WITH application
+    WHERE application.creation_date >= date({start_date})
+    `
+  }
+
+  let end_date_query = ''
+  if(req.query.end_date && req.query.end_date !== '') {
+    end_date_query = `
+    WITH application
+    WHERE application.creation_date <= date({end_date})
+    `
+  }
+
+  let type_query = ''
+  if(req.query.application_type && req.query.application_type !== '') {
+    type_query = `
+    WITH application
+    WHERE toLower(application.type) CONTAINS toLower({application_type})
+    `
+  }
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user
+    MATCH (user:User)
+    WHERE id(user)=toInt({user_id})
+
+    WITH user
+    MATCH (application:ApplicationForm)
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Filter relationships
+    ${relationship_query}
+
+    // Filter dates
+    ${start_date_query}
+    ${end_date_query}
+
+    // Filter by application ID
+    ${application_id_query}
+
+    // Filter by Hanko ID
+    ${hanko_id_query}
+
+    // Type
+    ${type_query}
+
+    WITH application
+    MATCH (application)-[:SUBMITTED_BY]->(applicant:User)
+
+    // Return the application
+    RETURN application, applicant
+
+    // Sorting by date
+    ORDER BY application.creation_date DESC
+
+    // Limit
+    LIMIT 200
+    `, {
+    user_id: res.locals.user.identity.low,
+    application_id: req.query.application_id,
+    application_type: req.query.application_type,
+    relationship_type: relationship_type,
+    hanko_id: req.query.hanko_id,
+    start_date: req.query.start_date,
+    end_date: req.query.end_date,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
 exports.update_attachment_hankos = (req, res) => {
 
   let approval_id = req.params.approval_id
@@ -582,34 +706,6 @@ exports.remove_application_visibility_to_group = (req, res) => {
   .finally(() => { session.close() })
 }
 
-
-exports.find_application_id_by_hanko = (req, res) => {
-  // Get a single application using the ID of its approval
-
-  // NOT SECURE!
-
-  var session = driver.session()
-  session
-  .run(`
-    // Find application and applicant
-    MATCH (application:ApplicationForm)<-[approval:APPROVED]-()
-    WHERE id(approval) = toInt({approval_id})
-
-    // Return everything
-    RETURN id(application) as id
-    `, {
-    approval_id: req.query.approval_id,
-  })
-  .then(result => {
-    if(result.records.length < 1) return res.status(404).send(`Application not found`)
-    res.send({id: result.records[0].get('id').low})
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
-  .finally(() => { session.close() })
-}
 
 exports.get_submitted_applications = (req, res) => {
   // Get all applications submitted by the logged in user

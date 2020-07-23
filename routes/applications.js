@@ -22,8 +22,8 @@ router.route('/received/pending').get(controller.get_received_applications_pendi
 router.route('/received/approved').get(controller.get_received_applications_approved)
 router.route('/received/rejected').get(controller.get_received_applications_rejected)
 
-router.route('/find_by_hanko')
-  .get(controller.find_application_id_by_hanko)
+router.route('/search')
+  .get(controller.search_applications)
 
 router.route('/:application_id')
   .get(controller.get_application)
