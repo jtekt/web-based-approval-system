@@ -127,31 +127,36 @@ exports.get_application = (req, res) => {
     MATCH (application:ApplicationForm)
     WHERE id(application) = toInt({application_id})
 
-    // Enforce privacy
-    ${visibility_enforcement}
+    // Dealing with confidentiality
+    WITH application,
+      application.private
+      AND NOT (application)-[:SUBMITTED_BY]->(user)
+      AND NOT (application)-[:SUBMITTED_TO]->(user)
+      AND NOT (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+    AS forbidden
 
     // Find applicant
     // (not necessary here but doesn't cost much to add in the query)
-    WITH application
+    WITH application, forbidden
     OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
 
     // Find recipients
     // TODO: This should now be done using the /application/recipients route
-    WITH application, applicant, submitted_by
+    WITH application, applicant, submitted_by, forbidden
     OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:User)
 
     // Find approvals
     // TODO: This should now be done using the /application/recipients route
-    WITH application, applicant, submitted_by, recipient, submitted_to
+    WITH application, applicant, submitted_by, recipient, submitted_to, forbidden
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
     // Find rejections
     // TODO: This should now be done using the /application/recipients route
-    WITH application, applicant, submitted_by, recipient, submitted_to, approval
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval, forbidden
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
     // Return everything
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection, forbidden
 
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
@@ -159,7 +164,18 @@ exports.get_application = (req, res) => {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
   })
-  .then(result => { res.send(result.records) })
+  .then(result => {
+    
+    // Remove sensitive information
+    result.records.forEach((record) => {
+      if(record.get('forbidden')) {
+        let application_node = record._fields[record._fieldLookup.application]
+        delete application_node.properties.form_data
+      }
+    })
+
+    res.send(result.records)
+  })
   .catch(error => {
     console.log(error)
     res.status(500).send(`Error accessing DB: ${error}`)
