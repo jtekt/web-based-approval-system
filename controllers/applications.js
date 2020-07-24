@@ -245,7 +245,6 @@ exports.search_applications = (req, res) => {
     MATCH (application:ApplicationForm)
 
     // Enforce privacy
-    ${visibility_enforcement}
 
     // Filter relationships
     ${relationship_query}
@@ -266,8 +265,19 @@ exports.search_applications = (req, res) => {
     WITH application
     MATCH (application)-[:SUBMITTED_BY]->(applicant:User)
 
+    // Manage confidentiality
+    WITH application, applicant
+    MATCH (user:User)
+    WHERE id(user)=toInt({user_id})
+    WITH application, applicant,
+      application.private
+      AND NOT (application)-[:SUBMITTED_BY]->(user)
+      AND NOT (application)-[:SUBMITTED_TO]->(user)
+      AND NOT (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+    AS forbidden
+
     // Return the application
-    RETURN application, applicant
+    RETURN application, applicant, forbidden
 
     // Sorting by date
     ORDER BY application.creation_date DESC
@@ -283,7 +293,18 @@ exports.search_applications = (req, res) => {
     start_date: req.query.start_date,
     end_date: req.query.end_date,
   })
-  .then(result => { res.send(result.records) })
+  .then(result => {
+
+    // Remove sensitive information
+    result.records.forEach((record) => {
+      if(record.get('forbidden')) {
+        let application_node = record._fields[record._fieldLookup.application]
+        delete application_node.properties.form_data
+      }
+    })
+
+    res.send(result.records)
+  })
   .catch(error => {
     console.log(error)
     res.status(500).send(`Error accessing DB: ${error}`)
@@ -316,7 +337,9 @@ exports.update_attachment_hankos = (req, res) => {
     approval_id: approval_id,
     attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
   })
-  .then(result => { res.send(result.records) })
+  .then(result => {
+    res.send(result.records)
+  })
   .catch(error => {
     console.log(error)
     res.status(500).send(`Error accessing DB: ${error}`)
