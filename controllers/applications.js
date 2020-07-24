@@ -165,12 +165,14 @@ exports.get_application = (req, res) => {
     application_id: application_id,
   })
   .then(result => {
-    
+
     // Remove sensitive information
     result.records.forEach((record) => {
       if(record.get('forbidden')) {
         let application_node = record._fields[record._fieldLookup.application]
         delete application_node.properties.form_data
+        application_node.properties.title = '機密 / Confidential'
+        application_node.properties.type = '機密 / Confidential'
       }
     })
 
@@ -260,8 +262,6 @@ exports.search_applications = (req, res) => {
     WITH user
     MATCH (application:ApplicationForm)
 
-    // Enforce privacy
-
     // Filter relationships
     ${relationship_query}
 
@@ -316,6 +316,8 @@ exports.search_applications = (req, res) => {
       if(record.get('forbidden')) {
         let application_node = record._fields[record._fieldLookup.application]
         delete application_node.properties.form_data
+        application_node.properties.title = '機密 / Confidential'
+        application_node.properties.type = '機密 / Confidential'
       }
     })
 
