@@ -371,6 +371,8 @@ exports.update_attachment_hankos = (req, res) => {
 exports.get_application_applicant = (req, res) => {
   // Get the applicant of an application
 
+  // Might not actually be used
+
   let application_id = req.params.application_id
     || req.body.application_id
     || req.body.id
@@ -413,6 +415,9 @@ exports.get_application_applicant = (req, res) => {
 
 exports.get_application_recipients = (req, res) => {
   // Get a the recipients of a single application
+
+  // Might not actually be used
+
 
   let application_id = req.params.application_id
     || req.body.application_id
@@ -471,6 +476,7 @@ exports.get_application_recipients = (req, res) => {
 exports.get_application_visibility = (req, res) => {
   // Get a the groups an application is visible to
 
+  // Actually used!
   let application_id = req.params.application_id
     || req.body.application_id
     || req.body.id
@@ -490,7 +496,7 @@ exports.get_application_visibility = (req, res) => {
     WHERE id(application) = toInt({application_id})
 
     // Enforce privacy
-    ${visibility_enforcement}
+    // REMOVED
 
     // Find groups the application is visible to
     WITH application
@@ -659,13 +665,15 @@ exports.update_application_visibility = (req, res) => {
     FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
 
     // Return the application
-    RETURN application
+    RETURN application, group
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
     group_ids: req.body.group_ids,
   })
-  .then((result) => { res.send(result.records) })
+  .then((result) => {
+    res.send(result.records)
+  })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
@@ -698,13 +706,16 @@ exports.make_application_visible_to_group = (req, res) => {
     MERGE (application)-[:VISIBLE_TO]->(group)
 
     // Return the application
-    RETURN application
+    RETURN application, group
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
     group_id: req.body.group_id,
   })
-  .then((result) => { res.send(result.records) })
+  .then((result) => {
+    console.log(`Applcation ${result.records[0].get('application').identity.low} visisble to group ${result.records[0].get('group').identity.low}`)
+    res.send(result.records)
+  })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
