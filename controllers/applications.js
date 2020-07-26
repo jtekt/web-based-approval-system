@@ -80,6 +80,8 @@ exports.delete_application = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
+    
+  if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session()
   session
@@ -114,6 +116,8 @@ exports.get_application = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
+
+  if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session()
   session
@@ -483,6 +487,8 @@ exports.get_application_visibility = (req, res) => {
     || req.query.application_id
     || req.query.id
 
+  if(!application_id) return res.status(400).send('Application ID not defined')
+
   var session = driver.session()
   session
   .run(`
@@ -525,6 +531,8 @@ exports.approve_application = (req, res) => {
     || req.query.application_id
     || req.query.id
 
+  if(!application_id) return res.status(400).send('Application ID not defined')
+
   var session = driver.session()
   session
   .run(`
@@ -562,6 +570,8 @@ exports.reject_application = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
+
+  if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session()
   session
@@ -602,6 +612,8 @@ exports.update_privacy_of_application = (req, res) => {
     || req.query.application_id
     || req.query.id
 
+  if(!application_id) return res.status(400).send('Application ID not defined')
+
   var session = driver.session()
   session
   .run(`
@@ -635,6 +647,8 @@ exports.update_application_visibility = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
+
+  if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session();
   session
@@ -688,6 +702,8 @@ exports.make_application_visible_to_group = (req, res) => {
     || req.query.application_id
     || req.query.id
 
+  if(!application_id) return res.status(400).send('Application ID not defined')
+
   var session = driver.session();
   session
   .run(`
@@ -728,6 +744,8 @@ exports.remove_application_visibility_to_group = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
+
+  if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session();
   session
