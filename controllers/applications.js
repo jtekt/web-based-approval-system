@@ -80,7 +80,7 @@ exports.delete_application = (req, res) => {
     || req.body.id
     || req.query.application_id
     || req.query.id
-    
+
   if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session()
@@ -176,7 +176,6 @@ exports.get_application = (req, res) => {
         let application_node = record._fields[record._fieldLookup.application]
         delete application_node.properties.form_data
         application_node.properties.title = '機密 / Confidential'
-        application_node.properties.type = '機密 / Confidential'
       }
     })
 
@@ -321,7 +320,6 @@ exports.search_applications = (req, res) => {
         let application_node = record._fields[record._fieldLookup.application]
         delete application_node.properties.form_data
         application_node.properties.title = '機密 / Confidential'
-        application_node.properties.type = '機密 / Confidential'
       }
     })
 
