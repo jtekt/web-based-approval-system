@@ -87,12 +87,12 @@ exports.delete_application = (req, res) => {
   session
   .run(`
     // Find the application to be deleted using provided id
-    MATCH (applicant:User)<-[:SUBMITTED_BY]-(a:ApplicationForm)
-    WHERE id(a) = toInt({application_id})
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    WHERE id(application) = toInt({application_id})
       AND id(applicant)=toInt({user_id})
 
     // Delete the application and all of its relationships
-    DETACH DELETE a
+    DETACH DELETE application
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
@@ -160,7 +160,14 @@ exports.get_application = (req, res) => {
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
     // Return everything
-    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection, forbidden
+    RETURN application,
+      applicant,
+      submitted_by,
+      recipient,
+      submitted_to, 
+      approval,
+      rejection,
+      forbidden
 
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
@@ -523,6 +530,8 @@ exports.get_application_visibility = (req, res) => {
 
 exports.approve_application = (req, res) => {
 
+  // TODO: prevent re-approval
+
   let application_id = req.params.application_id
     || req.body.application_id
     || req.body.id
@@ -543,7 +552,8 @@ exports.approve_application = (req, res) => {
 
     // Mark as approved
     WITH application, recipient
-    MERGE (application)<-[:APPROVED {date: date()}]-(recipient)
+    MERGE (application)<-[approval:APPROVED]-(recipient)
+    SET approval.date = date()
 
     // RETURN APPLICATION
     RETURN application, recipient
@@ -602,7 +612,7 @@ exports.reject_application = (req, res) => {
 }
 
 exports.update_privacy_of_application = (req, res) => {
-  // Route to create or edit an application
+  // Riute to make an application confidential or public
 
   let application_id = req.params.application_id
     || req.body.application_id
