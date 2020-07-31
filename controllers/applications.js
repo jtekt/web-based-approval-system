@@ -140,38 +140,36 @@ exports.get_application = (req, res) => {
     AS forbidden
 
     // Find applicant
-    // (not necessary here but doesn't cost much to add in the query)
     WITH application, forbidden
     OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
 
     // Find recipients
-    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by, forbidden
     OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:User)
 
     // Find approvals
-    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by, recipient, submitted_to, forbidden
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
     // Find rejections
-    // TODO: This should now be done using the /application/recipients route
     WITH application, applicant, submitted_by, recipient, submitted_to, approval, forbidden
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval, rejection, forbidden
+    OPTIONAL MATCH (application)-[:VISIBLE_TO]->(group:Group)
+
     // Return everything
-    // TODO: add visibility
+    // TODO: UNDERSTAND WHY DISTINCT NEEDED!!!
     RETURN application,
       applicant,
       submitted_by,
-      collect(recipient) as recipients,
-      collect(submitted_to) as submissions,
-      collect(approval) as approvals,
-      collect(rejection) as rejections,
+      collect(distinct recipient) as recipients,
+      collect(distinct submitted_to) as submissions,
+      collect(distinct approval) as approvals,
+      collect(distinct rejection) as rejections,
+      collect(distinct group) as visibility,
       forbidden
 
-    // Ordering flow
-    //ORDER BY submitted_to.flow_index DESC
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
@@ -180,14 +178,13 @@ exports.get_application = (req, res) => {
 
     // There should only be one record
     let record = result.records[0]
+
     // Remove sensitive information
-    //result.records.forEach((record) => {
-      if(record.get('forbidden')) {
-        let application_node = record._fields[record._fieldLookup.application]
-        delete application_node.properties.form_data
-        application_node.properties.title = '機密 / Confidential'
-      }
-    //})
+    if(record.get('forbidden')) {
+      let application_node = record._fields[record._fieldLookup.application]
+      delete application_node.properties.form_data
+      application_node.properties.title = '機密 / Confidential'
+    }
 
     res.send(record)
   })
@@ -428,7 +425,7 @@ exports.get_application_applicant = (req, res) => {
 exports.get_application_recipients = (req, res) => {
   // Get a the recipients of a single application
 
-  // Might not actually be used
+  // SHOULD NOT BE NEEDED ANYMORE
 
 
   let application_id = req.params.application_id
