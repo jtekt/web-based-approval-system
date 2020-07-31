@@ -160,33 +160,36 @@ exports.get_application = (req, res) => {
     OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
 
     // Return everything
+    // TODO: add visibility
     RETURN application,
       applicant,
       submitted_by,
-      recipient,
-      submitted_to, 
-      approval,
-      rejection,
+      collect(recipient) as recipients,
+      collect(submitted_to) as submissions,
+      collect(approval) as approvals,
+      collect(rejection) as rejections,
       forbidden
 
     // Ordering flow
-    ORDER BY submitted_to.flow_index DESC
+    //ORDER BY submitted_to.flow_index DESC
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
   })
   .then(result => {
 
+    // There should only be one record
+    let record = result.records[0]
     // Remove sensitive information
-    result.records.forEach((record) => {
+    //result.records.forEach((record) => {
       if(record.get('forbidden')) {
         let application_node = record._fields[record._fieldLookup.application]
         delete application_node.properties.form_data
         application_node.properties.title = '機密 / Confidential'
       }
-    })
+    //})
 
-    res.send(result.records)
+    res.send(record)
   })
   .catch(error => {
     console.log(error)
