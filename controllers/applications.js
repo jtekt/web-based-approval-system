@@ -581,6 +581,8 @@ exports.reject_application = (req, res) => {
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
+  let reason = req.body.reason || 'No reason'
+
   var session = driver.session()
   session
   .run(`
@@ -593,14 +595,15 @@ exports.reject_application = (req, res) => {
 
     // Mark as REJECTED
     WITH application, recipient
-    MERGE (application)<-[rejection:REJECTED {date: date()}]-(recipient)
+    MERGE (application)<-[rejection:REJECTED]-(recipient)
+    SET rejectionl.date = date()
     SET rejection.reason = {reason}
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
-    reason: req.body.reason,
+    reason: reason,
   })
   .then(result => {
     res.send(result.records)
