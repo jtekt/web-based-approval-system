@@ -262,6 +262,15 @@ exports.search_applications = (req, res) => {
     `
   }
 
+  let group_query = ''
+  if(req.query.group_id && req.query.group_id !== '') {
+    group_query = `
+    WITH application
+    MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group)
+    WHERE id(group) = toInteger({group_id})
+    `
+  }
+
   var session = driver.session()
   session
   .run(`
@@ -288,10 +297,12 @@ exports.search_applications = (req, res) => {
     // Type
     ${type_query}
 
-    WITH application
-    MATCH (application)-[:SUBMITTED_BY]->(applicant:User)
+    // Group of applicant
+    ${group_query}
 
     // Manage confidentiality
+    WITH application
+    MATCH (application)-[:SUBMITTED_BY]->(applicant:User)
     WITH application, applicant
     MATCH (user:User)
     WHERE id(user)=toInt({user_id})
@@ -318,6 +329,7 @@ exports.search_applications = (req, res) => {
     hanko_id: req.query.hanko_id,
     start_date: req.query.start_date,
     end_date: req.query.end_date,
+    group_id: req.query.group_id,
   })
   .then(result => {
 
