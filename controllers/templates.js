@@ -77,7 +77,7 @@ exports.edit_application_form_template = (req, res) => {
     MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
     DETACH DELETE vis
 
-    // recreate
+    // recreate visibility
     // Note: can be an empty set so the logic to deal with it looks terrible
     WITH aft
     UNWIND
@@ -154,48 +154,23 @@ exports.get_application_form_template = (req, res) => {
   var session = driver.session()
   session
   .run(`
-    MATCH (aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({template_id})
-    RETURN aft, creator`, {
-    user_id: res.locals.user.identity.low,
-    template_id: template_id,
-  })
-  .then((result) => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
-}
-
-exports.get_application_form_template_visibility = (req, res) => {
-  // get a single  application form template
-
-  let template_id = req.params.template_id
-    || req.query.template_id
-    || req.query.id
-
-  var session = driver.session()
-  session
-  .run(`
-    // Find the template
     MATCH (aft:ApplicationFormTemplate)
     WHERE id(aft) = toInt({template_id})
 
-    // Find the current user
     WITH aft
-    MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    MATCH (aft)-[:CREATED_BY]->(creator:User)
 
-    // enforce visibility
-    WITH aft, user
-    WHERE (aft)-[:CREATED_BY]->(user)
-      OR (user)-[:BELONGS_TO]->(:Group)<-[:VISIBLE_TO]-(aft)
+    WITH aft, creator
+    MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
-    MATCH (group:Group)<-[:VISIBLE_TO]-(aft)
-
-    RETURN group`, {
+    RETURN aft, creator, collect(distinct group) as groups`, {
     user_id: res.locals.user.identity.low,
     template_id: template_id,
   })
-  .then((result) => { res.send(result.records) })
+  .then((result) => {
+    let record = result.records[0]
+    res.send(record)
+  })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }

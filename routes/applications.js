@@ -41,7 +41,7 @@ router.route('/:application_id/privacy')
   .put(controller.update_privacy_of_application)
 
 router.route('/:application_id/visibility')
-  .get(controller.get_application_visibility)
+  .get(controller.get_application_visibility) // MIGHT BE UNUSED
   .put(controller.update_application_visibility)
 
 router.route('/:application_id/visibility_to_group')
@@ -49,10 +49,10 @@ router.route('/:application_id/visibility_to_group')
   .delete(controller.remove_application_visibility_to_group)
 
 router.route('/:application_id/applicant')
-  .get(controller.get_application_applicant)
+  .get(controller.get_application_applicant) // MIGHT BE UNUSED
 
 router.route('/:application_id/recipients')
-  .get(controller.get_application_recipients)
+  .get(controller.get_application_recipients) // MIGHT BE UNUSED
 
 router.route('/:application_id/approvals/:approval_id')
   .put(controller.update_attachment_hankos)

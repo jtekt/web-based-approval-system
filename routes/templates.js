@@ -31,8 +31,6 @@ router.route('/:template_id')
   .put(controller.edit_application_form_template)
   .delete(controller.delete_application_form_template)
 
-router.route('/:template_id/visibility')
-  .get(controller.get_application_form_template_visibility)
 
 
 module.exports = router
