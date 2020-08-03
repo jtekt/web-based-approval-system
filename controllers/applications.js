@@ -633,7 +633,7 @@ exports.reject_application = (req, res) => {
     // Mark as REJECTED
     WITH application, recipient
     MERGE (application)<-[rejection:REJECTED]-(recipient)
-    SET rejectionl.date = date()
+    SET rejection.date = date()
     SET rejection.reason = {reason}
 
     // RETURN APPLICATION
@@ -646,7 +646,10 @@ exports.reject_application = (req, res) => {
     res.send(result.records)
     console.log(`Application ${result.records[0].get('application').identity.low} got rejected by ${result.records[0].get('recipient').identity.low}`)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.error(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 }
