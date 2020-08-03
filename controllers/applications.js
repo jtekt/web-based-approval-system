@@ -351,6 +351,31 @@ exports.search_applications = (req, res) => {
   .finally(() => { session.close() })
 }
 
+exports.get_application_count = (req, res) => {
+
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find applications
+    MATCH (application:ApplicationForm)
+
+    // Return the application count
+    RETURN count(application) as application_count
+
+    `, {})
+  .then(result => {
+
+
+    res.send(result.records[0].get('application_count'))
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
 exports.update_attachment_hankos = (req, res) => {
 
   let approval_id = req.params.approval_id

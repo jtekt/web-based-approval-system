@@ -12,6 +12,9 @@ router.use(auth.check_auth)
 router.route('/')
   .post(controller.create_application)
 
+router.route('/count')
+  .get(controller.get_application_count)
+
 router.route('/submitted').get(controller.get_submitted_applications)
 router.route('/submitted/pending').get(controller.get_submitted_applications_pending)
 router.route('/submitted/approved').get(controller.get_submitted_applications_approved)
