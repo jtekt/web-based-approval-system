@@ -50,12 +50,12 @@ exports.get_file = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
+    WHERE id(application) = toInteger($application_id)
 
     // Enforce privacy
     WITH user, application

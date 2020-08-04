@@ -17,15 +17,15 @@ exports.create_application = (req, res) => {
   .run(`
     // Create the application node
     MATCH (s:User)
-    WHERE id(s)=toInt({user_id})
+    WHERE id(s)=toInteger($user_id)
     CREATE (a:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
 
     // Set the application properties using data passed in the requestr body
-    SET a.title = {title}
-    SET a.private = {private}
-    SET a.form_data = {form_data}
     SET a.creation_date = date()
-    SET a.type = {type}
+    SET a.title = $title
+    SET a.private = $private
+    SET a.form_data = $form_data
+    SET a.type = $type
 
     // Relationship with recipients
     // This also creates flow indices
@@ -33,7 +33,7 @@ exports.create_application = (req, res) => {
     WITH a, {recipients_ids} as recipients_ids
     UNWIND range(0, size(recipients_ids)-1) as i
     MATCH (r:User)
-    WHERE id(r)=toInt(recipients_ids[i])
+    WHERE id(r)=toInteger(recipients_ids[i])
     CREATE (r)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(a)
 
     // Groups to which the aplication is visible
@@ -41,13 +41,13 @@ exports.create_application = (req, res) => {
     WITH a
     UNWIND
       CASE
-        WHEN {group_ids} = []
+        WHEN $group_ids = []
           THEN [null]
-        ELSE {group_ids}
+        ELSE $group_ids
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInt(group_id)
+    WHERE id(group) = toInteger(group_id)
     WITH collect(group) as groups, a
     FOREACH(group IN groups | MERGE (a)-[:VISIBLE_TO]->(group))
 
@@ -88,8 +88,8 @@ exports.delete_application = (req, res) => {
   .run(`
     // Find the application to be deleted using provided id
     MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
-      AND id(applicant)=toInt({user_id})
+    WHERE id(application) = toInteger($application_id)
+      AND id(applicant)=toInteger($user_id)
 
     // Delete the application and all of its relationships
     DETACH DELETE application
@@ -124,12 +124,12 @@ exports.get_application = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
+    WHERE id(application) = toInteger($application_id)
 
     // Dealing with confidentiality
     WITH application,
@@ -216,8 +216,8 @@ exports.search_applications = (req, res) => {
     relationship_query = `
     WITH application, user
     MATCH (application)-[r]-(user)
-    WHERE type(r) = {relationship_type}
-      AND id(user) = toInteger({user_id})
+    WHERE type(r) = $relationship_type
+      AND id(user) = toInteger($user_id)
     `
   }
 
@@ -226,7 +226,7 @@ exports.search_applications = (req, res) => {
     hanko_id_query = `
     WITH application
     MATCH (application)-[r:APPROVED]-(:User)
-    WHERE id(r) = toInteger({hanko_id})
+    WHERE id(r) = toInteger($hanko_id)
     `
   }
 
@@ -234,7 +234,7 @@ exports.search_applications = (req, res) => {
   if(req.query.application_id && req.query.application_id !== '') {
     application_id_query = `
     WITH application
-    WHERE id(application) = toInteger({application_id})
+    WHERE id(application) = toInteger($application_id)
     `
   }
 
@@ -242,7 +242,7 @@ exports.search_applications = (req, res) => {
   if(req.query.start_date && req.query.start_date !== '') {
     start_date_query = `
     WITH application
-    WHERE application.creation_date >= date({start_date})
+    WHERE application.creation_date >= date($start_date)
     `
   }
 
@@ -250,7 +250,7 @@ exports.search_applications = (req, res) => {
   if(req.query.end_date && req.query.end_date !== '') {
     end_date_query = `
     WITH application
-    WHERE application.creation_date <= date({end_date})
+    WHERE application.creation_date <= date($end_date)
     `
   }
 
@@ -258,7 +258,7 @@ exports.search_applications = (req, res) => {
   if(req.query.application_type && req.query.application_type !== '') {
     type_query = `
     WITH application
-    WHERE toLower(application.type) CONTAINS toLower({application_type})
+    WHERE toLower(application.type) CONTAINS toLower($application_type)
     `
   }
 
@@ -267,7 +267,7 @@ exports.search_applications = (req, res) => {
     group_query = `
     WITH application
     MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group)
-    WHERE id(group) = toInteger({group_id})
+    WHERE id(group) = toInteger($group_id)
     `
   }
 
@@ -276,7 +276,7 @@ exports.search_applications = (req, res) => {
   .run(`
     // Find current user
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     WITH user
     MATCH (application:ApplicationForm)
@@ -305,7 +305,7 @@ exports.search_applications = (req, res) => {
     MATCH (application)-[:SUBMITTED_BY]->(applicant:User)
     WITH application, applicant
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
     WITH application, applicant,
       application.private
       AND NOT (application)-[:SUBMITTED_BY]->(user)
@@ -387,11 +387,11 @@ exports.update_attachment_hankos = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)-[approval:APPROVED]->(application:ApplicationForm)
-    WHERE id(user)=toInt({user_id})
-      AND id(approval) = toInt({approval_id})
+    WHERE id(user) = toInteger($user_id)
+      AND id(approval) = toInteger($approval_id)
 
     // Set the attached hankos
-    SET approval.attachment_hankos = {attachment_hankos}
+    SET approval.attachment_hankos = $attachment_hankos
 
     // Return
     RETURN application, approval
@@ -430,12 +430,12 @@ exports.get_application_applicant = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
+    WHERE id(application) = toInteger($application_id)
 
     // Enforce privacy
     ${visibility_enforcement}
@@ -476,12 +476,12 @@ exports.get_application_recipients = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
+    WHERE id(application) = toInteger($application_id)
 
     // Enforce privacy
     ${visibility_enforcement}
@@ -536,12 +536,12 @@ exports.get_application_visibility = (req, res) => {
   .run(`
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInt({user_id})
+    WHERE id(user)=toInteger($user_id)
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInt({application_id})
+    WHERE id(application) = toInteger($application_id)
 
     // Enforce privacy
     // REMOVED
@@ -582,8 +582,8 @@ exports.approve_application = (req, res) => {
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(application) = toInt({application_id})
-      AND id(recipient) = toInt({user_id})
+    WHERE id(application) = toInteger($application_id)
+      AND id(recipient) = toInteger($user_id)
 
     // TODO: Add check if flow is respected
 
@@ -625,7 +625,8 @@ exports.reject_application = (req, res) => {
   .run(`
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(application) = toInt({application_id}) AND id(recipient) = toInt({user_id})
+    WHERE id(application) = toInteger($application_id)
+      AND id(recipient) = toInteger($user_id)
 
     // TODO: Add check if flow is respected
     // Working fine without apparently
@@ -634,7 +635,7 @@ exports.reject_application = (req, res) => {
     WITH application, recipient
     MERGE (application)<-[rejection:REJECTED]-(recipient)
     SET rejection.date = date()
-    SET rejection.reason = {reason}
+    SET rejection.reason = $reason
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
@@ -670,11 +671,11 @@ exports.update_privacy_of_application = (req, res) => {
   .run(`
     // Find the application
     MATCH (a:ApplicationForm)-[:SUBMITTED_BY]->(s)
-    WHERE id(a)=toInt({application_id})
-      AND id(s)=toInt({user_id})
+    WHERE id(a)=toInteger($application_id)
+      AND id(s)=toInteger($user_id)
 
     // Set the privacy property
-    SET a.private = {private}
+    SET a.private = $private
 
     // Return the application
     RETURN a
@@ -707,8 +708,8 @@ exports.update_application_visibility = (req, res) => {
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
-    WHERE id(application)=toInt({application_id})
-      AND id(user)=toInt({user_id})
+    WHERE id(application)=toInteger($application_id)
+      AND id(user)=toInteger($user_id)
 
     // delete all visibility relationships
     WITH application
@@ -719,13 +720,13 @@ exports.update_application_visibility = (req, res) => {
     WITH application
     UNWIND
       CASE
-        WHEN {group_ids} = []
+        WHEN $group_ids = []
           THEN [null]
-        ELSE {group_ids}
+        ELSE $group_ids
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInt(group_id)
+    WHERE id(group) = toInteger(group_id)
     WITH collect(group) as groups, application
     FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
 
@@ -761,13 +762,13 @@ exports.make_application_visible_to_group = (req, res) => {
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
-    WHERE id(application)=toInt({application_id})
-      AND id(user)=toInt({user_id})
+    WHERE id(application)=toInteger($application_id)
+      AND id(user)=toInteger($user_id)
 
     // Find the group
     WITH application
     MATCH (group:Group)
-    WHERE id(group)=toInt({group_id})
+    WHERE id(group)=toInteger($group_id)
 
     // Create the application
     MERGE (application)-[:VISIBLE_TO]->(group)
@@ -804,13 +805,13 @@ exports.remove_application_visibility_to_group = (req, res) => {
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user)
-    WHERE id(application)=toInt({application_id})
-      AND id(user)=toInt({user_id})
+    WHERE id(application)=toInteger($application_id)
+      AND id(user)=toInteger($user_id)
 
     // Find the group
     WITH application
     MATCH (application)-[rel:VISIBLE_TO]->(group)
-    WHERE id(group)=toInt({group_id})
+    WHERE id(group)=toInteger($group_id)
 
     // delete the relationship
     DELETE rel
@@ -837,7 +838,7 @@ exports.get_submitted_applications = (req, res) => {
   session
   .run(`
     MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-    WHERE id(applicant)=toInt({user_id})
+    WHERE id(applicant)=toInteger($user_id)
 
     RETURN application
     ORDER BY application.creation_date DESC
@@ -855,7 +856,7 @@ exports.get_submitted_applications_pending = (req, res) => {
   let query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-  WHERE id(applicant)=toInteger({user_id})
+  WHERE id(applicant)=toInteger($user_id)
 
   // Filter out rejects
   WITH application, applicant
@@ -902,7 +903,7 @@ exports.get_submitted_applications_approved = (req, res) => {
   let query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-  WHERE id(applicant)=toInteger({user_id})
+  WHERE id(applicant)=toInteger($user_id)
 
   // Filter out rejects
   WITH application, applicant
@@ -921,7 +922,7 @@ exports.get_submitted_applications_approved = (req, res) => {
 
   // Batching
   WITH collect(application) AS application_collection
-  WITH application_collection[toInteger({start_index})..toInt({start_index})+toInt({batch_size})] AS application_batch
+  WITH application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
   UNWIND application_batch AS application
 
   // here no need to return the counts as it is necessarily the number of recipients
@@ -954,7 +955,7 @@ exports.get_submitted_applications_rejected = (req, res) => {
   let query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-  WHERE id(applicant)=toInteger({user_id})
+  WHERE id(applicant)=toInteger($user_id)
 
   // Filter out rejects
   WITH application, applicant
@@ -1000,7 +1001,7 @@ exports.get_received_applications = (req, res) => {
   .run(`
     // Get applications submitted to logged user
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
+    WHERE id(recipient)=toInteger($user_id)
 
     // Return
     RETURN application
@@ -1022,7 +1023,7 @@ exports.get_received_applications_pending = (req, res) => {
     // Get applications submitted to logged user
     // The application must be neither approved nor rejected by the recpient
     MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
+    WHERE id(recipient)=toInteger($user_id)
       AND NOT (application)<-[:APPROVED]-(recipient)
       AND NOT (application)<-[:REJECTED]-(recipient)
 
@@ -1060,11 +1061,11 @@ exports.get_received_applications_approved = (req, res) => {
   .run(`
     // Get applications submitted to logged user
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:APPROVED]-(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
+    WHERE id(recipient)=toInteger($user_id)
 
     // Batching
     WITH collect(application) AS application_collection, applicant
-    WITH application_collection[toInteger({start_index})..toInt({start_index})+toInt({batch_size})] AS application_batch, applicant
+    WITH application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch, applicant
     UNWIND application_batch AS application
 
     // Return
@@ -1094,7 +1095,7 @@ exports.get_received_applications_rejected = (req, res) => {
   .run(`
     // Get applications submitted to logged user
     MATCH (applicant)<-[:SUBMITTED_BY]-(application:ApplicationForm)<-[:REJECTED]-(recipient:User)
-    WHERE id(recipient)=toInt({user_id})
+    WHERE id(recipient)=toInteger($user_id)
 
     // Return
     RETURN application, applicant

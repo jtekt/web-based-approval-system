@@ -9,7 +9,7 @@ exports.create_application_form_template = (req, res) => {
   .run(`
     // Find creator
     MATCH (creator:User)
-    WHERE id(creator) = toInt({user_id})
+    WHERE id(creator) = toInteger($user_id)
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
 
     // setting all properties
@@ -27,7 +27,7 @@ exports.create_application_form_template = (req, res) => {
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInt(group_id)
+    WHERE id(group) = toInteger(group_id)
     WITH collect(group) as groups, aft
     FOREACH(group IN groups | CREATE (aft)-[:VISIBLE_TO]->(group))
 
@@ -62,13 +62,13 @@ exports.edit_application_form_template = (req, res) => {
   .run(`
     // Find template
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({template_id})
-      AND id(creator) = toInt({user_id})
+    WHERE id(aft) = toInteger($template_id)
+      AND id(creator) = toInteger($user_id)
 
     // set properties
-    SET aft.fields={fields}
-    SET aft.label={label}
-    SET aft.description={description}
+    SET aft.fields=$fields
+    SET aft.label=$label
+    SET aft.description=$description
 
     // update visibility (shared with)
     // first delete everything
@@ -82,13 +82,13 @@ exports.edit_application_form_template = (req, res) => {
     WITH aft
     UNWIND
       CASE
-        WHEN {group_ids} = []
+        WHEN $group_ids = []
           THEN [null]
-        ELSE {group_ids}
+        ELSE $group_ids
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInt(group_id)
+    WHERE id(group) = toInteger(group_id)
     WITH collect(group) as groups, aft
     FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
 
@@ -124,8 +124,8 @@ exports.delete_application_form_template = (req, res) => {
   .run(`
     // Find application
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInt({template_id})
-      AND id(creator) = toInt({user_id})
+    WHERE id(aft) = toInteger($template_id)
+      AND id(creator) = toInteger($user_id)
 
     // Delete the node
     DETACH DELETE aft
@@ -155,7 +155,7 @@ exports.get_application_form_template = (req, res) => {
   session
   .run(`
     MATCH (aft:ApplicationFormTemplate)
-    WHERE id(aft) = toInt({template_id})
+    WHERE id(aft) = toInteger($template_id)
 
     WITH aft
     MATCH (aft)-[:CREATED_BY]->(creator:User)
@@ -182,7 +182,7 @@ exports.get_all_application_form_templates_visible_to_user = (req, res) => {
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    WHERE id(user) = toInteger($user_id)
 
     MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
     WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
@@ -203,7 +203,7 @@ exports.get_application_form_templates_shared_with_user = (req, res) => {
   session
   .run(`
     MATCH (user:User)
-    WHERE id(user) = toInt({user_id})
+    WHERE id(user) = toInteger($user_id)
 
     MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
     WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
@@ -228,7 +228,7 @@ exports.get_application_form_templates_from_user = (req, res) => {
   .run(`
     // Find user
     MATCH (creator:User)
-    WHERE id(creator) = toInt({user_id})
+    WHERE id(creator) = toInteger($user_id)
 
     // Find the templates of the user
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
