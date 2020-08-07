@@ -2,6 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const dotenv = require('dotenv')
+const pjson = require('./package.json')
 
 dotenv.config()
 
@@ -14,8 +15,15 @@ const app = express()
 app.use(bodyParser.json())
 app.use(cors())
 
-app.get('/', (req,res) => { res.send('Shinsei manager API, Maxime MOREILLON')})
-
+app.get('/', (req, res) => {
+  res.send({
+    application_name: 'Shinsei Manager API',
+    author: 'Maxime MOREILLON',
+    version: pjson.version,
+    neo4j_url: process.env.NEO4J_URL,
+    authentication_api_url: process.env.AUTHENTICATION_API_URL,
+  })
+})
 app.use('/applications', require('./routes/applications.js'))
 app.use('/application_form_templates', require('./routes/templates.js'))
 app.use('/files', require('./routes/files.js'))
