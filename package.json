@@ -1,6 +1,6 @@
 {
   "name": "application_form_manager",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "",
   "main": "application_forms_manager.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "express": "^4.17.1",
     "formidable": "^1.2.1",
     "mv": "^2.1.1",
-    "neo4j-driver": "^1.7.6",
+    "neo4j-driver": "^4.0.2",
     "uuid": "^3.3.3"
   }
 }

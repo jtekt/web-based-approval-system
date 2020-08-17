@@ -159,7 +159,7 @@ exports.get_application = (req, res) => {
     OPTIONAL MATCH (application)-[:VISIBLE_TO]->(group:Group)
 
     // Return everything
-    // TODO: UNDERSTAND WHY DISTINCT NEEDED!!!
+    // TODO: UNDERSTAND WHY DISTINCT NEEDED
     RETURN application,
       applicant,
       submitted_by,
@@ -417,7 +417,7 @@ exports.update_attachment_hankos = (req, res) => {
 exports.get_application_applicant = (req, res) => {
   // Get the applicant of an application
 
-  // Might not actually be used
+  // SHOULD NOT BE NEEDED ANYMORE
 
   let application_id = req.params.application_id
     || req.body.application_id
