@@ -30,7 +30,7 @@ exports.create_application = (req, res) => {
     // Relationship with recipients
     // This also creates flow indices
     // Note: flow cannot be empty
-    WITH a, {recipients_ids} as recipients_ids
+    WITH a, $recipients_ids as recipients_ids
     UNWIND range(0, size(recipients_ids)-1) as i
     MATCH (r:User)
     WHERE id(r)=toInteger(recipients_ids[i])

@@ -13,17 +13,17 @@ exports.create_application_form_template = (req, res) => {
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
 
     // setting all properties
-    SET aft.fields={fields}
-    SET aft.label={label}
-    SET aft.description={description}
+    SET aft.fields=$fields
+    SET aft.label=$label
+    SET aft.description=$description
 
     // visibility (shared with)
     WITH aft
     UNWIND
       CASE
-        WHEN {group_ids} = []
+        WHEN $group_ids = []
           THEN [null]
-        ELSE {group_ids}
+        ELSE $group_ids
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
