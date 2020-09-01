@@ -577,6 +577,8 @@ exports.approve_application = (req, res) => {
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
+  let comment = req.body.comment || ''
+
   var session = driver.session()
   session
   .run(`
@@ -591,18 +593,23 @@ exports.approve_application = (req, res) => {
     WITH application, recipient
     MERGE (application)<-[approval:APPROVED]-(recipient)
     SET approval.date = date()
+    SET approval.comment = $comment
 
     // RETURN APPLICATION
     RETURN application, recipient
     `, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
+    comment: comment,
   })
   .then(result => {
     res.send(result.records)
     console.log(`Application ${result.records[0].get('application').identity.low} got approved by ${result.records[0].get('recipient').identity.low}`)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    res.status(500).send(`Error accessing DB: ${error}`)
+    console.log(error)
+  })
   .finally(() => { session.close() })
 
 }
@@ -618,7 +625,7 @@ exports.reject_application = (req, res) => {
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  let reason = req.body.reason || 'No reason'
+  let comment =  req.body.comment || ''
 
   var session = driver.session()
   session
@@ -635,13 +642,13 @@ exports.reject_application = (req, res) => {
     WITH application, recipient
     MERGE (application)<-[rejection:REJECTED]-(recipient)
     SET rejection.date = date()
-    SET rejection.reason = $reason
+    SET rejection.comment = $comment
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
     user_id: res.locals.user.identity.low,
     application_id: application_id,
-    reason: reason,
+    comment: comment,
   })
   .then(result => {
     res.send(result.records)
