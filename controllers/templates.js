@@ -74,7 +74,7 @@ exports.edit_application_form_template = (req, res) => {
     // first delete everything
     // THIS IS A PROBLEM IF NOT VISIBLE TO ANY GROUP
     WITH aft
-    MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
+    OPTIONAL MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
     DETACH DELETE vis
 
     // recreate visibility
@@ -102,7 +102,10 @@ exports.edit_application_form_template = (req, res) => {
     description: req.body.description,
     group_ids: req.body.group_ids
   })
-  .then((result) => { res.send(result.records) })
+  .then((result) => {
+    console.log(`Template ${template_id} updated`)
+    res.send(result.records)
+  })
   .catch(error => {
     console.log(error)
     res.status(500).send(`DB error: ${error}`)
@@ -137,7 +140,7 @@ exports.delete_application_form_template = (req, res) => {
   })
   .then((result) => {
     res.send(result.records)
-    console.log(`Application template ${template_id} got deleted`)
+    console.log(`Template ${template_id} deleted`)
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
@@ -161,13 +164,14 @@ exports.get_application_form_template = (req, res) => {
     MATCH (aft)-[:CREATED_BY]->(creator:User)
 
     WITH aft, creator
-    MATCH (aft)-[:VISIBLE_TO]->(group:Group)
+    OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
     RETURN aft, creator, collect(distinct group) as groups`, {
     user_id: res.locals.user.identity.low,
     template_id: template_id,
   })
   .then((result) => {
+    console.log(`Getting template ${template_id}`)
     let record = result.records[0]
     res.send(record)
   })
@@ -177,18 +181,22 @@ exports.get_application_form_template = (req, res) => {
 
 exports.get_all_application_form_templates_visible_to_user = (req, res) => {
 
-  // Create application form template
+  // Get all templates (and their creator) visible to a user
   var session = driver.session()
   session
   .run(`
-    MATCH (user:User)
-    WHERE id(user) = toInteger($user_id)
+    // Find author
+    MATCH (current_user:User)
+    WHERE id(current_user) = toInteger($user_id)
 
+    // Find the template and its creator
+    WITH current_user
     MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
-    WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+    WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
+      OR id(creator) = id(current_user)
 
     RETURN DISTINCT aft, creator`, {
-    user_id: res.locals.user.identity.low,
+      user_id: res.locals.user.identity.low,
     })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -199,9 +207,11 @@ exports.get_all_application_form_templates_visible_to_user = (req, res) => {
 }
 
 exports.get_application_form_templates_shared_with_user = (req, res) => {
+  // Gets the templates visible to a user but not the ones created by the user
   var session = driver.session()
   session
   .run(`
+    //
     MATCH (user:User)
     WHERE id(user) = toInteger($user_id)
 

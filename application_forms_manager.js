@@ -24,6 +24,7 @@ app.get('/', (req, res) => {
     authentication_api_url: process.env.AUTHENTICATION_API_URL,
   })
 })
+
 app.use('/applications', require('./routes/applications.js'))
 app.use('/application_form_templates', require('./routes/templates.js'))
 app.use('/files', require('./routes/files.js'))
