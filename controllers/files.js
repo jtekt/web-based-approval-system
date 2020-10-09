@@ -89,7 +89,10 @@ exports.get_file = (req, res) => {
     // Now download the file
     let directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
-      if(err) return res.status(500).send("Error reading uploads directory")
+      if(err) {
+        console.log("Error reading uploads directory")
+        return res.status(500).send("Error reading uploads directory")
+      }
       // Send first file in the directory (one directory per file)
       let file_to_download = items[0]
       res.download( path.join(directory_path, file_to_download), file_to_download )
