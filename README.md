@@ -34,7 +34,8 @@ A web-based application approval system
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
 | /files | POST | multipart/form-data with file as 'file_to_upload' | Creates an attachment |
-## Environment configuration
+
+## Environment variables
 
 | variable | Description
 | --- | --- |

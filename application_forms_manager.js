@@ -3,6 +3,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const pjson = require('./package.json')
+const promMid = require('express-prometheus-middleware');
 
 dotenv.config()
 
@@ -12,8 +13,15 @@ const port = process.env.APP_PORT || 80
 
 const app = express()
 
+app.use(promMid({
+  metricsPath: '/metrics',
+  collectDefaultMetrics: true,
+  requestDurationBuckets: [0.1, 0.5, 1, 1.5],
+}))
+
 app.use(bodyParser.json())
 app.use(cors())
+
 
 app.get('/', (req, res) => {
   res.send({

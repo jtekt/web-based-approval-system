@@ -1,6 +1,6 @@
 {
   "name": "application_form_manager",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "",
   "main": "application_forms_manager.js",
   "scripts": {
@@ -17,9 +17,11 @@
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "express-prometheus-middleware": "^1.0.0",
     "formidable": "^1.2.1",
     "mv": "^2.1.1",
     "neo4j-driver": "^4.0.2",
+    "prom-client": "^12.0.0",
     "uuid": "^3.3.3"
   }
 }
