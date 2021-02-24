@@ -22,10 +22,7 @@ exports.check_auth = (req, res, next) => {
 
   // if no JWT available, reject requst
   if(!jwt) {
-    return res.status(403).send(`
-      JWT not found in either cookies or authorization header.
-      Please visit <a href="http://172.16.98.151:31091/">http://172.16.98.151:31091/</a> to get one.
-      `)
+    return res.status(403).send(`JWT not found in either cookies or authorization header`)
   }
 
   // Send JWT to authentication manager for decoding
@@ -41,4 +38,10 @@ exports.check_auth = (req, res, next) => {
   .catch(error => {
     res.status(400).send(error)
   })
+}
+
+exports.get_current_user_id = (req) => {
+  // Currently not used
+  return res.locals.user.identity.low
+    ?? res.locals.user.identity
 }

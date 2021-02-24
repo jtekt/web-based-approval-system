@@ -9,6 +9,19 @@ const visibility_enforcement = `
     OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 `
 
+function get_current_user_id(res) {
+  return res.locals.user.identity.low
+    ?? res.locals.user.identity
+}
+
+function get_application_id(req) {
+  return req.params.application_id
+    ?? req.body.application_id
+    ?? req.body.id
+    ?? req.query.application_id
+    ?? req.query.id
+}
+
 exports.create_application = (req, res) => {
   // Route to create or edit an application
 
@@ -54,7 +67,7 @@ exports.create_application = (req, res) => {
     // Finally, Return the application
     RETURN a
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     // Stuff from the body
     type: req.body.type,
     title: req.body.title,
@@ -63,7 +76,10 @@ exports.create_application = (req, res) => {
     recipients_ids: req.body.recipients_ids,
     group_ids: req.body.group_ids,
   })
-  .then((result) => { res.send(result.records) })
+  .then((result) => {
+    console.log(`Application created`)
+    res.send(result.records)
+  })
   .catch(error => {
     console.log(error)
     res.status(500).send(`Error accessing DB: ${error}`)
@@ -75,11 +91,7 @@ exports.delete_application = (req, res) => {
   // Deleting an application
   // Only the creator can delete the application
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -94,7 +106,7 @@ exports.delete_application = (req, res) => {
     // Delete the application and all of its relationships
     DETACH DELETE application
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
   })
   .then(result => {
@@ -111,12 +123,7 @@ exports.delete_application = (req, res) => {
 exports.get_application = (req, res) => {
   // Get a single application using its ID
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
-
+  const application_id = get_application_id(req)
   if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session()
@@ -171,7 +178,7 @@ exports.get_application = (req, res) => {
       forbidden
 
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
   })
   .then(result => {
@@ -322,7 +329,7 @@ exports.search_applications = (req, res) => {
     // Limit
     LIMIT 200
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: req.query.application_id,
     application_type: req.query.application_type,
     relationship_type: relationship_type,
@@ -365,9 +372,8 @@ exports.get_application_count = (req, res) => {
 
     `, {})
   .then(result => {
-
-
-    res.send(result.records[0].get('application_count'))
+    const response = {application_count: result.records[0].get('application_count')}
+    res.send(response)
   })
   .catch(error => {
     console.log(error)
@@ -378,9 +384,9 @@ exports.get_application_count = (req, res) => {
 
 exports.update_attachment_hankos = (req, res) => {
 
-  let approval_id = req.params.approval_id
-    || req.body.approval_id
-    || req.body.id
+  const approval_id = req.params.approval_id
+    ?? req.body.approval_id
+    ?? req.body.id
 
   var session = driver.session()
   session
@@ -397,12 +403,13 @@ exports.update_attachment_hankos = (req, res) => {
     RETURN application, approval
 
     `, {
-    user_id: res.locals.user.identity.low,
-    approval_id: approval_id,
+    user_id: get_current_user_id(res),
+    approval_id,
     attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
   })
   .then(result => {
     res.send(result.records)
+    console.log(`Attached hankos of approval ${approval_id} updated`)
   })
   .catch(error => {
     console.log(error)
@@ -419,11 +426,7 @@ exports.get_application_applicant = (req, res) => {
 
   // SHOULD NOT BE NEEDED ANYMORE
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   var session = driver.session()
   session
@@ -448,7 +451,7 @@ exports.get_application_applicant = (req, res) => {
     RETURN applicant, submitted_by, application
 
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
   })
   .then(result => { res.send(result.records) })
@@ -465,11 +468,7 @@ exports.get_application_recipients = (req, res) => {
   // SHOULD NOT BE NEEDED ANYMORE
 
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   var session = driver.session()
   session
@@ -508,7 +507,7 @@ exports.get_application_recipients = (req, res) => {
     // Ordering flow
     ORDER BY submitted_to.flow_index DESC
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
   })
   .then(result => { res.send(result.records) })
@@ -523,11 +522,7 @@ exports.get_application_visibility = (req, res) => {
   // Get a the groups an application is visible to
 
   // Actually used!
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  let application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -554,7 +549,7 @@ exports.get_application_visibility = (req, res) => {
     RETURN group
 
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
   })
   .then(result => { res.send(result.records) })
@@ -569,15 +564,18 @@ exports.approve_application = (req, res) => {
 
   // TODO: prevent re-approval
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  let application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  let comment = req.body.comment || ''
+  const comment = req.body.comment || ''
+
+
+  let attachment_hankos_query = ``
+  if(req.body.attachment_hankos) {
+    attachment_hankos_query = `SET approval.attachment_hankos = $attachment_hankos`
+  }
+
 
   var session = driver.session()
   session
@@ -594,17 +592,19 @@ exports.approve_application = (req, res) => {
     MERGE (application)<-[approval:APPROVED]-(recipient)
     SET approval.date = date()
     SET approval.comment = $comment
+    ${attachment_hankos_query}
 
     // RETURN APPLICATION
     RETURN application, recipient
     `, {
-    user_id: res.locals.user.identity.low,
-    application_id: application_id,
-    comment: comment,
+    user_id: get_current_user_id(res),
+    application_id,
+    comment,
+    attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
   })
   .then(result => {
     res.send(result.records)
-    console.log(`Application ${result.records[0].get('application').identity.low} got approved by ${result.records[0].get('recipient').identity.low}`)
+    console.log(`Application ${result.records[0].get('application').identity} got approved by user ${result.records[0].get('recipient').identity}`)
   })
   .catch(error => {
     res.status(500).send(`Error accessing DB: ${error}`)
@@ -617,15 +617,11 @@ exports.approve_application = (req, res) => {
 exports.reject_application = (req, res) => {
   // basically the opposite of putting a hanko
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  let application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  let comment =  req.body.comment || ''
+  const comment =  req.body.comment || ''
 
   var session = driver.session()
   session
@@ -646,13 +642,13 @@ exports.reject_application = (req, res) => {
 
     // RETURN APPLICATION
     RETURN application, recipient`, {
-    user_id: res.locals.user.identity.low,
-    application_id: application_id,
-    comment: comment,
+    user_id: get_current_user_id(res),
+    application_id,
+    comment,
   })
   .then(result => {
     res.send(result.records)
-    console.log(`Application ${result.records[0].get('application').identity.low} got rejected by ${result.records[0].get('recipient').identity.low}`)
+    console.log(`Application ${result.records[0].get('application').identity} got rejected by user ${result.records[0].get('recipient').identity}`)
   })
   .catch(error => {
     console.error(error)
@@ -665,11 +661,7 @@ exports.reject_application = (req, res) => {
 exports.update_privacy_of_application = (req, res) => {
   // Riute to make an application confidential or public
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  let application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -688,8 +680,8 @@ exports.update_privacy_of_application = (req, res) => {
     RETURN a
 
     `, {
-    user_id: res.locals.user.identity.low,
-    application_id: application_id,
+    user_id: get_current_user_id(res),
+    application_id,
     private: req.body.private,
   })
   .then((result) => { res.send(result.records) })
@@ -701,11 +693,7 @@ exports.update_privacy_of_application = (req, res) => {
 exports.update_application_visibility = (req, res) => {
   // Deletes all relationships to groups and recreate them
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -740,7 +728,7 @@ exports.update_application_visibility = (req, res) => {
     // Return the application
     RETURN application, group
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
     group_ids: req.body.group_ids,
   })
@@ -755,11 +743,7 @@ exports.update_application_visibility = (req, res) => {
 exports.make_application_visible_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -783,12 +767,12 @@ exports.make_application_visible_to_group = (req, res) => {
     // Return the application
     RETURN application, group
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
     group_id: req.body.group_id,
   })
   .then((result) => {
-    console.log(`Applcation ${result.records[0].get('application').identity.low} visisble to group ${result.records[0].get('group').identity.low}`)
+    console.log(`Applcation ${result.records[0].get('application').identity} visisble to group ${result.records[0].get('group').identity}`)
     res.send(result.records)
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -798,11 +782,7 @@ exports.make_application_visible_to_group = (req, res) => {
 exports.remove_application_visibility_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
 
-  let application_id = req.params.application_id
-    || req.body.application_id
-    || req.body.id
-    || req.query.application_id
-    || req.query.id
+  const application_id = get_application_id(req)
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
@@ -826,7 +806,7 @@ exports.remove_application_visibility_to_group = (req, res) => {
     // Return the application
     RETURN application
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     application_id: application_id,
     group_id: req.query.group_id,
   })
@@ -850,7 +830,7 @@ exports.get_submitted_applications = (req, res) => {
     RETURN application
     ORDER BY application.creation_date DESC
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
   })
   .then(result => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -859,6 +839,8 @@ exports.get_submitted_applications = (req, res) => {
 }
 
 exports.get_submitted_applications_pending = (req, res) => {
+
+  // TODO: Batching
 
   let query = `
   // Get applications of applicant
@@ -892,7 +874,7 @@ exports.get_submitted_applications_pending = (req, res) => {
   var session = driver.session()
   session
   .run(query, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
   })
   .then(result => {res.send(result.records)})
   .catch(error => {
@@ -940,13 +922,12 @@ exports.get_submitted_applications_approved = (req, res) => {
   var session = driver.session()
   session
   .run(query, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     start_index: start_index,
     batch_size: batch_size,
 
   })
   .then(result => {
-    // THIS SHOULD BE RECORDS!
     res.send(result.records)
   })
   .catch(error => {
@@ -959,7 +940,7 @@ exports.get_submitted_applications_approved = (req, res) => {
 
 exports.get_submitted_applications_rejected = (req, res) => {
 
-  let query = `
+  const query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
   WHERE id(applicant)=toInteger($user_id)
@@ -987,7 +968,7 @@ exports.get_submitted_applications_rejected = (req, res) => {
   var session = driver.session()
   session
   .run(query, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
   })
   .then(result => {
     res.send(result.records)
@@ -1014,7 +995,7 @@ exports.get_received_applications = (req, res) => {
     RETURN application
     ORDER BY application.creation_date DESC
     `, {
-      user_id: res.locals.user.identity.low,
+      user_id: get_current_user_id(res),
   })
   .then((result) => {   res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
@@ -1046,7 +1027,7 @@ exports.get_received_applications_pending = (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      user_id: res.locals.user.identity.low,
+      user_id: get_current_user_id(res),
   })
   .then((result) => {
     res.send(result.records)
@@ -1078,7 +1059,7 @@ exports.get_received_applications_approved = (req, res) => {
     // Return
     RETURN application, applicant
     ORDER BY application.creation_date DESC`, {
-      user_id: res.locals.user.identity.low,
+      user_id: get_current_user_id(res),
       start_index: start_index,
       batch_size: batch_size,
   })
@@ -1108,7 +1089,7 @@ exports.get_received_applications_rejected = (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC
     `, {
-      user_id: res.locals.user.identity.low,
+      user_id: get_current_user_id(res),
   })
   .then((result) => {
     res.send(result.records)

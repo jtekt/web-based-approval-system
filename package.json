@@ -1,6 +1,6 @@
 {
   "name": "application_form_manager",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "description": "",
   "main": "application_forms_manager.js",
   "scripts": {

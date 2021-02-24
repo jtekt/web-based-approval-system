@@ -22,20 +22,20 @@ deployment:
   stage: deployment
   script:
     # create/update the deployment
-    # - envsubst < deployment.yml | kubectl apply -f -
+    # - envsubst < kubernetes/deployment.yml | kubectl apply -f -
     # Pull latest image by restarting the deployment
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
     #- >
     #  if [ -z ${SERVICE_PORT} ];
     #  then echo "SERVICE_PORT not set, skipping creation of NodePort service";
-    #  else envsubst < nodeport_service.yml | kubectl apply -f -;
+    #  else envsubst < kubernetes/nodeport_service.yml | kubectl apply -f -;
     #  fi
     # if a domain name is specified, serve app through an ingress
     #- >
     #  if [ -z ${CERTIFICATE_DOMAIN} ];
     #  then echo "CERTIFICATE_DOMAIN not set, skipping creation of ingress";
-    #  else envsubst < ingress.yml | kubectl apply -f -;
+    #  else envsubst < kubernetes/ingress.yml | kubectl apply -f -;
     #  fi
   environment:
     name: production

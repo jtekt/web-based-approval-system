@@ -8,5 +8,8 @@ module.exports= neo4j.driver(
   neo4j.auth.basic(
     process.env.NEO4J_USERNAME,
     process.env.NEO4J_PASSWORD
-  )
+  ),
+  {
+    disableLosslessIntegers: true,
+  }
 )

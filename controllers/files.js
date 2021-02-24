@@ -67,7 +67,7 @@ exports.get_file = (req, res) => {
 
     return application
     `, {
-      user_id: res.locals.user.identity.low,
+      user_id: res.locals.user.identity.low ?? res.locals.user.identity,
       file_id: file_id,
       application_id: application_id,
   })

@@ -1,5 +1,9 @@
 const driver = require('../neo4j_driver.js')
 
+function get_current_user_id(res) {
+  return res.locals.user.identity.low
+    ?? res.locals.user.identity
+}
 
 exports.create_application_form_template = (req, res) => {
   // Create application form template
@@ -33,7 +37,7 @@ exports.create_application_form_template = (req, res) => {
 
     // RETURN
     RETURN aft`, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     fields: JSON.stringify(req.body.fields),
     label: req.body.label,
     description: req.body.description,
@@ -95,7 +99,7 @@ exports.edit_application_form_template = (req, res) => {
     // RETURN
     RETURN aft
     `, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     template_id: template_id,
     fields: JSON.stringify(req.body.fields), // cannot have nested props
     label: req.body.label,
@@ -135,7 +139,7 @@ exports.delete_application_form_template = (req, res) => {
 
     // RETURN
     RETURN creator`, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     template_id: template_id,
   })
   .then((result) => {
@@ -167,7 +171,7 @@ exports.get_application_form_template = (req, res) => {
     OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
     RETURN aft, creator, collect(distinct group) as groups`, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     template_id: template_id,
   })
   .then((result) => {
@@ -196,7 +200,7 @@ exports.get_all_application_form_templates_visible_to_user = (req, res) => {
       OR id(creator) = id(current_user)
 
     RETURN DISTINCT aft, creator`, {
-      user_id: res.locals.user.identity.low,
+      user_id: get_current_user_id(res),
     })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -220,7 +224,7 @@ exports.get_application_form_templates_shared_with_user = (req, res) => {
       AND NOT id(user)=id(creator)
 
     RETURN DISTINCT aft, creator`, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
     })
   .then((result) => { res.send(result.records) })
   .catch(error => {
@@ -245,7 +249,7 @@ exports.get_application_form_templates_from_user = (req, res) => {
 
     // RETURN
     RETURN aft`, {
-    user_id: res.locals.user.identity.low,
+    user_id: get_current_user_id(res),
   })
   .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
