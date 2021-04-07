@@ -380,7 +380,6 @@ exports.search_applications = (req, res) => {
 
 exports.get_application_count = (req, res) => {
 
-
   var session = driver.session()
   session
   .run(`
@@ -394,6 +393,28 @@ exports.get_application_count = (req, res) => {
   .then(result => {
     const response = {application_count: result.records[0].get('application_count')}
     res.send(response)
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
+exports.get_application_types = (req, res) => {
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find applications
+    MATCH (application:ApplicationForm)
+
+    // Return the application count
+    RETURN distinct(application.type) as application_type
+
+    `, {})
+  .then(result => {
+    res.send(result.records)
   })
   .catch(error => {
     console.log(error)
