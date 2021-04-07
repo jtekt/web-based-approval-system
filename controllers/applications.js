@@ -215,6 +215,8 @@ exports.search_applications = (req, res) => {
     - Relationship type
   */
 
+  // TODO: Approval state
+
   let relationship_query = ''
   let relationship_types = ['APPROVED', 'REJECTED', 'SUBMITTED_BY', 'SUBMITTED_TO']
   let relationship_type = req.query.relationship_type
@@ -278,6 +280,21 @@ exports.search_applications = (req, res) => {
     `
   }
 
+  let approval_state_query = ''
+  if(req.query.approval_state === 'approved') {
+    approval_state_query = `
+    WITH application
+    MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
+    WITH application, COUNT(recipient) AS recipient_count
+    OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
+    WITH application, recipient_count, count(approval) as approval_count
+
+    // Filter in completed applications
+    WITH application, recipient_count, approval_count
+    WHERE recipient_count = approval_count
+    `
+  }
+
   var session = driver.session()
   session
   .run(`
@@ -306,6 +323,9 @@ exports.search_applications = (req, res) => {
 
     // Group of applicant
     ${group_query}
+
+    // Approval state
+    ${approval_state_query}
 
     // Manage confidentiality
     WITH application
