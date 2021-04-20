@@ -4,6 +4,7 @@ const driver = require('../neo4j_driver.js')
 const auth = require('../auth.js')
 
 const controller = require('../controllers/applications.js')
+const decision_controller = require('../controllers/decisions.js')
 
 const router = express.Router()
 
@@ -11,6 +12,7 @@ router.use(auth.check_auth)
 
 router.route('/')
   .post(controller.create_application)
+  .get(controller.search_applications)
 
 router.route('/count')
   .get(controller.get_application_count)
@@ -27,9 +29,6 @@ router.route('/received/').get(controller.get_received_applications)
 router.route('/received/pending').get(controller.get_received_applications_pending)
 router.route('/received/approved').get(controller.get_received_applications_approved)
 router.route('/received/rejected').get(controller.get_received_applications_rejected)
-
-router.route('/search')
-  .get(controller.search_applications)
 
 router.route('/:application_id')
   .get(controller.get_application)
@@ -59,6 +58,9 @@ router.route('/:application_id/applicant')
 
 router.route('/:application_id/recipients')
   .get(controller.get_application_recipients) // MIGHT BE UNUSED
+
+router.route('/:application_id/decisions/:decision_id/comment')
+  .put(decision_controller.update_comment)
 
 router.route('/:application_id/approvals/:approval_id')
   .put(controller.update_attachment_hankos)

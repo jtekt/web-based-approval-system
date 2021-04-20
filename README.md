@@ -5,6 +5,8 @@ A web-based application approval system
 ### Application forms
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
+| /applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
+| /applications | GET | filter | Find application forms |
 | /applications/submitted | GET | - | Gets all submitted application forms |
 | /applications/submitted/pending | GET | - | Gets all pending submitted application forms |
 | /applications/submitted/rejected | GET | - | Gets all rejected submitted application forms |
@@ -14,12 +16,9 @@ A web-based application approval system
 | /applications/received/rejected | GET | - | Gets all rejected received application forms |
 | /applications/received/approved | GET | - | Gets all approved received application forms |
 | /applications/{application_id} | GET | - | gets an application forms using its ID |
-| /applications/{application_id} | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application forms |
 | /applications/{application_id} | DELETE | - | Deletes an application forms |
 | /applications/{application_id}/approve | POST/PUT | - | Approves an application forms |
 | /applications/{application_id}/reject | POST/PUT | - | Rejects an application forms |
-| /applications/{application_id}/applicant | GET | - | Gets the applicant of an application |
-| /applications/{application_id}/recipients | GET | - | Gets the recipients of an application |
 | /applications/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |
 
 ### Application form templates
