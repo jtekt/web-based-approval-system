@@ -31,5 +31,7 @@ app.get('/', (req, res) => {
 app.use('/applications', require('./routes/applications.js'))
 app.use('/application_form_templates', require('./routes/templates.js'))
 app.use('/files', require('./routes/files.js'))
+app.use('/decisions', require('./routes/decisions.js'))
+app.use('/approvals', require('./routes/approvals.js'))
 
 app.listen(port, () => console.log(`Application form manager listening on port ${port}`))

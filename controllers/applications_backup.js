@@ -227,12 +227,9 @@ exports.search_applications = (req, res) => {
     - Type
     - Date
     - Relationship type
-    - approval state
-    - group of applicant
   */
 
-  // Todo: batching/pagination
-
+  // TODO: Approval state
 
   let relationship_query = ''
   let relationship_types = ['APPROVED', 'REJECTED', 'SUBMITTED_BY', 'SUBMITTED_TO']
@@ -322,13 +319,26 @@ exports.search_applications = (req, res) => {
     WITH user
     MATCH (application:ApplicationForm)
 
+    // Filter relationships
     ${relationship_query}
+
+    // Filter dates
     ${start_date_query}
     ${end_date_query}
+
+    // Filter by application ID
     ${application_id_query}
+
+    // Filter by Hanko ID
     ${hanko_id_query}
+
+    // Type
     ${type_query}
+
+    // Group of applicant
     ${group_query}
+
+    // Approval state
     ${approval_state_query}
 
     // Manage confidentiality
@@ -428,6 +438,103 @@ exports.get_application_types = (req, res) => {
 
 
 
+exports.get_application_applicant = (req, res) => {
+  // Get the applicant of an application
+
+  // SHOULD NOT BE NEEDED ANYMORE
+
+  const application_id = get_application_id(req)
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:User)
+    WHERE id(user)=toInteger($user_id)
+
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInteger($application_id)
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Find applicant
+    WITH application
+    MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
+
+    // Return queried items
+    RETURN applicant, submitted_by, application
+
+    `, {
+    user_id: get_current_user_id(res),
+    application_id: application_id,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
+exports.get_application_recipients = (req, res) => {
+  // Get a the recipients of a single application
+
+  // SHOULD NOT BE NEEDED ANYMORE
+
+
+  const application_id = get_application_id(req)
+
+  var session = driver.session()
+  session
+  .run(`
+    // Find current user to check for authorization
+    MATCH (user:User)
+    WHERE id(user)=toInteger($user_id)
+
+    // Find application and applicant
+    WITH user
+    MATCH (application:ApplicationForm)
+    WHERE id(application) = toInteger($application_id)
+
+    // Enforce privacy
+    ${visibility_enforcement}
+
+    // Find applicant (not necessary here but doens't cost much to add in the query)
+    WITH application
+    OPTIONAL MATCH (application)-[submitted_by:SUBMITTED_BY]->(applicant:User)
+
+    // Find recipients
+    WITH application, applicant, submitted_by
+    OPTIONAL MATCH (application)-[submitted_to:SUBMITTED_TO]->(recipient:User)
+
+    // Find approvals
+    WITH application, applicant, submitted_by, recipient, submitted_to
+    OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
+
+    // Find rejections
+    WITH application, applicant, submitted_by, recipient, submitted_to, approval
+    OPTIONAL MATCH (application)<-[rejection:REJECTED]-(recipient)
+
+    // Return everything
+    RETURN application, applicant, submitted_by, recipient, submitted_to, approval, rejection
+
+    // Ordering flow
+    ORDER BY submitted_to.flow_index DESC
+    `, {
+    user_id: get_current_user_id(res),
+    application_id,
+  })
+  .then(result => { res.send(result.records) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
 exports.get_application_visibility = (req, res) => {
   // Get a the groups an application is visible to
 
@@ -505,17 +612,17 @@ exports.approve_application = (req, res) => {
     SET approval.comment = $comment
     ${attachment_hankos_query}
 
-    RETURN approval, recipient, application
+    // RETURN APPLICATION
+    RETURN application, recipient
     `, {
     user_id: get_current_user_id(res),
     application_id,
     comment,
     attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
   })
-  .then(({records}) => {
-    if(records.loength < 1) return res.status(404).send(`Application not found`)
-    res.send(records[0].get('approval'))
-    console.log(`Application ${records[0].get('application').identity} got approved by user ${records[0].get('recipient').identity}`)
+  .then(result => {
+    res.send(result.records)
+    console.log(`Application ${result.records[0].get('application').identity} got approved by user ${result.records[0].get('recipient').identity}`)
   })
   .catch(error => {
     res.status(500).send(`Error accessing DB: ${error}`)
@@ -552,15 +659,14 @@ exports.reject_application = (req, res) => {
     SET rejection.comment = $comment
 
     // RETURN APPLICATION
-    RETURN application, recipient, rejection`, {
+    RETURN application, recipient`, {
     user_id: get_current_user_id(res),
     application_id,
     comment,
   })
-  .then(({records}) => {
-    if(records.loength < 1) return res.status(404).send(`Application not found`)
-    res.send(records[0].get('rejection'))
-    console.log(`Application ${records[0].get('application').identity} got rejected by user ${records[0].get('recipient').identity}`)
+  .then(result => {
+    res.send(result.records)
+    console.log(`Application ${result.records[0].get('application').identity} got rejected by user ${result.records[0].get('recipient').identity}`)
   })
   .catch(error => {
     console.error(error)
@@ -581,25 +687,22 @@ exports.update_privacy_of_application = (req, res) => {
   session
   .run(`
     // Find the application
-    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(s)
-    WHERE id(application)=toInteger($application_id)
+    MATCH (a:ApplicationForm)-[:SUBMITTED_BY]->(s)
+    WHERE id(a)=toInteger($application_id)
       AND id(s)=toInteger($user_id)
 
     // Set the privacy property
-    SET application.private = $private
+    SET a.private = $private
 
     // Return the application
-    RETURN application
+    RETURN a
 
     `, {
     user_id: get_current_user_id(res),
     application_id,
     private: req.body.private,
   })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
+  .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
@@ -644,13 +747,12 @@ exports.update_application_visibility = (req, res) => {
     RETURN application, group
     `, {
     user_id: get_current_user_id(res),
-    application_id,
+    application_id: application_id,
     group_ids: req.body.group_ids,
   })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
+  .then((result) => {
+    res.send(result.records)
+  })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
@@ -684,13 +786,13 @@ exports.make_application_visible_to_group = (req, res) => {
     RETURN application, group
     `, {
     user_id: get_current_user_id(res),
-    application_id,
+    application_id: application_id,
     group_id: req.body.group_id,
   })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
+  .then((result) => {
+    console.log(`Applcation ${result.records[0].get('application').identity} visisble to group ${result.records[0].get('group').identity}`)
+    res.send(result.records)
+  })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
@@ -723,13 +825,10 @@ exports.remove_application_visibility_to_group = (req, res) => {
     RETURN application
     `, {
     user_id: get_current_user_id(res),
-    application_id,
+    application_id: application_id,
     group_id: req.query.group_id,
   })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
+  .then((result) => { res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
@@ -885,9 +984,12 @@ exports.get_submitted_applications_rejected = (req, res) => {
   `
 
   var session = driver.session()
-  session.run(query, { user_id: get_current_user_id(res) })
-  .then(({records}) => {
-    res.send(records)
+  session
+  .run(query, {
+    user_id: get_current_user_id(res),
+  })
+  .then(result => {
+    res.send(result.records)
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
@@ -913,7 +1015,7 @@ exports.get_received_applications = (req, res) => {
     `, {
       user_id: get_current_user_id(res),
   })
-  .then( ({records}) => {   res.send(records) })
+  .then((result) => {   res.send(result.records) })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 
@@ -957,8 +1059,8 @@ exports.get_received_applications_pending = (req, res) => {
 exports.get_received_applications_approved = (req, res) => {
   // Returns applications approved by a user
 
-  const start_index = req.query.start_index || 0
-  const batch_size = req.query.batch_size || 10
+  let start_index = req.query.start_index || 0
+  let batch_size = req.query.batch_size || 10
 
   var session = driver.session()
   session
@@ -976,11 +1078,11 @@ exports.get_received_applications_approved = (req, res) => {
     RETURN application, applicant
     ORDER BY application.creation_date DESC`, {
       user_id: get_current_user_id(res),
-      start_index,
-      batch_size,
+      start_index: start_index,
+      batch_size: batch_size,
   })
-  .then( ({records}) => {
-    res.send(records)
+  .then( (result) => {
+    res.send(result.records)
   })
   .catch(error => {
     console.log(error)

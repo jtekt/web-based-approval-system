@@ -36,34 +36,28 @@ router.route('/:application_id')
 
 router.route('/:application_id/approve')
   .post(controller.approve_application)
-  .put(controller.approve_application)
 
 router.route('/:application_id/reject')
   .post(controller.reject_application)
-  .put(controller.reject_application)
 
 router.route('/:application_id/privacy')
   .put(controller.update_privacy_of_application)
 
 router.route('/:application_id/visibility')
-  .get(controller.get_application_visibility) // MIGHT BE UNUSED
+  //.get(controller.get_application_visibility) // MIGHT BE UNUSED
   .put(controller.update_application_visibility)
 
 router.route('/:application_id/visibility_to_group')
   .post(controller.make_application_visible_to_group)
   .delete(controller.remove_application_visibility_to_group)
 
+/*
 router.route('/:application_id/applicant')
   .get(controller.get_application_applicant) // MIGHT BE UNUSED
 
 router.route('/:application_id/recipients')
   .get(controller.get_application_recipients) // MIGHT BE UNUSED
-
-router.route('/:application_id/decisions/:decision_id/comment')
-  .put(decision_controller.update_comment)
-
-router.route('/:application_id/approvals/:approval_id')
-  .put(controller.update_attachment_hankos)
+*/
 
 router.route('/:application_id/files/:file_id')
   .get(require('../controllers/files.js').get_file)

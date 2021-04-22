@@ -17,8 +17,8 @@ A web-based application approval system
 | /applications/received/approved | GET | - | Gets all approved received application forms |
 | /applications/{application_id} | GET | - | gets an application forms using its ID |
 | /applications/{application_id} | DELETE | - | Deletes an application forms |
-| /applications/{application_id}/approve | POST/PUT | - | Approves an application forms |
-| /applications/{application_id}/reject | POST/PUT | - | Rejects an application forms |
+| /applications/{application_id}/approve | POST | - | Approves an application forms |
+| /applications/{application_id}/reject | POST | - | Rejects an application forms |
 | /applications/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |
 
 ### Application form templates
