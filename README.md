@@ -24,6 +24,8 @@ A web-based application approval system
 ### Application form templates
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
+| /application_form_templates/ | POST | template_properties | Create a form template |
+| /application_form_templates/ | GET | - | Get templates visible to the current user |
 | /application_form_templates/{template_id} | GET | - | gets an application form template using its ID |
 | /application_form_templates/{template_id} | POST | fields, label, description, group_ids | Creates an application form template |
 | /application_form_templates/{template_id} | PUT | fields, label, description, group_ids | Updates an application form template |
