@@ -15,7 +15,7 @@ A web-based application approval system
 | /applications/received/pending | GET | - | Gets all pending received application forms |
 | /applications/received/rejected | GET | - | Gets all rejected received application forms |
 | /applications/received/approved | GET | - | Gets all approved received application forms |
-| /applications/{application_id} | GET | - | gets an application forms using its ID |
+| /v2/applications/{application_id} | GET | - | gets an application forms using its ID (Please note the v2 in the URL)|
 | /applications/{application_id} | DELETE | - | Deletes an application forms |
 | /applications/{application_id}/approve | POST | - | Approves an application forms |
 | /applications/{application_id}/reject | POST | - | Rejects an application forms |
@@ -33,6 +33,52 @@ A web-based application approval system
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
 | /files | POST | multipart/form-data with file as 'file_to_upload' | Creates an attachment |
+
+## Application for schema
+This is how an application form is formatted when querying it using a GET request:
+
+```javascript
+{
+  identity: Number,
+  properties: {
+    title: String,
+    type: String,
+    form_data: Object,
+    creation_date: Object,
+    private: Boolean,
+  },
+  recipients: [
+    {
+      identity: Number,
+      properties: Object,
+      approval: {
+        identity: String,
+        properties: {
+          date: Object,
+          comment: String,
+          attachment_hankos: Stringified JSON,
+        }
+      },
+      refusal: {
+        identity: String,
+        properties: {
+          comment: String,
+          date: Object,
+        }
+      }
+    },
+    // Other recipients
+  ],
+  visibility: [
+    {
+      identity: Number,
+      properties: Object,
+    },
+    // Other groups
+  ]
+}
+
+```
 
 ## Environment variables
 

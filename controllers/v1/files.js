@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const uuidv1 = require('uuid/v1')
 const formidable = require('formidable')
-const driver = require('../neo4j_driver.js')
+const driver = require('../../neo4j_driver.js')
 
 const uploads_directory_path = "/usr/share/pv" // For production in k8s
 

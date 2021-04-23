@@ -1,11 +1,9 @@
 const express = require('express')
-
-const driver = require('../neo4j_driver.js')
-const auth = require('../auth.js')
+const auth = require('../../auth.js')
+const controller = require('../../controllers/v1/templates.js')
 
 const router = express.Router()
 
-const controller = require('../controllers/templates.js')
 
 
 router.use(auth.check_auth)
