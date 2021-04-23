@@ -34,7 +34,8 @@ A web-based application approval system
 | --- | --- | --- | --- |
 | /files | POST | multipart/form-data with file as 'file_to_upload' | Creates an attachment |
 
-## Application for schema
+## Schemas
+### GET
 This is how an application form is formatted when querying it using a GET request:
 
 ```javascript
