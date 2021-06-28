@@ -1,10 +1,8 @@
 const express = require('express')
-
-const driver = require('../neo4j_driver.js')
-const auth = require('../auth.js')
-
-const controller = require('../controllers/applications.js')
-const decision_controller = require('../controllers/decisions.js')
+const auth = require('../../auth.js')
+const controller = require('../../controllers/v1/applications.js')
+const decision_controller = require('../../controllers/v1/decisions.js')
+const file_controller = require('../../controllers/v1/files.js')
 
 const router = express.Router()
 
@@ -60,6 +58,6 @@ router.route('/:application_id/recipients')
 */
 
 router.route('/:application_id/files/:file_id')
-  .get(require('../controllers/files.js').get_file)
+  .get(file_controller.get_file)
 
 module.exports = router

@@ -1,4 +1,4 @@
-const driver = require('../neo4j_driver.js')
+const driver = require('../../neo4j_driver.js')
 
 function get_current_user_id(res) {
   return res.locals.user.identity.low
@@ -154,9 +154,9 @@ exports.delete_application_form_template = (req, res) => {
 exports.get_application_form_template = (req, res) => {
   // get a single  application form template
 
-  let template_id = req.params.template_id
-    || req.query.template_id
-    || req.query.id
+  const template_id = req.params.template_id
+  const user_id = get_current_user_id(res)
+
 
   var session = driver.session()
   session
@@ -170,20 +170,40 @@ exports.get_application_form_template = (req, res) => {
     WITH aft, creator
     OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
-    RETURN aft, creator, collect(distinct group) as groups`, {
-    user_id: get_current_user_id(res),
-    template_id: template_id,
+    RETURN aft, creator, collect(distinct group) as groups`,
+    {
+    user_id,
+    template_id,
   })
-  .then((result) => {
-    console.log(`Getting template ${template_id}`)
-    let record = result.records[0]
-    res.send(record)
+  .then( ({records}) => {
+    console.log(`Template ${template_id} queried`)
+
+    if(records.length < 1) {
+      console.log(`Template ${template_id} not found`)
+      return res.status(404).send(`Template ${template_id} not found`)
+    }
+
+    const record = records[0]
+
+    const template = record.get('aft')
+    template.properties.fields = JSON.parse(template.properties.fields)
+
+    res.send({
+      ...template,
+      author: record.get('creator'),
+      groups: record.get('groups'),
+    })
+
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
 
 exports.get_all_application_form_templates_visible_to_user = (req, res) => {
+
+  // Used when creating an application form
+
+  const user_id = get_current_user_id(res)
 
   // Get all templates (and their creator) visible to a user
   var session = driver.session()
@@ -199,59 +219,25 @@ exports.get_all_application_form_templates_visible_to_user = (req, res) => {
     WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
       OR id(creator) = id(current_user)
 
-    RETURN DISTINCT aft, creator`, {
-      user_id: get_current_user_id(res),
+    RETURN DISTINCT aft, creator`,
+    { user_id, })
+  .then( ({records}) => {
+    console.log(`Templates visible to user ${user_id}`)
+
+    const templates = records.map(record => {
+      const template = record.get('aft')
+      template.properties.fields = JSON.parse(template.properties.fields)
+      return {
+        ...template,
+        author: record.get('creator'),
+      }
     })
-  .then((result) => { res.send(result.records) })
+
+    res.send(templates)
+   })
   .catch(error => {
     console.log(error)
     res.status(500).send(`Error accessing DB: ${error}`)
   })
-  .finally(() => { session.close() })
-}
-
-exports.get_application_form_templates_shared_with_user = (req, res) => {
-  // Gets the templates visible to a user but not the ones created by the user
-  var session = driver.session()
-  session
-  .run(`
-    //
-    MATCH (user:User)
-    WHERE id(user) = toInteger($user_id)
-
-    MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
-    WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
-      AND NOT id(user)=id(creator)
-
-    RETURN DISTINCT aft, creator`, {
-    user_id: get_current_user_id(res),
-    })
-  .then((result) => { res.send(result.records) })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
-  .finally(() => { session.close() })
-}
-
-
-exports.get_application_form_templates_from_user = (req, res) => {
-  // Get application form template of a the current user
-  var session = driver.session()
-  session
-  .run(`
-    // Find user
-    MATCH (creator:User)
-    WHERE id(creator) = toInteger($user_id)
-
-    // Find the templates of the user
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-
-    // RETURN
-    RETURN aft`, {
-    user_id: get_current_user_id(res),
-  })
-  .then((result) => { res.send(result.records) })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })
 }
