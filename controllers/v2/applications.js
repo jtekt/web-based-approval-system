@@ -22,18 +22,14 @@ function get_application_id(req) {
     ?? req.query.id
 }
 
-
-
-
 exports.get_application = (req, res) => {
   // Get a single application using its ID
 
   const application_id = get_application_id(req)
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  var session = driver.session()
-  session
-  .run(`
+  const session = driver.session()
+  session.run(`
     // Find current user to check for authorization
     MATCH (user:User)
     WHERE id(user)=toInteger($user_id)
@@ -108,21 +104,15 @@ exports.get_application = (req, res) => {
         authorship: record.get('authorship')
       },
       visibility: record.get('visibility'),
+      recipients: record.get('recipients')
+        .map(recipient => ({
+          ...recipient,
+          submission: record.get('submissions').find(submission => submission.end === recipient.identity ),
+          approval: record.get('approvals').find(approval =>   approval.start === recipient.identity ),
+          refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity ),
+        }))
+        .sort( (a,b) => a.submission.properties.flow_index - b.submission.properties.flow_index )
     }
-
-    application.recipients = record.get('recipients')
-    .map(recipient => {
-      return {
-        ...recipient,
-        submission: record.get('submissions').find(submission => submission.end === recipient.identity ),
-        approval: record.get('approvals').find(approval =>   approval.start === recipient.identity ),
-        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity ),
-      }
-    })
-    // Sort by flow index
-    .sort( (a,b) => {
-      return a.submission.properties.flow_index - b.submission.properties.flow_index
-    })
 
     res.send(application)
   })
