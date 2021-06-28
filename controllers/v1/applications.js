@@ -71,10 +71,10 @@ exports.create_application = (req, res) => {
     // Stuff from the body
     type: req.body.type,
     title: req.body.title,
-    private: req.body.private,
     form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
-    recipients_ids: req.body.recipients_ids,
-    group_ids: req.body.group_ids,
+    recipients_ids: req.body.recipients_ids, // Manadatory
+    private: req.body.private || false,
+    group_ids: req.body.group_ids || [],
   })
   .then( ({records}) => {
     if(records.length < 1) return res.status(500).send(`Failed to create application`)
@@ -217,6 +217,8 @@ exports.get_application = (req, res) => {
 
 
 exports.get_application_v2 = (req, res) => {
+  // Is this even used?
+
   // Get a single application using its ID
 
   const application_id = get_application_id(req)
@@ -513,6 +515,8 @@ exports.get_application_count = (req, res) => {
 }
 
 exports.get_application_types = (req, res) => {
+
+  // Used for search
 
   var session = driver.session()
   session

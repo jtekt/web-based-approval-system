@@ -22,6 +22,25 @@ function get_application_id(req) {
     ?? req.query.id
 }
 
+function format_application_from_record(record) {
+  return {
+    ...record.get('application'),
+    applicant: {
+      ...record.get('applicant'),
+      authorship: record.get('authorship')
+    },
+    visibility: record.get('visibility'),
+    recipients: record.get('recipients')
+      .map(recipient => ({
+        ...recipient,
+        submission: record.get('submissions').find(submission => submission.end === recipient.identity ),
+        approval: record.get('approvals').find(approval =>   approval.start === recipient.identity ),
+        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity ),
+      }))
+      .sort( (a,b) => a.submission.properties.flow_index - b.submission.properties.flow_index )
+  }
+}
+
 exports.get_application = (req, res) => {
   // Get a single application using its ID
 
@@ -97,22 +116,7 @@ exports.get_application = (req, res) => {
       application.properties.title = '機密 / Confidential'
     }
 
-    const application = {
-      ...record.get('application'),
-      applicant: {
-        ...record.get('applicant'),
-        authorship: record.get('authorship')
-      },
-      visibility: record.get('visibility'),
-      recipients: record.get('recipients')
-        .map(recipient => ({
-          ...recipient,
-          submission: record.get('submissions').find(submission => submission.end === recipient.identity ),
-          approval: record.get('approvals').find(approval =>   approval.start === recipient.identity ),
-          refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity ),
-        }))
-        .sort( (a,b) => a.submission.properties.flow_index - b.submission.properties.flow_index )
-    }
+    const application = format_application_from_record(record)
 
     res.send(application)
   })
@@ -121,4 +125,52 @@ exports.get_application = (req, res) => {
     res.status(500).send(`Error accessing DB: ${error}`)
   })
   .finally(() => { session.close() })
+}
+
+
+exports.get_submitted_applications_pending = (req, res) => {
+
+  // INCOMPLETE: NEED TO RETURN RECIPIENTS, APPROVALS ETC
+
+
+  const query = `
+  // Get applications of applicant
+  MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+  WHERE id(applicant)=toInteger($user_id)
+
+  // Filter out rejects
+  WITH application, applicant
+  WHERE NOT (:User)-[:REJECTED]->(application)
+
+  // Get submission_count and approval_count
+  // In order to filter out completed applications
+  WITH application, applicant
+  MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
+  WITH application, applicant, COUNT(recipient) AS recipient_count
+  OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
+  WITH application, applicant, recipient_count, count(approval) as approval_count
+  WHERE NOT recipient_count = approval_count
+
+  RETURN application
+  `
+
+  const params = {
+    user_id: get_current_user_id(res),
+  }
+
+  const session = driver.session()
+
+  session.run(query, params)
+  .then( ({records}) => {
+
+    const applications = records.map(record => record.get('application'))
+
+    res.send(applications)
+
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`) })
+  .finally(() => { session.close() })
+
 }
