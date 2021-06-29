@@ -273,7 +273,6 @@ exports.get_submitted_rejected_applications = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_submitted_rejected_applications}
 
   // Batching
@@ -310,7 +309,6 @@ exports.get_submitted_approved_applications = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_submitted_approved_applications}
 
   // Batching
@@ -348,7 +346,6 @@ exports.get_submitted_pending_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_submitted_pending_applications}
 
   RETURN count(application) as application_count
@@ -379,7 +376,6 @@ exports.get_submitted_rejected_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_submitted_rejected_applications}
 
   RETURN count(application) as application_count
@@ -411,7 +407,6 @@ exports.get_submitted_approved_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_submitted_approved_applications}
 
   RETURN count(application) as application_count
@@ -446,7 +441,6 @@ exports.get_received_pending_applications = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only pending
   ${query_received_pending_applications}
 
   // Batching
@@ -482,7 +476,6 @@ exports.get_received_rejected_applications = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_received_rejected_applications}
 
   // Batching
@@ -518,7 +511,6 @@ exports.get_received_approved_applications = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_received_approved_applications}
 
   // Batching
@@ -555,7 +547,6 @@ exports.get_received_pending_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_received_pending_applications}
 
   RETURN count(application) as application_count
@@ -585,7 +576,6 @@ exports.get_received_rejected_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_received_rejected_applications}
 
   RETURN count(application) as application_count
@@ -616,7 +606,6 @@ exports.get_received_approved_applications_count = (req, res) => {
 
   ${filter_by_type(req.query.type)}
 
-  // Filter only rejected
   ${query_received_approved_applications}
 
   RETURN count(application) as application_count
