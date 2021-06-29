@@ -976,7 +976,7 @@ exports.get_submitted_applications_rejected = (req, res) => {
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
   WHERE id(applicant)=toInteger($user_id)
 
-  // Filter out rejects
+  // Filter so as to get only rejected applications
   WITH application, applicant
   WHERE (:User)-[:REJECTED]->(application)
 
@@ -1043,11 +1043,9 @@ exports.get_received_applications_pending = (req, res) => {
       AND NOT (application)<-[:APPROVED]-(recipient)
       AND NOT (application)<-[:REJECTED]-(recipient)
 
-
     // Check if recipient is next in the flow
     WITH application, recipient, submission, applicant
     OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
-
     WITH submission, application, applicant, count(approval) as approvalCount
     WHERE submission.flow_index = approvalCount
 
