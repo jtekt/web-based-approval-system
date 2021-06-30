@@ -591,9 +591,6 @@ exports.approve_application = (req, res) => {
 
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  const comment = req.body.comment || ''
-
-
   let attachment_hankos_query = ``
   if(req.body.attachment_hankos) {
     attachment_hankos_query = `SET approval.attachment_hankos = $attachment_hankos`
@@ -621,7 +618,7 @@ exports.approve_application = (req, res) => {
     `, {
     user_id: get_current_user_id(res),
     application_id,
-    comment,
+    comment: req.body.comment || '',
     attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
   })
   .then(({records}) => {
