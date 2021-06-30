@@ -7,6 +7,7 @@ const router = express.Router()
 
 router.route('/unused')
   .get(controller.get_unused_files)
+  .delete(controller.move_unused_files)
 
 
 module.exports = router
