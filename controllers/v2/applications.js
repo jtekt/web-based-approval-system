@@ -146,7 +146,7 @@ const query_submitted_pending_applications =
 // Also, a rejected application is automatiocally not pending
 WITH application
 MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
-WHERE NOT (recipient:User)-[:REJECTED]->(application)
+WHERE NOT (:User)-[:REJECTED]->(application)
 WITH application, COUNT(recipient) AS recipient_count
 OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
 WITH application, recipient_count, count(approval) as approval_count
