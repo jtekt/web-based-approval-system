@@ -43,6 +43,3 @@ spec:
         volumeMounts:
         - mountPath: "/usr/share/pv"
           name: ${APPLICATION_NAME}
-      # Login to the registry to pull the image
-      imagePullSecrets:
-      - name: registry-credentials
