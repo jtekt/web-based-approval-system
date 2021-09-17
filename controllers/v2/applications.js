@@ -76,7 +76,8 @@ function format_application_from_record(record) {
         approval: record.get('approvals').find(approval =>   approval.start === recipient.identity ),
         refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity ),
       }))
-      .sort( (a,b) => a.submission.properties.flow_index - b.submission.properties.flow_index )
+      .sort( (a,b) => a.submission.properties.flow_index - b.submission.properties.flow_index ),
+    forbidden: record.get('forbidden'),
   }
 }
 

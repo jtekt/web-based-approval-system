@@ -22,7 +22,7 @@ deployment:
   stage: deployment
   script:
     # create/update the deployment
-    - envsubst < kubernetes/deployment.yml | kubectl apply -f -
+    # - envsubst < kubernetes/deployment.yml | kubectl apply -f -
     # Pull latest image by restarting the deployment
     - kubectl rollout restart deployment/${APPLICATION_NAME}
     # If a nodeport is specified, serve app through a nodeport service
