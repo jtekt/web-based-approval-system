@@ -1,7 +1,8 @@
 const axios = require('axios')
 const Cookies = require('cookies')
-const dotenv = require('dotenv');
-dotenv.config();
+const dotenv = require('dotenv')
+
+dotenv.config()
 
 exports.check_auth = (req, res, next) => {
 
@@ -16,7 +17,7 @@ exports.check_auth = (req, res, next) => {
 
   // Try to get JWT from cookies
   if(!jwt) {
-    var cookies = new Cookies(req, res)
+    const cookies = new Cookies(req, res)
     jwt = cookies.get('jwt')
   }
 
@@ -25,18 +26,29 @@ exports.check_auth = (req, res, next) => {
     return res.status(403).send(`JWT not found in either cookies or authorization header`)
   }
 
+  const url = `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
+
+  const headers = { Authorization: `Bearer ${jwt}`}
+
   // Send JWT to authentication manager for decoding
-  axios.post(`${process.env.AUTHENTICATION_API_URL}/decode_jwt`, { jwt: jwt })
-  .then(response => {
+  axios.get(url, {headers})
+  .then( ({data}) => {
 
     // make the response available to the rest of the route
-    res.locals.user = response.data
+    res.locals.user = data
 
     // Go to the route
     next()
   })
   .catch(error => {
-    res.status(400).send(error)
+    if(error.response){
+      res.status(error.response.status)
+        .send(error.response.data)
+    }
+    else {
+      res.status(500).send(error)
+    }
+
   })
 }
 
