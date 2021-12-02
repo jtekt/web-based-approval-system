@@ -50,7 +50,7 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_USER_MANAGER}
       --env NEO4J_URL=none
-      neo4j:3.5-community\
+      neo4j:3.5-community
     - sleep 100 # Wait for Neo4J to become available
     - >
       docker run
