@@ -61,7 +61,7 @@ test:
       --hostname ${TEST_DB}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
       --env JWT_SECRET=keyboardcat
-      neo4j:3.5-community
+      moreillon/user-manager
 
 
   script:
