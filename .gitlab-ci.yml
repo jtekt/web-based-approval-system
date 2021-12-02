@@ -1,44 +1,90 @@
 stages:
-  - containerization
-  - deployment
+  # - build
+  - test
+  # - deploy
 
 variables:
   APPLICATION_NAME: shinsei-manager
-  DOCKER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
+  CONTAINER_REGISTRY: ${DOCKER_HUB_USERNAME}
+  CONTAINER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
+  CONTAINER_IMAGE_TEST: ${APPLICATION_NAME}:test
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  TEST_NETWORK: tdd
+  TEST_DB: tdd-db
+  TEST_USER_MANAGER: tdd-user-manager
 
-containerization:
-  stage: containerization
-  script:
-    # Docker hub login
-    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
-    # Build the docker image. Pass proxy variables if set
-    - docker build -t ${DOCKER_IMAGE} .
-    # Pushing image to registry
-    - docker push ${DOCKER_IMAGE}
-    # Cleanup
-    - docker image rm ${DOCKER_IMAGE}
 
-deployment:
-  stage: deployment
+# build:
+#   stage: build
+#   only:
+#     - master
+#   script:
+#     # Docker hub login
+#     - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+#     # Build the docker image. Pass proxy variables if set
+#     - docker build -t ${DOCKER_IMAGE} .
+#     # Pushing image to registry
+#     - docker push ${DOCKER_IMAGE}
+#     # Cleanup
+#     - docker image rm ${DOCKER_IMAGE}
+
+
+test:
+  stage: test
+  only:
+    - master
+  tags:
+    - dind
+
+  before_script:
+    # Creating network for TDD
+    - docker network create ${TEST_NETWORK}
+    - >
+      docker run
+      -d
+      --rm
+      --name ${TEST_USER_MANAGER}
+      --network ${TEST_NETWORK}
+      --hostname ${TEST_USER_MANAGER}
+      --env NEO4J_URL=none
+      neo4j:3.5-community\
+    - sleep 100 # Wait for Neo4J to become available
+    - >
+      docker run
+      -d
+      --rm
+      --name ${TEST_DB}
+      --network ${TEST_NETWORK}
+      --hostname ${TEST_DB}
+      --env NEO4J_URL=bolt://${TEST_DB}:7687
+      --env JWT_SECRET=keyboardcat
+      neo4j:3.5-community
+
+
   script:
-    # create/update the deployment
-    # - envsubst < kubernetes/deployment.yml | kubectl apply -f -
-    # Pull latest image by restarting the deployment
-    - kubectl rollout restart deployment/${APPLICATION_NAME}
-    # If a nodeport is specified, serve app through a nodeport service
-    #- >
-    #  if [ -z ${SERVICE_PORT} ];
-    #  then echo "SERVICE_PORT not set, skipping creation of NodePort service";
-    #  else envsubst < kubernetes/nodeport_service.yml | kubectl apply -f -;
-    #  fi
-    # if a domain name is specified, serve app through an ingress
-    #- >
-    #  if [ -z ${CERTIFICATE_DOMAIN} ];
-    #  then echo "CERTIFICATE_DOMAIN not set, skipping creation of ingress";
-    #  else envsubst < kubernetes/ingress.yml | kubectl apply -f -;
-    #  fi
-  environment:
-    name: production
-    kubernetes:
-      # Obtained from GitLab
-      namespace: ${KUBERNETES_NAMESPACE}
+    - docker build -t ${CONTAINER_IMAGE_TEST} .
+    - >
+      docker run
+      --rm
+      --name tdd-app
+      --network ${TEST_NETWORK}
+      --env NEO4J_URL=bolt://${TEST_DB}:7687
+      --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
+      ${CONTAINER_IMAGE_TEST}
+      npm run test
+
+
+# deploy:
+#   stage: deploy
+#   only:
+#     - master
+#   script:
+#     # create/update the deployment
+#     # - envsubst < kubernetes/deployment.yml | kubectl apply -f -
+#     # Pull latest image by restarting the deployment
+#     #- kubectl rollout restart deployment/${APPLICATION_NAME}
+#   environment:
+#     name: production
+#     kubernetes:
+#       # Obtained from GitLab
+#       namespace: ${KUBERNETES_NAMESPACE}

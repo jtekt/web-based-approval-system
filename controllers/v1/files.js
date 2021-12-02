@@ -5,17 +5,22 @@ const uuidv1 = require('uuid/v1')
 const formidable = require('formidable')
 const driver = require('../../neo4j_driver.js')
 
-const uploads_directory_path = "/usr/share/pv" // For production in k8s
+// TODO: make this configurable
+const uploads_directory_path = "/usr/share/pv" // For production as docker container
 
 
 exports.file_upload = (req, res) => {
   // Route to upload an attachment
-  var form = new formidable.IncomingForm();
+  // TODO: use promises
+  // NOTE: Could use multer
+  const form = new formidable.IncomingForm()
   form.parse(req, function (err, fields, files) {
     if (err) return res.status(500).send('Error parsing the data')
 
-    var old_path = files.file_to_upload.path;
-    var file_name = files.file_to_upload.name;
+    const {
+      path: old_path,
+      name: file_name
+    } = files.file_to_upload
 
     var new_directory_name = uuidv1();
     var new_directory_path = path.join(uploads_directory_path, new_directory_name);
@@ -27,27 +32,29 @@ exports.file_upload = (req, res) => {
       if (err) return res.status(500).send('Error saving the file')
       res.send(new_directory_name)
       console.log(`${file_name} uploaded`)
-    });
+    })
 
   })
 }
 
 exports.get_file = (req, res) => {
 
+  // TODO: probably now only using params so get rid of query
+  // TODO: Check if can be set as const
+  // TODO: refactor
   let file_id = req.params.file_id
     || req.query.file_id
 
   if(!file_id) return res.status(400).send('File ID not specified')
 
-  // Application ID not strictly neccessary but helps find the file more easily
   let application_id = req.params.application_id
     || req.query.application_id
 
   if(!application_id) return res.status(400).send('Application ID not specified')
 
-  var session = driver.session()
-  session
-  .run(`
+  const user_id = res.locals.user.identity.low ?? res.locals.user.identity
+
+  const query = `
     // Find current user to check for authorization
     MATCH (user:User)
     WHERE id(user)=toInteger($user_id)
@@ -66,41 +73,44 @@ exports.get_file = (req, res) => {
       OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 
     return application
-    `, {
-      user_id: res.locals.user.identity.low ?? res.locals.user.identity,
-      file_id: file_id,
-      application_id: application_id,
-  })
-  .then((result) => {
+    `
+
+  const params = { user_id, file_id, application_id }
+
+  const session = driver.session()
+  session.run(query, params)
+  .then(({records}) => {
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(result.records.length === 0) {
+    if(!records.length) {
       return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
     }
 
     // Check if the application has a file with the given ID
-    let application_node = result.records[0].get('application')
-    let form_data = JSON.parse(application_node.properties.form_data)
-    let found_file = form_data.find( (field) => {
-      return field.value === file_id
-    })
+    const application_node = records[0].get('application')
+    const form_data = JSON.parse(application_node.properties.form_data)
+    const found_file = form_data.find( (field) => field.value === file_id)
     if(!found_file) return res.send(400).send('This application does not contain a file with the provided file ID')
 
     // Now download the file
-    let directory_path = path.join(uploads_directory_path, file_id)
+    const directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
       if(err) {
         console.log("Error reading uploads directory")
         return res.status(500).send("Error reading uploads directory")
       }
-      // Send first file in the directory (one directory per file)
-      let file_to_download = items[0]
+      // Send first file in the directory (one file per directory)
+      const file_to_download = items[0]
+      // NOTE: Why not sendFile?
       res.download( path.join(directory_path, file_to_download), file_to_download )
       console.log(`File ${file_to_download} has been downloaded`)
     })
 
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
   .finally(() => { session.close() })
 
 }

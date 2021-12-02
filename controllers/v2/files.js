@@ -45,8 +45,6 @@ function get_unused_files(){
     .catch(reject)
     .finally(() => { session.close() })
 
-
-
   })
 
 }
@@ -97,11 +95,5 @@ exports.move_unused_files = (req, res) => {
     console.log(error)
     res.status(500).send(error)
   })
-
-
-
-
-
-
 
 }

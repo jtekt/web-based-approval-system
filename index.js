@@ -3,15 +3,24 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const apiMetrics = require('prometheus-api-metrics')
-const {version, author, name: application_name} = require('./package.json')
+const {
+  version,
+  author,
+  name: application_name
+} = require('./package.json')
 
 dotenv.config()
 
 console.log(`- Application form manager v${version} -`)
 
-process.env.TZ = process.env.TZ || 'Asia/Tokyo'
+// Reading environment variables
+const {
+  APP_PORT = 80,
+  NEO4J_URL: neo4j_url = 'bolt://neo4j:7687',
+  AUTHENTICATION_API_URL: authentication_api_url = 'http://authentication',
+} = process.env
 
-const port = process.env.APP_PORT || 80
+process.env.TZ = process.env.TZ || 'Asia/Tokyo'
 
 const app = express()
 
@@ -24,12 +33,16 @@ app.get('/', (req, res) => {
     application_name,
     author,
     version,
-    neo4j_url: process.env.NEO4J_URL,
-    authentication_api_url: process.env.AUTHENTICATION_API_URL,
+    neo4j_url,
+    authentication_api_url,
   })
 })
 
 app.use('/', require('./routes/v1/index.js'))
 app.use('/v2', require('./routes/v2/index.js'))
+app.use('/v2', require('./routes/v3/index.js'))
 
-app.listen(port, () => console.log(`[Express] listening on port ${port}`))
+app.listen(APP_PORT, () => console.log(`[Express] listening on port ${APP_PORT}`))
+
+// Exporting app for tests
+exports.app = app

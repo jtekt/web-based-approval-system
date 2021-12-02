@@ -1,18 +1,9 @@
 const driver = require('../../neo4j_driver.js')
+const {
+  visibility_enforcement,
+  get_current_user_id,
+} = require('../../utils.js')
 
-const visibility_enforcement = `
-  WITH user, application
-  WHERE NOT application.private
-    OR NOT EXISTS(application.private)
-    OR (application)-[:SUBMITTED_BY]->(user)
-    OR (application)-[:SUBMITTED_TO]->(user)
-    OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
-`
-
-function get_current_user_id(res) {
-  return res.locals.user.identity.low
-    ?? res.locals.user.identity
-}
 
 function get_application_id(req) {
   return req.params.application_id
@@ -22,18 +13,27 @@ function get_application_id(req) {
     ?? req.query.id
 }
 
-exports.create_application = (req, res) => {
+exports.create_application = async (req, res) => {
   // Route to create or edit an application
 
-  var session = driver.session();
-  session
-  .run(`
+  // parsing body
+  const {
+    type,
+    title,
+    form_data,
+    recipients_ids,
+    private = false,
+    group_ids = [],
+  } = req.body
+
+
+  const query = `
     // Create the application node
     MATCH (s:User)
     WHERE id(s)=toInteger($user_id)
     CREATE (application:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(s)
 
-    // Set the application properties using data passed in the requestr body
+    // Set the application properties using data passed in the request body
     SET application.creation_date = date()
     SET application.title = $title
     SET application.private = $private
@@ -64,18 +64,24 @@ exports.create_application = (req, res) => {
     WITH collect(group) as groups, application
     FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
 
-    // Finally, Return the application
+    // Finally, Return the created application
     RETURN application
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
     // Stuff from the body
-    type: req.body.type,
-    title: req.body.title,
-    form_data: JSON.stringify(req.body.form_data), // Neo4J does not support nested props so convert to string
-    recipients_ids: req.body.recipients_ids, // Manadatory
-    private: req.body.private || false,
-    group_ids: req.body.group_ids || [],
-  })
+    type,
+    title,
+    recipients_ids, // Manadatory
+    private,
+    group_ids,
+    form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
+  }
+
+  const session = driver.session()
+
+  session.run(query,params)
   .then( ({records}) => {
     if(records.length < 1) return res.status(500).send(`Failed to create application`)
     const application = records[0].get('application')
@@ -83,8 +89,7 @@ exports.create_application = (req, res) => {
     res.send(application)
   })
   .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
+
   })
   .finally(() => { session.close() })
 }

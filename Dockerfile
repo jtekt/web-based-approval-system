@@ -14,4 +14,4 @@ RUN npm install
 EXPOSE 80
 
 # Run the app
-CMD [ "node", "application_forms_manager.js" ]
+CMD [ "node", "index.js" ]

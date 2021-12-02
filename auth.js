@@ -9,16 +9,13 @@ exports.check_auth = (req, res, next) => {
   let jwt = undefined
 
   // See if jwt available from authorization header
-  if(!jwt){
-    if(('authorization' in req.headers)) {
-      jwt = req.headers.authorization.split(" ")[1]
-    }
+  if(!jwt && ('authorization' in req.headers)){
+    jwt = req.headers.authorization.split(" ")[1]
   }
 
   // Try to get JWT from cookies
   if(!jwt) {
-    const cookies = new Cookies(req, res)
-    jwt = cookies.get('jwt')
+    const cookies = (new Cookies(req, res)).get('jwt')
   }
 
   // if no JWT available, reject requst
@@ -27,7 +24,6 @@ exports.check_auth = (req, res, next) => {
   }
 
   const url = `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
-
   const headers = { Authorization: `Bearer ${jwt}`}
 
   // Send JWT to authentication manager for decoding
