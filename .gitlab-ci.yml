@@ -28,6 +28,9 @@ variables:
 #     # Cleanup
 #     - docker image rm ${DOCKER_IMAGE}
 
+services:
+  - name: docker:19.03.12-dind
+
 
 test:
   stage: test
