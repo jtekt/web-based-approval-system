@@ -5,7 +5,7 @@ const axios = require('axios')
 const {AUTHENTICATION_API_URL} = process.env
 
 const login = async () => {
-  const url = `${AUTHENTICATION_API_URL}/login`
+  const url = `${AUTHENTICATION_API_URL}/auth/login`
   const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
   const {data: {jwt}} = await axios.post(url,body)
   return jwt
