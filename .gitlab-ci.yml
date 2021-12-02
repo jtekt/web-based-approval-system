@@ -60,6 +60,8 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_USER_MANAGER}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
+      --env NEO4J_USERNAME=neo4j
+      --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
       moreillon/user-manager
 
