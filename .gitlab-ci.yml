@@ -46,9 +46,9 @@ test:
       docker run
       -d
       --rm
-      --name ${TEST_USER_MANAGER}
+      --name ${TEST_DB}
       --network ${TEST_NETWORK}
-      --hostname ${TEST_USER_MANAGER}
+      --hostname ${TEST_DB}
       --env NEO4J_URL=none
       neo4j:3.5-community
     - sleep 100 # Wait for Neo4J to become available
@@ -56,9 +56,9 @@ test:
       docker run
       -d
       --rm
-      --name ${TEST_DB}
+      --name ${TEST_USER_MANAGER}
       --network ${TEST_NETWORK}
-      --hostname ${TEST_DB}
+      --hostname ${TEST_USER_MANAGER}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
       --env JWT_SECRET=keyboardcat
       moreillon/user-manager
