@@ -6,7 +6,7 @@ const {AUTHENTICATION_API_URL} = process.env
 
 const login = async () => {
   const url = `${AUTHENTICATION_API_URL}/auth/login`
-  const body = {email_address: 'admin', password: 'admin'}
+  const body = {username: 'admin', password: 'admin'}
   const {data: {jwt}} = await axios.post(url,body)
   return jwt
 }

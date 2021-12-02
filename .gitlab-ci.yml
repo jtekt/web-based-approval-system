@@ -52,6 +52,7 @@ test:
       --env NEO4J_URL=none
       neo4j:3.5-community
     - sleep 100 # Wait for Neo4J to become available
+    # Deploy a user-manager / authentication system
     - >
       docker run
       -d
@@ -73,10 +74,23 @@ test:
       --rm
       --name tdd-app
       --network ${TEST_NETWORK}
-      --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
-      ${CONTAINER_IMAGE_TEST}
-      npm run test
+      -e NEO4J_URL=bolt://${TEST_DB}:7687
+      -e NEO4J_USERNAME=neo4j
+      -e NEO4J_PASSWORD=neo4j
+      -e JWT_SECRET=keyboardcat
+      moreillon/user-manager
+      npm run coverage
+
+
+    # - >
+    #   docker run
+    #   --rm
+    #   --name tdd-app
+    #   --network ${TEST_NETWORK}
+    #   --env NEO4J_URL=bolt://${TEST_DB}:7687
+    #   --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
+    #   ${CONTAINER_IMAGE_TEST}
+    #   npm run test
 
 
 # deploy:
