@@ -1,7 +1,7 @@
 stages:
   - build
   - test
-  # - deploy
+  - deploy
 
 variables:
   APPLICATION_NAME: shinsei-manager
