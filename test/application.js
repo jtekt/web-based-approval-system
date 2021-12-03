@@ -33,7 +33,8 @@ describe("/applications", () => {
 
   describe("GET /", () => {
     it("Should allow to get the application root route", async () => {
-      const {status} = await request(app).get("/")
+      const {status, body} = await request(app).get("/")
+      console.log(body)
       expect(status).to.equal(200)
     })
   })
