@@ -10,6 +10,7 @@ const login = async () => {
   // const url = `${AUTHENTICATION_API_URL}/login`
   // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
   const {data: {jwt}} = await axios.post(url,body)
+  console.log(jwt)
   return jwt
 }
 
@@ -18,6 +19,7 @@ const whoami = async (jwt) => {
   // const url = `${AUTHENTICATION_API_URL}/v2/whoami`
   const headers = {authorization: `bearer ${jwt}`}
   const {data: user} = await axios.get(url,{headers})
+  console.log(user)
   return user
 }
 
