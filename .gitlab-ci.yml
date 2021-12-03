@@ -22,13 +22,14 @@ build:
   stage: build
   only:
     - master
-  script:
+  before_script:
     # Docker hub login
     - >
       echo "${DOCKER_HUB_PASSWORD}" |
       docker login
       --username ${DOCKER_HUB_USERNAME}
       --password-stdin
+  script:
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
     # Pushing image to registry
@@ -47,6 +48,12 @@ test:
     - dind
 
   before_script:
+    # Docker hub login
+    - >
+      echo "${DOCKER_HUB_PASSWORD}" |
+      docker login
+      --username ${DOCKER_HUB_USERNAME}
+      --password-stdin
     # Creating network for TDD
     - docker network create ${TEST_NETWORK}
     - >
