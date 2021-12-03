@@ -7,30 +7,31 @@ variables:
   APPLICATION_NAME: shinsei-manager
   CONTAINER_REGISTRY: ${DOCKER_HUB_USERNAME}
   CONTAINER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
-  CONTAINER_IMAGE_TEST: ${APPLICATION_NAME}:test
-  CONTAINER_IMAGE_LATEST: ${APPLICATION_NAME}:latest
+  CONTAINER_IMAGE_TEST: ${CONTAINER_IMAGE}:test
+  CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
   CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
   TEST_NETWORK: tdd
   TEST_DB: tdd-db
   TEST_USER_MANAGER: tdd-user-manager
 
-
-# build:
-#   stage: build
-#   only:
-#     - master
-#   script:
-#     # Docker hub login
-#     - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
-#     # Build the docker image. Pass proxy variables if set
-#     - docker build -t ${DOCKER_IMAGE} .
-#     # Pushing image to registry
-#     - docker push ${DOCKER_IMAGE}
-#     # Cleanup
-#     - docker image rm ${DOCKER_IMAGE}
-
 services:
   - name: docker:19.03.12-dind
+
+build:
+  stage: build
+  only:
+    - master
+  script:
+    # Docker hub login
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    # Build the docker image. Pass proxy variables if set
+    - docker build -t ${CONTAINER_IMAGE_TEST} .
+    # Pushing image to registry
+    - docker push ${CONTAINER_IMAGE_TEST}
+    # Cleanup
+    - docker image rm ${CONTAINER_IMAGE_TEST}
+
+
 
 
 test:
@@ -62,14 +63,13 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_USER_MANAGER}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env NEO4J_USERNAME=neo4j
-      --env NEO4J_PASSWORD=neo4j
+      --env NEO4J_USERNAME=neo4j # Might not be necessary
+      --env NEO4J_PASSWORD=neo4j # Might not be necessary
       --env JWT_SECRET=keyboardcat
       moreillon/user-manager
 
 
   script:
-    - docker build -t ${CONTAINER_IMAGE_TEST} .
     - >
       docker run
       --rm
@@ -82,6 +82,15 @@ test:
       --env TEST_USER_PASSWORD=admin
       ${CONTAINER_IMAGE_TEST}
       npm run test
+    # If pass, then push the images
+    # Tagging
+    - docker tag ${CONTAINER_IMAGE_TEST} ${CONTAINER_IMAGE_TAGGED}
+    - docker tag ${CONTAINER_IMAGE_TEST} ${CONTAINER_IMAGE_LATEST}
+    # Pushing
+    - docker push ${CONTAINER_IMAGE_TAGGED}
+    - docker push ${CONTAINER_IMAGE_LATEST}
+
+
 
 
 # deploy:
