@@ -11,12 +11,10 @@ const {
 } = process.env
 
 const login = async () => {
-  console.log(LOGIN_URL)
   const body = {username: TEST_USER_USERNAME, password: TEST_USER_PASSWORD}
   // const url = `${AUTHENTICATION_API_URL}/login`
   // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
   const {data: {jwt}} = await axios.post(LOGIN_URL,body)
-  console.log(jwt)
   return jwt
 }
 
@@ -24,7 +22,6 @@ const whoami = async (jwt) => {
   // const url = `${AUTHENTICATION_API_URL}/v2/whoami`
   const headers = {authorization: `bearer ${jwt}`}
   const {data: user} = await axios.get(IDENTIFICATION_URL,{headers})
-  console.log(user)
   return user
 }
 
@@ -33,7 +30,7 @@ describe("/applications", () => {
   let user, jwt, application_id
 
   beforeEach( async () => {
-    //console.log = () => {} // silence the console
+    console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
   })
