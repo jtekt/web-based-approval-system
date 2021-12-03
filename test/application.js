@@ -6,6 +6,7 @@ const {AUTHENTICATION_API_URL} = process.env
 
 const login = async () => {
   const url = `${AUTHENTICATION_API_URL}/auth/login`
+  console.log(url)
   const body = {username: 'admin', password: 'admin'}
   // const url = `${AUTHENTICATION_API_URL}/login`
   // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
