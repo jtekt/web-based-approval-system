@@ -23,7 +23,11 @@ build:
     - master
   script:
     # Docker hub login
-    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    - >
+      echo "${DOCKER_HUB_PASSWORD}" |
+      docker login
+      --username ${DOCKER_HUB_USERNAME}
+      --password-stdin
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
     # Pushing image to registry
@@ -63,8 +67,8 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_USER_MANAGER}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env NEO4J_USERNAME=neo4j # Might not be necessary
-      --env NEO4J_PASSWORD=neo4j # Might not be necessary
+      --env NEO4J_USERNAME=neo4j
+      --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
       moreillon/user-manager
 
