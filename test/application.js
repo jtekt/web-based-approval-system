@@ -5,17 +5,17 @@ const axios = require('axios')
 const {AUTHENTICATION_API_URL} = process.env
 
 const login = async () => {
-  // const url = `${AUTHENTICATION_API_URL}/auth/login`
-  // const body = {username: 'admin', password: 'admin'}
-  const url = `${AUTHENTICATION_API_URL}/login`
-  const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
+  const url = `${AUTHENTICATION_API_URL}/auth/login`
+  const body = {username: 'admin', password: 'admin'}
+  // const url = `${AUTHENTICATION_API_URL}/login`
+  // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
   const {data: {jwt}} = await axios.post(url,body)
   return jwt
 }
 
 const whoami = async (jwt) => {
-  // const url = `${AUTHENTICATION_API_URL}/users/self`
-  const url = `${AUTHENTICATION_API_URL}/v2/whoami`
+  const url = `${AUTHENTICATION_API_URL}/users/self`
+  // const url = `${AUTHENTICATION_API_URL}/v2/whoami`
   const headers = {authorization: `bearer ${jwt}`}
   const {data: user} = await axios.get(url,{headers})
   return user
