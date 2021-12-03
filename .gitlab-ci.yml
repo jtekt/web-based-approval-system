@@ -76,7 +76,7 @@ test:
       --name tdd-app
       --network ${TEST_NETWORK}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
+      --env IDENTIFICATION_URL=http://${TEST_USER_MANAGER}/users/self
       ${CONTAINER_IMAGE_TEST}
       npm run test
 

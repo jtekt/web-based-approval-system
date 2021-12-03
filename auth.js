@@ -23,7 +23,7 @@ exports.check_auth = (req, res, next) => {
     return res.status(403).send(`JWT not found in either cookies or authorization header`)
   }
 
-  const url = `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
+  const url = process.env.IDENTIFICATION_URL || `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
   const headers = { Authorization: `Bearer ${jwt}`}
 
   // Send JWT to authentication manager for decoding
