@@ -2,24 +2,28 @@ const request = require("supertest")
 const {expect} = require("chai")
 const {app} = require("../index.js")
 const axios = require('axios')
-const {AUTHENTICATION_API_URL} = process.env
+
+const {
+  LOGIN_URL,
+  IDENTIFICATION_URL,
+  TEST_USER_USERNAME,
+  TEST_USER_PASSWORD,
+} = process.env
 
 const login = async () => {
-  const url = `${AUTHENTICATION_API_URL}/auth/login`
-  console.log(url)
-  const body = {username: 'admin', password: 'admin'}
+  console.log(LOGIN_URL)
+  const body = {username: TEST_USER_USERNAME, password: TEST_USER_PASSWORD}
   // const url = `${AUTHENTICATION_API_URL}/login`
   // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
-  const {data: {jwt}} = await axios.post(url,body)
+  const {data: {jwt}} = await axios.post(LOGIN_URL,body)
   console.log(jwt)
   return jwt
 }
 
 const whoami = async (jwt) => {
-  const url = `${AUTHENTICATION_API_URL}/users/self`
   // const url = `${AUTHENTICATION_API_URL}/v2/whoami`
   const headers = {authorization: `bearer ${jwt}`}
-  const {data: user} = await axios.get(url,{headers})
+  const {data: user} = await axios.get(IDENTIFICATION_URL,{headers})
   console.log(user)
   return user
 }
