@@ -21,7 +21,7 @@ const whoami = async (jwt) => {
   return user
 }
 
-describe("/v2/applications", () => {
+describe("/applications", () => {
 
   let user, jwt, application_id
 
