@@ -74,23 +74,10 @@ test:
       --rm
       --name tdd-app
       --network ${TEST_NETWORK}
-      -e NEO4J_URL=bolt://${TEST_DB}:7687
-      -e NEO4J_USERNAME=neo4j
-      -e NEO4J_PASSWORD=neo4j
-      -e JWT_SECRET=keyboardcat
-      moreillon/user-manager
-      npm run coverage
-
-
-    # - >
-    #   docker run
-    #   --rm
-    #   --name tdd-app
-    #   --network ${TEST_NETWORK}
-    #   --env NEO4J_URL=bolt://${TEST_DB}:7687
-    #   --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
-    #   ${CONTAINER_IMAGE_TEST}
-    #   npm run test
+      --env NEO4J_URL=bolt://${TEST_DB}:7687
+      --env AUTHENTICATION_API_URL=http://${TEST_USER_MANAGER}
+      ${CONTAINER_IMAGE_TEST}
+      npm run test
 
 
 # deploy:
