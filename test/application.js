@@ -55,7 +55,6 @@ describe("/applications", () => {
         .set('Authorization', `Bearer ${jwt}`)
 
       console.log(text)
-
       application_id = body.identity
 
       expect(status).to.equal(200)
