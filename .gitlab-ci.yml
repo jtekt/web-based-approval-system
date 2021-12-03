@@ -105,17 +105,17 @@ test:
 
 
 
-# deploy:
-#   stage: deploy
-#   only:
-#     - master
-#   script:
-#     # create/update the deployment
-#     # - envsubst < kubernetes/deployment.yml | kubectl apply -f -
-#     # Pull latest image by restarting the deployment
-#     #- kubectl rollout restart deployment/${APPLICATION_NAME}
-#   environment:
-#     name: production
-#     kubernetes:
-#       # Obtained from GitLab
-#       namespace: ${KUBERNETES_NAMESPACE}
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    # create/update the deployment
+    - envsubst < kubernetes/deployment.yml | kubectl apply -f -
+    # Pull latest image by restarting the deployment
+    #- kubectl rollout restart deployment/${APPLICATION_NAME}
+  environment:
+    name: production
+    kubernetes:
+      # Obtained from GitLab
+      namespace: ${KUBERNETES_NAMESPACE}
