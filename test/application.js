@@ -12,7 +12,7 @@ const login = async () => {
 }
 
 const whoami = async (jwt) => {
-  const url = `${AUTHENTICATION_API_URL}/v2/whoami`
+  const url = `${AUTHENTICATION_API_URL}/users/self`
   const headers = {authorization: `bearer ${jwt}`}
   const {data: user} = await axios.get(url,{headers})
   return user
