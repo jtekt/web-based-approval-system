@@ -29,6 +29,7 @@ describe("/applications", () => {
     //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
+    console.log(user)
   })
 
   describe("GET /", () => {
