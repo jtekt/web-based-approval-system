@@ -26,6 +26,7 @@ describe("/v2/applications", () => {
     //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
+    console.log(user)
   })
 
   describe("POST /applications", () => {
