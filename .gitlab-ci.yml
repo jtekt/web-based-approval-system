@@ -8,6 +8,7 @@ variables:
   CONTAINER_REGISTRY: ${DOCKER_HUB_USERNAME}
   CONTAINER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
   CONTAINER_IMAGE_TEST: ${APPLICATION_NAME}:test
+  CONTAINER_IMAGE_LATEST: ${APPLICATION_NAME}:latest
   CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
   TEST_NETWORK: tdd
   TEST_DB: tdd-db
@@ -51,7 +52,7 @@ test:
       --hostname ${TEST_DB}
       --env NEO4J_AUTH=none
       neo4j:3.5-community
-    - sleep 100 # Wait for Neo4J to become available
+    - sleep 60 # Wait for Neo4J to become available
     # Deploy a user-manager / authentication system
     - >
       docker run
