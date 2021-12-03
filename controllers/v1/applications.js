@@ -80,13 +80,13 @@ exports.create_application = async (req, res) => {
   }
 
   const session = driver.session()
-
   session.run(query,params)
   .then( ({records}) => {
+
     if(records.length < 1) return res.status(500).send(`Failed to create application`)
     const application = records[0].get('application')
-    console.log(`Application ${application.identity} created`)
     res.send(application)
+    console.log(`Application ${application.identity} created`)
   })
   .catch(error => {
 
