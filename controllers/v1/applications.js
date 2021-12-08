@@ -632,7 +632,7 @@ exports.approve_application = (req, res) => {
     MERGE (application)<-[approval:APPROVED]-(recipient)
     SET approval.date = date()
     SET approval.comment = $comment
-    SET approval.uuiid = $uuid
+    SET approval._id = randomUUID()
     ${attachment_hankos_query}
 
     RETURN approval, recipient, application
