@@ -12,8 +12,8 @@ exports.create_application_form_template = (req, res) => {
 
   const {
     label,
-    fields = [],
     description = '',
+    fields = [],
     group_ids = [],
   } = req.body
 
@@ -49,7 +49,7 @@ exports.create_application_form_template = (req, res) => {
     // RETURN
     RETURN aft`, {
     user_id: get_current_user_id(res),
-    fields: JSON.stringify(req.body.fields),
+    fields: JSON.stringify(fields),
     label,
     description,
     group_ids,
