@@ -4,30 +4,37 @@ const dotenv = require('dotenv')
 
 dotenv.config()
 
-exports.check_auth = (req, res, next) => {
+const {
+  IDENTIFICATION_URL,
+  AUTHENTICATION_API_URL,
+} = process.env
 
-  let jwt = undefined
+const authentication_url = IDENTIFICATION_URL
+  || `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
 
-  // See if jwt available from authorization header
-  if(!jwt && ('authorization' in req.headers)){
-    jwt = req.headers.authorization.split(" ")[1]
-  }
+const retrieve_jwt = (req, res) => {
 
-  // Try to get JWT from cookies
-  if(!jwt) {
-    const cookies = (new Cookies(req, res)).get('jwt')
-  }
+  return req.headers.authorization?.split(" ")[1]
+    || req.headers.authorization
+    || (new Cookies(req, res)).get('jwt')
+    || req.query.jwt
+    || req.query.token
+
+}
+
+exports.middleware = (req, res, next) => {
+
+  let jwt = retrieve_jwt(req,res)
 
   // if no JWT available, reject requst
   if(!jwt) {
-    return res.status(403).send(`JWT not found in either cookies or authorization header`)
+    return res.status(403).send(`Missing JWT`)
   }
 
-  const url = process.env.IDENTIFICATION_URL || `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
   const headers = { Authorization: `Bearer ${jwt}`}
 
   // Send JWT to authentication manager for decoding
-  axios.get(url, {headers})
+  axios.get(authentication_url, {headers})
   .then( ({data}) => {
 
     // make the response available to the rest of the route
@@ -47,6 +54,8 @@ exports.check_auth = (req, res, next) => {
 
   })
 }
+
+exports.url = authentication_url
 
 exports.get_current_user_id = (req) => {
   // Currently not used

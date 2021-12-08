@@ -1,10 +1,7 @@
-const driver = require('../../neo4j_driver.js')
-
-
-function get_current_user_id(res) {
-  return res.locals.user.identity.low
-    ?? res.locals.user.identity
-}
+const {driver} = require('../../db.js')
+const {
+  get_current_user_id,
+} = require('../../utils.js')
 
 function get_application_id(req) {
   return req.params.application_id

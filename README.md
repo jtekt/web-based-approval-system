@@ -5,18 +5,10 @@ A web-based application approval system
 ### Application forms
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
-| /applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
-| /applications | GET | filter | Find application forms |
-| /applications/submitted | GET | - | Gets all submitted application forms |
-| /applications/submitted/pending | GET | - | Gets all pending submitted application forms |
-| /applications/submitted/rejected | GET | - | Gets all rejected submitted application forms |
-| /applications/submitted/approved | GET | - | Gets all approved submitted application forms |
-| /applications/received | GET | - | Gets all submitted application forms |
-| /applications/received/pending | GET | - | Gets all pending received application forms |
-| /applications/received/rejected | GET | - | Gets all rejected received application forms |
-| /applications/received/approved | GET | - | Gets all approved received application forms |
+| /v2/applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
+| /v3/applications/submitted | GET | Coming soon... | Find application forms |
 | /v2/applications/{application_id} | GET | - | gets an application forms using its ID (Please note the v2 in the URL)|
-| /applications/{application_id} | DELETE | - | Deletes an application forms |
+| /v2/applications/{application_id} | DELETE | - | Deletes an application forms |
 | /applications/{application_id}/approve | POST | - | Approves an application forms |
 | /applications/{application_id}/reject | POST | - | Rejects an application forms |
 | /applications/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |

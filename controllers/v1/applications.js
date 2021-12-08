@@ -1,4 +1,4 @@
-const driver = require('../../neo4j_driver.js')
+const {driver} = require('../../db.js')
 const {
   visibility_enforcement,
   get_current_user_id,
@@ -351,7 +351,7 @@ exports.search_applications = (req, res) => {
 
   let relationship_query = ''
   let relationship_types = ['APPROVED', 'REJECTED', 'SUBMITTED_BY', 'SUBMITTED_TO']
-  let relationship_type = req.query.relationship_type
+  let {relationship_type} = req.query
   if (relationship_type && !relationship_types.includes(relationship_type)) return res.status(400).send(`Invalid relationship type`)
   if(relationship_type) {
     relationship_query = `

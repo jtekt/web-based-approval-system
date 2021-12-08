@@ -1,11 +1,7 @@
-const express = require('express')
-const auth = require('../../auth.js')
-
+const {Router} = require('express')
 const controller = require('../../controllers/v1/decisions.js')
 
-const router = express.Router()
-
-router.use(auth.check_auth)
+const router = Router()
 
 router.route('/:decision_id/comment')
   .put(controller.update_comment)

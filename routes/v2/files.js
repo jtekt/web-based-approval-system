@@ -1,5 +1,4 @@
 const express = require('express')
-const auth = require('../../auth.js')
 const controller = require('../../controllers/v2/files.js')
 
 const router = express.Router()

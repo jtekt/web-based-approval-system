@@ -1,4 +1,4 @@
-const driver = require('../../neo4j_driver.js')
+const {driver} = require('../../db.js')
 const {
   format_application_from_record,
   return_application_and_related_nodes,
@@ -13,6 +13,7 @@ const {
   application_batching,
   filter_by_type,
   get_current_user_id,
+  get_application_id,
 } = require('../../utils.js')
 
 
@@ -46,6 +47,51 @@ exports.get_application = (req, res) => {
     const application = format_application_from_record(record)
 
     res.send(application)
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(`Error accessing DB: ${error}`)
+  })
+  .finally(() => { session.close() })
+}
+
+exports.delete_application = (req, res) => {
+  // Deleting an application
+  // Only the creator can delete the application
+
+  const user_id = get_current_user_id(res)
+  if(!user_id) return res.status(400).send('User ID not defined')
+
+  const application_id = get_application_id(req)
+  if(!application_id) return res.status(400).send('Application ID not defined')
+
+  const query = `
+    // Find the application to be deleted using provided id
+    MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+    WHERE id(application) = toInteger($application_id)
+      AND id(applicant) = toInteger($user_id)
+
+    // Delete the application and all of its relationships
+    SET application.deleted = True
+
+    RETURN application
+    `
+
+  const params = {user_id, application_id}
+
+  var session = driver.session()
+  session.run(query,params)
+  .then(({records}) => {
+
+    if(!records.length) {
+      console.log(`Application ${application_id} not found`)
+      return res.status(404).send(`Application ${application_id} not found`)
+    }
+
+    const application = records[0].get('application')
+
+    res.send(application)
+    console.log(`Application ${application_id} marked as deleted`)
   })
   .catch(error => {
     console.log(error)

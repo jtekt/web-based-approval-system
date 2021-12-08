@@ -1,12 +1,12 @@
 const express = require('express')
-const auth = require('../../auth.js')
 
 const submitted_applications_router = require('./submitted_applications.js')
 const received_applications_router = require('./received_applications.js')
 
 const {
   get_application,
-  create_application
+  create_application,
+  delete_application,
 } = require('../../controllers/v2/applications.js')
 
 
@@ -18,6 +18,7 @@ router.use('/received',received_applications_router)
 
 router.route('/:application_id')
   .get(get_application)
+  .delete(delete_application)
 
 
 

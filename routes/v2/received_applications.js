@@ -1,8 +1,8 @@
-const express = require('express')
+const {Router} = require('express')
 
 const controller = require('../../controllers/v2/applications.js')
 
-const router = express.Router()
+const router = Router()
 
 
 router.route('/pending').get(controller.get_received_pending_applications)

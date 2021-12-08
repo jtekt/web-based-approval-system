@@ -5,8 +5,8 @@ stages:
 
 variables:
   APPLICATION_NAME: shinsei-manager
-  #CONTAINER_REGISTRY: ${DOCKER_HUB_USERNAME}
-  CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
+  CONTAINER_REGISTRY: ${DOCKER_HUB_USERNAME}
+  CONTAINER_IMAGE: ${CONTAINER_REGISTRY}/${APPLICATION_NAME}
   CONTAINER_IMAGE_TEST: ${CONTAINER_IMAGE}:test
   CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
   CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
@@ -16,7 +16,7 @@ variables:
 
 services:
   - name: docker:19.03.12-dind
-    command: ["--insecure-registry=172.16.98.151:5000"]
+    # command: ["--insecure-registry=172.16.98.151:5000"]
 
 build:
   stage: build

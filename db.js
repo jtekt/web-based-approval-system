@@ -13,4 +13,5 @@ const auth = neo4j.auth.basic( NEO4J_USERNAME, NEO4J_PASSWORD )
 
 const options = { disableLosslessIntegers: true }
 
-module.exports = neo4j.driver( NEO4J_URL, auth, options )
+exports.driver = neo4j.driver( NEO4J_URL, auth, options )
+exports.url = NEO4J_URL

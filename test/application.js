@@ -12,14 +12,11 @@ const {
 
 const login = async () => {
   const body = {username: TEST_USER_USERNAME, password: TEST_USER_PASSWORD}
-  // const url = `${AUTHENTICATION_API_URL}/login`
-  // const body = {email_address: 'test_user@jtekt.co.jp', password: 'poketenashi'}
   const {data: {jwt}} = await axios.post(LOGIN_URL,body)
   return jwt
 }
 
 const whoami = async (jwt) => {
-  // const url = `${AUTHENTICATION_API_URL}/v2/whoami`
   const headers = {authorization: `bearer ${jwt}`}
   const {data: user} = await axios.get(IDENTIFICATION_URL,{headers})
   return user
@@ -58,11 +55,28 @@ describe("/applications", () => {
         .send(application)
         .set('Authorization', `Bearer ${jwt}`)
 
-      console.log(text)
       application_id = body.identity
 
       expect(status).to.equal(200)
     })
+
+    it("Should prevent the creation of an application to unauthenticated users", async () => {
+
+      const application = {
+        title: 'tdd',
+        type: 'tdd',
+        form_data: {test: 'test'},
+        recipients_ids: [(user.identity.low || user.identity)] // self as recipient
+      }
+
+      const {body, status, text} = await request(app)
+        .post("/applications")
+        .send(application)
+
+
+      expect(status).to.equal(403)
+    })
+
   })
 
   describe("GET /v2/applications/submitted/pending", () => {

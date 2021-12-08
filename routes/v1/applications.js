@@ -1,12 +1,9 @@
 const express = require('express')
-const auth = require('../../auth.js')
 const controller = require('../../controllers/v1/applications.js')
 const decision_controller = require('../../controllers/v1/decisions.js')
 const file_controller = require('../../controllers/v1/files.js')
 
 const router = express.Router()
-
-router.use(auth.check_auth)
 
 router.route('/')
   .post(controller.create_application)

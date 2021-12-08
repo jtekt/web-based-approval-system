@@ -1,11 +1,30 @@
+exports.error_handling = (error, res) => {
+  console.log(error)
+  const {tag} = error
+  let status_code = error.code || 500
+  if(isNaN(status_code)) status_code = 500
+  const message = error.message || error
+  res.status(status_code).send(message)
+}
+
+
 exports.get_current_user_id = (res) => {
   return res.locals.user.identity.low
     ?? res.locals.user.identity
 }
 
+exports.get_application_id = (req) => {
+  return req.params.application_id
+    ?? req.body.application_id
+    ?? req.body.id
+    ?? req.query.application_id
+    ?? req.query.id
+}
+
 exports.format_application_from_record = (record) => {
 
   // An utility function to format the output of a neo4j query of applications
+  // In order to be sent to a front end via JSON
 
   if(record.get('forbidden')) {
     const application = record.get('application')
@@ -81,6 +100,7 @@ RETURN application,
   forbidden
 `
 
+// This might be unused
 exports.visibility_enforcement = `
   WITH user, application
   WHERE NOT application.private
@@ -109,6 +129,12 @@ WITH application
 WHERE (:User)-[:REJECTED]->(application)
 `
 
+exports.query_non_deleted_applications =
+`
+WITH application
+WHERE NOT EXISTS(application.deleted)
+`
+
 exports.query_submitted_pending_applications =
 `
 // A pending application is an application that is does not yet have an equal amount approvals and submissions
@@ -124,8 +150,7 @@ WHERE NOT recipient_count = approval_count
 
 exports.query_submitted_approved_applications =
 `
-// A pending application is an application that is does not yet have an equal amounf approvals and submissions
-// Also, a rejected application is automatiocally not pending
+// A submitted approved application has equal number of approvals than submissions
 WITH application
 MATCH (application)-[:SUBMITTED_TO]->(recipient:User)
 WHERE NOT (recipient:User)-[:REJECTED]->(application)

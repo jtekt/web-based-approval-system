@@ -1,4 +1,4 @@
-const driver = require('../../neo4j_driver.js')
+const {driver} = require('../../db.js')
 
 const visibility_enforcement = `
   WITH user, application
