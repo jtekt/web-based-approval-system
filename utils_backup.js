@@ -7,6 +7,7 @@ exports.error_handling = (error, res) => {
   res.status(status_code).send(message)
 }
 
+
 exports.get_current_user_id = (res) => {
   return res.locals.user.identity.low
     ?? res.locals.user.identity
@@ -50,14 +51,16 @@ exports.format_application_from_record = (record) => {
   }
 }
 
-exports.return_application_and_related_nodes = `
-// Counting is done in batching
-WITH application, application_count
+exports.return_application_and_related_nodes =
+`
+// Dealing with confidentiality
+// involves checking relationship to current user
+
+WITH application
 MATCH (user:User)
 WHERE id(user)=toInteger($user_id)
 
-// Adding a forbidden flag to applications that the user cannot see
-WITH application, application_count,
+WITH application,
   application.private
   AND NOT (application)-[:SUBMITTED_BY]->(user)
   AND NOT (application)-[:SUBMITTED_TO]->(user)
@@ -65,23 +68,23 @@ WITH application, application_count,
 AS forbidden
 
 // Find applicant
-WITH application, forbidden, application_count
+WITH application, forbidden
 OPTIONAL MATCH (application)-[authorship:SUBMITTED_BY]->(applicant:User)
 
 // Find recipients
-WITH application, applicant, authorship, forbidden, application_count
+WITH application, applicant, authorship, forbidden
 OPTIONAL MATCH (application)-[submission:SUBMITTED_TO]->(recipient:User)
 
 // Find approvals
-WITH application, applicant, authorship, recipient, submission, forbidden, application_count
+WITH application, applicant, authorship, recipient, submission, forbidden
 OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
 // Find rejections
-WITH application, applicant, authorship, recipient, submission, approval, forbidden, application_count
+WITH application, applicant, authorship, recipient, submission, approval, forbidden
 OPTIONAL MATCH (application)<-[refusal:REJECTED]-(recipient)
 
 // visibility
-WITH application, applicant, authorship, recipient, submission, approval, refusal, forbidden, application_count
+WITH application, applicant, authorship, recipient, submission, approval, refusal, forbidden
 OPTIONAL MATCH (application)-[:VISIBLE_TO]->(group:Group)
   WHERE application.private = true
 
@@ -94,18 +97,17 @@ RETURN application,
   collect(distinct approval) as approvals,
   collect(distinct refusal) as refusals,
   collect(distinct group) as visibility,
-  forbidden,
-  application_count
+  forbidden
 `
 
 // This might be unused
 exports.visibility_enforcement = `
-WITH user, application
-WHERE NOT application.private
-  OR NOT EXISTS(application.private)
-  OR (application)-[:SUBMITTED_BY]->(user)
-  OR (application)-[:SUBMITTED_TO]->(user)
-  OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+  WITH user, application
+  WHERE NOT application.private
+    OR NOT EXISTS(application.private)
+    OR (application)-[:SUBMITTED_BY]->(user)
+    OR (application)-[:SUBMITTED_TO]->(user)
+    OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 `
 
 
@@ -199,103 +201,16 @@ WHERE id(user)=toInteger($user_id)
 `
 
 exports.application_batching = `
-// Counting must be done before batching
-WITH application ORDER BY application.creation_date DESC
-WITH collect(application) AS application_collection, count(application) as application_count
-WITH application_count, application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
+// Batching
+WITH collect(application) AS application_collection
+WITH application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
 UNWIND application_batch AS application
 `
 
 exports.filter_by_type = (type) => {
   if(!type) return ``
-  return `
+  else return `
   WITH application
   WHERE application.type = $type
   `
-}
-
-
-
-exports.query_with_hanko_id = (hanko_id) => {
-  if(!hanko_id) return ``
-  return `
-  WITH application
-  MATCH (application)-[r:APPROVED]-(:User)
-  WHERE id(r) = toInteger($hanko_id)
-  `
-}
-
-exports.query_with_application_id = (application_id) => {
-  if(!application_id) return ``
-  return `
-  WITH application
-  WHERE id(application) = toInteger($application_id)
-  `
-}
-
-exports.query_with_date = (start_date, end_date) => {
-  let query = ``
-
-  if(start_date) query += `
-    WITH application
-    WHERE application.creation_date >= date($start_date)
-    `
-
-  if(end_date) query += `
-    WITH application
-    WHERE application.creation_date <= date($end_date)
-    `
-
-  return query
-}
-
-
-
-exports.query_with_group = (group_id) => {
-  if(!group_id) return ``
-  return `
-  WITH application
-  MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group)
-  WHERE id(group) = toInteger($group_id)
-  `
-}
-
-exports.query_deleted = (deleted) => {
-  // Returns deleted applications if specified so
-  if(deleted) return ``
-  return `
-  WITH application
-  WHERE NOT EXISTS(application.deleted)
-  `
-}
-
-
-exports.query_with_relationship_and_state = (relationship, state) => {
-
-  // no need to go further if no relationship provided
-  // maybe...
-  if(!relationship) return ``
-
-  // base query with relationship
-  let query = `
-  WITH application, user
-  MATCH (application)-[r]-(user)
-  WHERE type(r) = $relationship
-    AND id(user) = toInteger($user_id)
-  `
-
-  if(relationship === 'SUBMITTED_BY') {
-    if(state === 'pending') query += query_submitted_pending_applications
-    else if (state === 'rejected') query += query_submitted_rejected_applications
-    else if (state === 'approved') query += query_submitted_approved_applications
-  }
-  else if(relationship === 'SUBMITTED_TO'){
-    // a.k.a received
-    if(state === 'pending') query += query_received_pending_applications
-    else if (state === 'rejected') query +=  query_received_rejected_applications
-    else if (state === 'approved') query += query_received_approved_applications
-  }
-
-  return query
-
 }
