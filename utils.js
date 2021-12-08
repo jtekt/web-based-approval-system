@@ -121,19 +121,14 @@ MATCH (user:User)<-[:SUBMITTED_TO]-(application:ApplicationForm)
 WHERE id(user)=toInteger($user_id)
 `
 
-exports.query_submitted_rejected_applications =
-`
+const query_submitted_rejected_applications = `
 WITH application
 WHERE (:User)-[:REJECTED]->(application)
 `
+exports.query_submitted_rejected_applications = query_submitted_rejected_applications
 
-exports.query_non_deleted_applications =
-`
-WITH application
-WHERE NOT EXISTS(application.deleted)
-`
 
-exports.query_submitted_pending_applications =
+const query_submitted_pending_applications =
 `
 // A pending application is an application that is does not yet have an equal amount approvals and submissions
 // Also, a rejected application is automatiocally not pending
@@ -145,8 +140,9 @@ OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
 WITH application, recipient_count, count(approval) as approval_count
 WHERE NOT recipient_count = approval_count
 `
+exports.query_submitted_pending_applications = query_submitted_pending_applications
 
-exports.query_submitted_approved_applications =
+const query_submitted_approved_applications =
 `
 // A submitted approved application has equal number of approvals than submissions
 WITH application
@@ -157,8 +153,10 @@ OPTIONAL MATCH (:User)-[approval:APPROVED]->(application)
 WITH application, recipient_count, count(approval) as approval_count
 WHERE recipient_count = approval_count
 `
+exports.query_submitted_approved_applications = query_submitted_approved_applications
 
-exports.query_received_pending_applications =
+
+const query_received_pending_applications =
 `
 // Check if recipient is next in the flow
 WITH application
@@ -175,8 +173,9 @@ OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
 WITH submission, application, count(approval) as approval_count
 WHERE submission.flow_index = approval_count
 `
+exports.query_received_pending_applications = query_received_pending_applications
 
-exports.query_received_rejected_applications =
+const query_received_rejected_applications =
 `
 // Check if recipient is next in the flow
 WITH application
@@ -186,8 +185,9 @@ WITH application
 MATCH (application)<-[:REJECTED]->(user:User)
 WHERE id(user)=toInteger($user_id)
 `
+exports.query_received_rejected_applications = query_received_rejected_applications
 
-exports.query_received_approved_applications =
+const query_received_approved_applications =
 `
 // Check if recipient is next in the flow
 WITH application
@@ -197,6 +197,7 @@ WITH application
 MATCH (application)<-[:APPROVED]->(user:User)
 WHERE id(user)=toInteger($user_id)
 `
+exports.query_received_approved_applications = query_received_approved_applications
 
 exports.application_batching = `
 // Counting must be done before batching

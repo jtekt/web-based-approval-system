@@ -21,16 +21,9 @@ const {
 } = require('../../utils.js')
 
 
-
-
-
-
-
 exports.get_applications = async (req,res) => {
 
   // get applications according to specific filters
-
-
   // Idea, could think of having submitted_by: <user id>
 
   const current_user_id = get_current_user_id(res)
@@ -100,9 +93,6 @@ exports.get_applications = async (req,res) => {
       batch_size
     })
 
-
-
-
   }
   catch (error) {
     error_handling(error, res)
@@ -110,8 +100,5 @@ exports.get_applications = async (req,res) => {
   finally {
     session.close()
   }
-
-
-
 
 }

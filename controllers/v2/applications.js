@@ -59,6 +59,7 @@ exports.get_application = (req, res) => {
 exports.delete_application = (req, res) => {
   // Deleting an application
   // Only the creator can delete the application
+  // Applications are not actually deleted, just flagged as so
 
   const user_id = get_current_user_id(res)
   if(!user_id) return res.status(400).send('User ID not defined')
@@ -72,7 +73,7 @@ exports.delete_application = (req, res) => {
     WHERE id(application) = toInteger($application_id)
       AND id(applicant) = toInteger($user_id)
 
-    // Delete the application and all of its relationships
+    // flag as deleted
     SET application.deleted = True
 
     RETURN application
@@ -102,11 +103,7 @@ exports.delete_application = (req, res) => {
 }
 
 
-// From here, getting list applications, filter
-// wether they are submitted or reecied, pending, approved or rejected
-// Also route to get count
-// TODO: Combine
-
+// The following has been replaced with API V3
 exports.get_submitted_pending_applications = (req, res) => {
 
   const user_id = get_current_user_id(res)
