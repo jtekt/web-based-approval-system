@@ -8,7 +8,14 @@ function get_current_user_id(res) {
 exports.create_application_form_template = (req, res) => {
   // Create application form template
 
-  var session = driver.session()
+  const {
+    fields,
+    label,
+    description,
+    group_ids,
+  } = req.body
+
+  const session = driver.session()
   session
   .run(`
     // Find creator
@@ -39,13 +46,14 @@ exports.create_application_form_template = (req, res) => {
     RETURN aft`, {
     user_id: get_current_user_id(res),
     fields: JSON.stringify(req.body.fields),
-    label: req.body.label,
-    description: req.body.description,
-    group_ids: req.body.group_ids,
+    label,
+    description,
+    group_ids,
   })
-  .then((result) => {
-    res.send(result.records)
-    console.log(`Application template ${result.records[0].get('aft').identity.low} created`)
+  .then(({records}) => {
+    const aft = records[0].get('aft')
+    res.send(aft)
+    console.log(`Application template ${aft.identity} created`)
   })
   .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
   .finally(() => { session.close() })

@@ -13,5 +13,6 @@ router.use('/approvals', approvals_router)
 router.use('/decisions', decisions_router)
 router.use('/files', files_router)
 router.use('/application_form_templates', templates_router)
+router.use('/templates', templates_router) // alias
 
 module.exports = router
