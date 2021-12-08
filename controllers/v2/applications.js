@@ -28,6 +28,7 @@ exports.get_application = (req, res) => {
     // Find application
     MATCH (application:ApplicationForm)
     WHERE id(application) = toInteger($application_id)
+      AND NOT EXISTS(application.deleted)
     ${return_application_and_related_nodes}
     `
 
