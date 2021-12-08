@@ -1,19 +1,23 @@
 const {driver} = require('../../db.js')
 
-function get_current_user_id(res) {
-  return res.locals.user.identity.low
-    ?? res.locals.user.identity
-}
+const {
+  error_handling,
+  get_current_user_id
+} = require('../../utils.js')
+
+
 
 exports.create_application_form_template = (req, res) => {
   // Create application form template
 
   const {
-    fields,
     label,
-    description,
-    group_ids,
+    fields = [],
+    description = '',
+    group_ids = [],
   } = req.body
+
+  if(!label) return res.status(400).send(`missing label`)
 
   const session = driver.session()
   session
@@ -55,7 +59,7 @@ exports.create_application_form_template = (req, res) => {
     res.send(aft)
     console.log(`Application template ${aft.identity} created`)
   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => { error_handling(error,res) })
   .finally(() => { session.close() })
 
 }
