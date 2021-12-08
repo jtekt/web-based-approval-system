@@ -22,30 +22,25 @@ const whoami = async (jwt) => {
   return user
 }
 
-describe("/templates", () => {
+describe("/files", () => {
 
-  let user, jwt, template_id
+  let user, jwt
 
   beforeEach( async () => {
-    //console.log = () => {} // silence the console
+    console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
   })
 
 
-  describe("POST /templates", () => {
-    it("Should allow the creation of a template", async () => {
-
-      const template = {
-        label: 'tdd',
-      }
+  describe("POST /files", () => {
+    it("Should allow the upload of a file", async () => {
 
       const {body, status, text} = await request(app)
-        .post("/templates")
-        .send(template)
+        .post("/files")
+        .attach('image', 'test/sample_pdf.pdf')
         .set('Authorization', `Bearer ${jwt}`)
 
-      template_id = body.identity
 
       expect(status).to.equal(200)
     })

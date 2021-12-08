@@ -27,7 +27,7 @@ describe("/applications", () => {
   let user, jwt, application_id
 
   beforeEach( async () => {
-    console.log = () => {} // silence the console
+    //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
   })

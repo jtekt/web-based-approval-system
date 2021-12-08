@@ -1,7 +1,7 @@
 const mv = require('mv')
 const fs = require('fs')
 const path = require('path')
-const uuidv1 = require('uuid/v1')
+const { v4: uuidv4 } = require('uuid')
 const formidable = require('formidable')
 const {driver} = require('../../db.js')
 
@@ -22,8 +22,8 @@ exports.file_upload = (req, res) => {
       name: file_name
     } = files.file_to_upload
 
-    var new_directory_name = uuidv1();
-    var new_directory_path = path.join(uploads_directory_path, new_directory_name);
+    var new_directory_name = uuidv4()
+    var new_directory_path = path.join(uploads_directory_path, new_directory_name)
 
     // Create the new directory
     var new_file_path = path.join(new_directory_path,file_name);
