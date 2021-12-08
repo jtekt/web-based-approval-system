@@ -24,11 +24,11 @@ exports.file_upload = (req, res) => {
       name: file_name
     } = files.file_to_upload
 
-    var new_directory_name = uuidv4()
-    var new_directory_path = path.join(uploads_directory_path, new_directory_name)
+    const new_directory_name = uuidv4()
+    const new_directory_path = path.join(uploads_directory_path, new_directory_name)
 
     // Create the new directory
-    var new_file_path = path.join(new_directory_path,file_name);
+    const new_file_path = path.join(new_directory_path,file_name);
 
     mv(old_path, new_file_path, {mkdirp: true}, (err) => {
       if (err) return res.status(500).send('Error saving the file')
