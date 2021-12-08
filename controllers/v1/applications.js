@@ -139,6 +139,7 @@ exports.delete_application = (req, res) => {
 }
 
 exports.get_application = (req, res) => {
+  // DEPRECATED
   // Get a single application using its ID
 
   const application_id = get_application_id(req)
@@ -596,19 +597,20 @@ exports.approve_application = (req, res) => {
 
   // TODO: prevent re-approval
 
-  let application_id = get_application_id(req)
-
+  const application_id = get_application_id(req)
   if(!application_id) return res.status(400).send('Application ID not defined')
 
+  const {
+    attachment_hankos,
+    comment = '',
+  } = req.body
+
   let attachment_hankos_query = ``
-  if(req.body.attachment_hankos) {
+  if(attachment_hankos) {
     attachment_hankos_query = `SET approval.attachment_hankos = $attachment_hankos`
   }
 
-
-  var session = driver.session()
-  session
-  .run(`
+  const query = `
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE id(application) = toInteger($application_id)
@@ -621,17 +623,25 @@ exports.approve_application = (req, res) => {
     MERGE (application)<-[approval:APPROVED]-(recipient)
     SET approval.date = date()
     SET approval.comment = $comment
+    SET approval.uuiid = $uuid
     ${attachment_hankos_query}
 
     RETURN approval, recipient, application
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
-    comment: req.body.comment || '',
-    attachment_hankos: JSON.stringify(req.body.attachment_hankos), // Neo4J does not support nested props so convert to string
-  })
+    comment,
+    uuid: uuidv4(),
+    attachment_hankos: JSON.stringify(attachment_hankos), // Neo4J does not support nested props so convert to string
+  }
+
+
+  const session = driver.session()
+  session.run(query, params)
   .then(({records}) => {
-    if(records.loength < 1) return res.status(404).send(`Application not found`)
+    if(!records.length) return res.status(404).send(`Application not found`)
     res.send(records[0].get('approval'))
     console.log(`Application ${records[0].get('application').identity} got approved by user ${records[0].get('recipient').identity}`)
   })
