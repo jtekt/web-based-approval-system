@@ -32,13 +32,6 @@ describe("/applications", () => {
     user = await whoami(jwt)
   })
 
-  describe("GET /", () => {
-    it("Should allow to get the application root route", async () => {
-      const {status, body} = await request(app).get("/")
-      console.log(body)
-      expect(status).to.equal(200)
-    })
-  })
 
   describe("POST /applications", () => {
     it("Should allow the creation of an application", async () => {
@@ -79,35 +72,23 @@ describe("/applications", () => {
 
   })
 
-  describe("GET /v2/applications/submitted/pending", () => {
-    it("Should allow query submitted pending applications", async () => {
+  describe("GET /v3/applications", () => {
+    it("Should allow query applications", async () => {
 
       const {body,status} = await request(app)
-        .get(`/v2/applications/submitted/pending`)
+        .get(`/v3/applications`)
         .set('Authorization', `Bearer ${jwt}`)
 
-      //expect(body.length).to.equal(1)
       expect(status).to.equal(200)
     })
   })
 
-  describe("GET /v2/applications/received/pending", () => {
-    it("Should allow query received pending applications", async () => {
-
-      const {body,status} = await request(app)
-        .get(`/v2/applications/received/pending`)
-        .set('Authorization', `Bearer ${jwt}`)
-
-      expect(body.length).to.equal(1)
-      expect(status).to.equal(200)
-    })
-  })
 
   describe("GET /v2/applications/:id", () => {
     it("Should allow the query of an application", async () => {
 
       const {status} = await request(app)
-        .get(`/applications/${application_id}`)
+        .get(`/v2/applications/${application_id}`)
         .set('Authorization', `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
@@ -125,35 +106,11 @@ describe("/applications", () => {
     })
   })
 
-  describe("GET /v2/applications/submitted/approved", () => {
-    it("Should allow query submitted approved applications", async () => {
-
-      const {body,status} = await request(app)
-        .get(`/v2/applications/submitted/approved`)
-        .set('Authorization', `Bearer ${jwt}`)
-
-      expect(body.length).to.equal(1)
-      expect(status).to.equal(200)
-    })
-  })
-
-  describe("GET /v2/applications/received/approved", () => {
-    it("Should allow query received approved applications", async () => {
-
-      const {body,status} = await request(app)
-        .get(`/v2/applications/received/approved`)
-        .set('Authorization', `Bearer ${jwt}`)
-
-      expect(body.length).to.equal(1)
-      expect(status).to.equal(200)
-    })
-  })
-
   describe("DELETE /v2/applications/:id", () => {
     it("Should allow the deletion of an application", async () => {
 
       const {status} = await request(app)
-        .delete(`/applications/${application_id}`)
+        .delete(`/v2/applications/${application_id}`)
         .set('Authorization', `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
