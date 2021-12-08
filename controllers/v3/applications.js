@@ -17,6 +17,7 @@ const {
 // IMPORTANTL THIS IS A SPECIAL VERSION DEDICATED TO THIS CONTROLLER BECAUSE IT INCLUDES COUND
 const application_batching = `
 // Batching does the count!
+WITH application ORDER BY application.creation_date DESC
 WITH collect(application) AS application_collection, count(application) as application_count
 WITH application_count, application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
 UNWIND application_batch AS application
