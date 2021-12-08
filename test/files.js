@@ -38,7 +38,7 @@ describe("/files", () => {
 
       const {body, status, text} = await request(app)
         .post("/files")
-        .attach('image', 'test/sample_pdf.pdf')
+        .attach('file_to_upload', 'test/sample_pdf.pdf')
         .set('Authorization', `Bearer ${jwt}`)
 
 

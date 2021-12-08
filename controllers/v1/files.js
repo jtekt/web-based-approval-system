@@ -17,6 +17,8 @@ exports.file_upload = (req, res) => {
   form.parse(req, function (err, fields, files) {
     if (err) return res.status(500).send('Error parsing the data')
 
+    if(!files.file_to_upload) return res.status(400).send('Missing file')
+
     const {
       path: old_path,
       name: file_name
