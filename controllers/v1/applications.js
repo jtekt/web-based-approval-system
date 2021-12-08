@@ -41,7 +41,7 @@ exports.create_application = async (req, res) => {
     SET application.private = $private
     SET application.form_data = $form_data
     SET application.type = $type
-    SET application.uuid = $uuid
+    SET application._id = randomUUID() // MongoDB style index
 
     // Relationship with recipients
     // This also creates flow indices
@@ -98,7 +98,10 @@ exports.create_application = async (req, res) => {
 }
 
 exports.delete_application = (req, res) => {
-  // V2 available!
+
+  // DEPRECATED
+  return res.status(410)
+
   // Deleting an application
   // Only the creator can delete the application
 
@@ -139,7 +142,10 @@ exports.delete_application = (req, res) => {
 }
 
 exports.get_application = (req, res) => {
+
   // DEPRECATED
+  return res.status(410)
+
   // Get a single application using its ID
 
   const application_id = get_application_id(req)
@@ -228,6 +234,9 @@ exports.get_application = (req, res) => {
 
 exports.get_application_v2 = (req, res) => {
   // Is this even used?
+
+  // DEPRECATED
+  return res.status(410)
 
   // Get a single application using its ID
 
