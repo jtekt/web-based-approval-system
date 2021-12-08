@@ -168,16 +168,13 @@ const query_with_relationship_and_state = (relationship, state) => {
     if(state === 'pending') query += query_submitted_pending_applications
     else if (state === 'rejected') query += query_submitted_rejected_applications
     else if (state === 'approved') query += query_submitted_approved_applications
-    else throw {code: 400, error: `Invalid query: ${relationship} ${state}`}
   }
   else if(relationship === 'SUBMITTED_TO'){
     // a.k.a received
     if(state === 'pending') query += query_received_pending_applications
     else if (state === 'rejected') query +=  query_received_rejected_applications
     else if (state === 'approved') query += query_received_approved_applications
-    else throw {code: 400, error: `Invalid query: ${relationship} ${state}`}
   }
-  else throw {code: 400, error: `Invalid relationship: ${relationship}`}
 
   return query
 
@@ -227,6 +224,7 @@ exports.get_applications = async (req,res) => {
     ${query_with_start_date(start_date)}
     ${query_with_group(group_id)}
     ${query_with_hanko_id(hanko_id)}
+    ${query_with_application_id(application_id)}
 
     // Batching does the count
     ${application_batching}
@@ -241,6 +239,9 @@ exports.get_applications = async (req,res) => {
       end_date,
       start_index,
       batch_size,
+      application_id,
+      hanko_id,
+      group_id,
     }
 
     const {records} = await session.run(query, params)
