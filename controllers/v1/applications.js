@@ -1,7 +1,9 @@
 const {driver} = require('../../db.js')
+const { v4: uuidv4 } = require('uuid')
 const {
   visibility_enforcement,
   get_current_user_id,
+  error_handling,
 } = require('../../utils.js')
 
 
@@ -39,6 +41,7 @@ exports.create_application = async (req, res) => {
     SET application.private = $private
     SET application.form_data = $form_data
     SET application.type = $type
+    SET application.uuid = $uuid
 
     // Relationship with recipients
     // This also creates flow indices
@@ -70,12 +73,12 @@ exports.create_application = async (req, res) => {
 
   const params = {
     user_id: get_current_user_id(res),
-    // Stuff from the body
     type,
     title,
     recipients_ids, // Manadatory
     private,
     group_ids,
+    uuid: uuidv4(),
     form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
   }
 
@@ -89,12 +92,13 @@ exports.create_application = async (req, res) => {
     console.log(`Application ${application.identity} created`)
   })
   .catch(error => {
-
+    error_handling(error,res)
   })
   .finally(() => { session.close() })
 }
 
 exports.delete_application = (req, res) => {
+  // V2 available!
   // Deleting an application
   // Only the creator can delete the application
 
