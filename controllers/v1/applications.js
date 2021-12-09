@@ -347,6 +347,10 @@ exports.get_application_v2 = (req, res) => {
 
 
 exports.search_applications = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
+
   // Get a list of applications matching a certain search pattern
 
   /*
@@ -873,6 +877,9 @@ exports.remove_application_visibility_to_group = (req, res) => {
 
 
 exports.get_submitted_applications = (req, res) => {
+  // DEPRECATED
+  return res.status(410)
+
   // Get all applications submitted by the logged in user
 
   // UNUSED
@@ -895,6 +902,9 @@ exports.get_submitted_applications = (req, res) => {
 }
 
 exports.get_submitted_applications_pending = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
 
   // TODO: Batching
 
@@ -941,6 +951,9 @@ exports.get_submitted_applications_pending = (req, res) => {
 }
 
 exports.get_submitted_applications_approved = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
 
   let start_index = req.query.start_index || 0
   let batch_size = req.query.batch_size || 10
@@ -996,6 +1009,9 @@ exports.get_submitted_applications_approved = (req, res) => {
 
 exports.get_submitted_applications_rejected = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const query = `
   // Get applications of applicant
   MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
@@ -1033,9 +1049,10 @@ exports.get_submitted_applications_rejected = (req, res) => {
 
 
 exports.get_received_applications = (req, res) => {
-  // Returns applications rceived by the logged in user
+  // DEPRECATED
+  return res.status(410)
 
-  // UNUSED
+  // Returns applications rceived by the logged in user
 
   var session = driver.session()
   session
@@ -1057,6 +1074,9 @@ exports.get_received_applications = (req, res) => {
 }
 
 exports.get_received_applications_pending = (req, res) => {
+  // DEPRECATED
+  return res.status(410)
+
   // Returns applications submitted to a user but not yet approved
   var session = driver.session()
   session
@@ -1090,6 +1110,9 @@ exports.get_received_applications_pending = (req, res) => {
 
 
 exports.get_received_applications_approved = (req, res) => {
+  // DEPRECATED
+  return res.status(410)
+
   // Returns applications approved by a user
 
   const start_index = req.query.start_index || 0
@@ -1127,6 +1150,10 @@ exports.get_received_applications_approved = (req, res) => {
 
 
 exports.get_received_applications_rejected = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
+  
   // Returns applications rejected by a user
 
   var session = driver.session()

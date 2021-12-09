@@ -108,13 +108,13 @@ WHERE NOT application.private
   OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 `
 
-
+// Should be unused
 exports.query_applications_submitted_by_user =
 `
 MATCH (user:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
 WHERE id(user)=toInteger($user_id)
 `
-
+// Should be unused
 exports.query_applications_submitted_to_user =
 `
 MATCH (user:User)<-[:SUBMITTED_TO]-(application:ApplicationForm)
