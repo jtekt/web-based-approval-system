@@ -108,6 +108,9 @@ exports.delete_application = (req, res) => {
 // The following has been replaced with API V3
 exports.get_submitted_pending_applications = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const user_id = get_current_user_id(res)
   const {
     type,
@@ -143,6 +146,9 @@ exports.get_submitted_pending_applications = (req, res) => {
 }
 
 exports.get_submitted_rejected_applications = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
 
   const user_id = get_current_user_id(res)
   const {
@@ -181,6 +187,9 @@ exports.get_submitted_rejected_applications = (req, res) => {
 
 exports.get_submitted_approved_applications = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const user_id = get_current_user_id(res)
   const {
     type,
@@ -218,6 +227,9 @@ exports.get_submitted_approved_applications = (req, res) => {
 
 exports.get_submitted_pending_applications_count = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const { type } = req.query
   const user_id = get_current_user_id(res)
 
@@ -244,6 +256,9 @@ exports.get_submitted_pending_applications_count = (req, res) => {
 
 exports.get_submitted_rejected_applications_count = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const { type } = req.query
   const user_id = get_current_user_id(res)
 
@@ -269,6 +284,9 @@ exports.get_submitted_rejected_applications_count = (req, res) => {
 }
 
 exports.get_submitted_approved_applications_count = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
 
   const { type } = req.query
   const user_id = get_current_user_id(res)
@@ -297,6 +315,9 @@ exports.get_submitted_approved_applications_count = (req, res) => {
 
 // RECEIVED
 exports.get_received_pending_applications = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
 
   const {
     type,
@@ -335,6 +356,9 @@ exports.get_received_pending_applications = (req, res) => {
 
 exports.get_received_rejected_applications = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const user_id = get_current_user_id(res)
   const {
     type,
@@ -371,6 +395,8 @@ exports.get_received_rejected_applications = (req, res) => {
 }
 
 exports.get_received_approved_applications = (req, res) => {
+  // DEPRECATED
+  return res.status(410)
 
   const {
     type,
@@ -409,6 +435,9 @@ exports.get_received_approved_applications = (req, res) => {
 
 exports.get_received_pending_applications_count = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const { type } = req.query
   const user_id = get_current_user_id(res)
 
@@ -435,6 +464,9 @@ exports.get_received_pending_applications_count = (req, res) => {
 
 exports.get_received_rejected_applications_count = (req, res) => {
 
+  // DEPRECATED
+  return res.status(410)
+
   const { type } = req.query
   const user_id = get_current_user_id(res)
 
@@ -460,6 +492,10 @@ exports.get_received_rejected_applications_count = (req, res) => {
 }
 
 exports.get_received_approved_applications_count = (req, res) => {
+
+  // DEPRECATED
+  return res.status(410)
+
 
   const { type } = req.query
   const user_id = get_current_user_id(res)
