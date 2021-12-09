@@ -13,8 +13,6 @@ dotenv.config()
 
 console.log(`- Application form manager v${version} -`)
 
-banana
-
 // Reading environment variables
 const { APP_PORT = 80 } = process.env
 
