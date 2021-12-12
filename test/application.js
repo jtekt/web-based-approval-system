@@ -76,11 +76,11 @@ describe("/applications", () => {
 
   })
 
-  describe("GET /v3/applications", () => {
+  describe("GET /applications", () => {
     it("Should allow query applications", async () => {
 
       const {body,status} = await request(app)
-        .get(`/v3/applications`)
+        .get(`/applications`)
         .set('Authorization', `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
@@ -88,11 +88,11 @@ describe("/applications", () => {
   })
 
 
-  describe("GET /v2/applications/:id", () => {
+  describe("GET /applications/:id", () => {
     it("Should allow the query of an application", async () => {
 
       const {status} = await request(app)
-        .get(`/v2/applications/${application_id}`)
+        .get(`/applications/${application_id}`)
         .set('Authorization', `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
@@ -110,11 +110,11 @@ describe("/applications", () => {
     })
   })
 
-  describe("DELETE /v2/applications/:id", () => {
+  describe("DELETE /applications/:id", () => {
     it("Should allow the deletion of an application", async () => {
 
       const {status} = await request(app)
-        .delete(`/v2/applications/${application_id}`)
+        .delete(`/applications/${application_id}`)
         .set('Authorization', `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
