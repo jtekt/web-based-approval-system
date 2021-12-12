@@ -18,7 +18,7 @@ spec:
           claimName: ${APPLICATION_NAME}
       containers:
       - name: ${APPLICATION_NAME}
-        image: ${CONTAINER_IMAGE_TAGGED}
+        image: ${CONTAINER_IMAGE}:1.4.7
         ports:
         - containerPort: 80
         # Get environment variables from K8s

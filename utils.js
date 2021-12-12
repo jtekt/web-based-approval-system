@@ -8,16 +8,30 @@ exports.error_handling = (error, res) => {
 }
 
 exports.get_current_user_id = (res) => {
-  return res.locals.user.identity.low
-    ?? res.locals.user.identity
+
+  const user = res.locals.user
+  if(!user) throw `User not authenticated`
+  const user_id = res.locals.user._id
+    ?? res.locals.user.properties._id
+    ?? res.locals.user.identity.low // to be removed
+    ?? res.locals.user.identity // to be removed
+
+  if(!user_id) throw `User does not have an ID`
+
+  // converting to string just to be sure
+  return user_id.toString()
 }
 
 exports.get_application_id = (req) => {
-  return req.params.application_id
+
+  const application_id = req.params.application_id
     ?? req.body.application_id
     ?? req.body.id
     ?? req.query.application_id
     ?? req.query.id
+
+  // Just in case
+  return application_id.toString()
 }
 
 exports.format_application_from_record = (record) => {
@@ -50,11 +64,28 @@ exports.format_application_from_record = (record) => {
   }
 }
 
+const filter_by_applcation_id = `
+// FINAL
+// WHERE application._id = $application_id
+// TEMPORARY
+WHERE (application._id = $application_id OR id(application) = toInteger($application_id))
+`
+exports.filter_by_applcation_id = filter_by_applcation_id
+
+const filter_by_user_id = `
+// FINAL
+WHERE user._id = $user_id
+// TEMPORARY
+//WHERE (user._id = $user_id OR id(user) = toInteger($user_id))
+`
+exports.filter_by_user_id = filter_by_user_id
+
+
 exports.return_application_and_related_nodes = `
 // Counting is done in batching
 WITH application, application_count
 MATCH (user:User)
-WHERE id(user)=toInteger($user_id)
+${filter_by_user_id}
 
 // Adding a forbidden flag to applications that the user cannot see
 WITH application, application_count,
@@ -108,19 +139,6 @@ WHERE NOT application.private
   OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
 `
 
-// Should be unused
-exports.query_applications_submitted_by_user =
-`
-MATCH (user:User)<-[:SUBMITTED_BY]-(application:ApplicationForm)
-WHERE id(user)=toInteger($user_id)
-`
-// Should be unused
-exports.query_applications_submitted_to_user =
-`
-MATCH (user:User)<-[:SUBMITTED_TO]-(application:ApplicationForm)
-WHERE id(user)=toInteger($user_id)
-`
-
 const query_submitted_rejected_applications = `
 WITH application
 WHERE (:User)-[:REJECTED]->(application)
@@ -164,7 +182,7 @@ WITH application
 // Get the current user
 // Also filter out rejected applications
 MATCH (application)-[submission:SUBMITTED_TO]->(user:User)
-WHERE id(user)=toInteger($user_id)
+${filter_by_user_id}
 AND NOT (application)<-[:REJECTED]-(:User)
 
 // Get the approval count
@@ -183,7 +201,7 @@ WITH application
 // Get the current user
 // Also filter out rejected applications
 MATCH (application)<-[:REJECTED]->(user:User)
-WHERE id(user)=toInteger($user_id)
+${filter_by_user_id}
 `
 exports.query_received_rejected_applications = query_received_rejected_applications
 
@@ -195,7 +213,7 @@ WITH application
 // Get the current user
 // Also filter out rejected applications
 MATCH (application)<-[:APPROVED]->(user:User)
-WHERE id(user)=toInteger($user_id)
+${filter_by_user_id}
 `
 exports.query_received_approved_applications = query_received_approved_applications
 
@@ -221,8 +239,9 @@ exports.query_with_hanko_id = (hanko_id) => {
   if(!hanko_id) return ``
   return `
   WITH application
-  MATCH (application)-[r:APPROVED]-(:User)
-  WHERE id(r) = toInteger($hanko_id)
+  MATCH (application)-[approval:APPROVED]-(:User)
+  WHERE approval._id = $hanko_id
+    OR id(approval) = toInteger($hanko_id) // temporary
   `
 }
 
@@ -230,7 +249,7 @@ exports.query_with_application_id = (application_id) => {
   if(!application_id) return ``
   return `
   WITH application
-  WHERE id(application) = toInteger($application_id)
+  ${filter_by_applcation_id}
   `
 }
 
@@ -257,7 +276,7 @@ exports.query_with_group = (group_id) => {
   return `
   WITH application
   MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group)
-  WHERE id(group) = toInteger($group_id)
+  WHERE group._id = $group_id
   `
 }
 
@@ -282,7 +301,7 @@ exports.query_with_relationship_and_state = (relationship, state) => {
   WITH application, user
   MATCH (application)-[r]-(user)
   WHERE type(r) = $relationship
-    AND id(user) = toInteger($user_id)
+    AND user._id = $user_id
   `
 
   if(relationship === 'SUBMITTED_BY') {

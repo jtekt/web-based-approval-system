@@ -24,13 +24,15 @@ exports.create_application_form_template = (req, res) => {
   .run(`
     // Find creator
     MATCH (creator:User)
-    WHERE id(creator) = toInteger($user_id)
+    WHERE creator._id = $user_id
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
 
     // setting all properties
     SET aft.fields=$fields
     SET aft.label=$label
     SET aft.description=$description
+    SET aft._id = randomUUID()
+
 
     // visibility (shared with)
     WITH aft
@@ -42,7 +44,7 @@ exports.create_application_form_template = (req, res) => {
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInteger(group_id)
+    WHERE group._id = group_id
     WITH collect(group) as groups, aft
     FOREACH(group IN groups | CREATE (aft)-[:VISIBLE_TO]->(group))
 
@@ -78,8 +80,8 @@ exports.edit_application_form_template = (req, res) => {
   .run(`
     // Find template
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInteger($template_id)
-      AND id(creator) = toInteger($user_id)
+    WHERE aft._id = $template_id
+      AND creator._id = $user_id
 
     // set properties
     SET aft.fields=$fields
@@ -104,7 +106,7 @@ exports.edit_application_form_template = (req, res) => {
       END AS group_id
 
     OPTIONAL MATCH (group:Group)
-    WHERE id(group) = toInteger(group_id)
+    WHERE group._id = group_id
     WITH collect(group) as groups, aft
     FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
 
@@ -143,8 +145,8 @@ exports.delete_application_form_template = (req, res) => {
   .run(`
     // Find application
     MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE id(aft) = toInteger($template_id)
-      AND id(creator) = toInteger($user_id)
+    WHERE aft._id = $template_id
+      AND creator._id = $user_id
 
     // Delete the node
     DETACH DELETE aft
@@ -174,7 +176,7 @@ exports.get_application_form_template = (req, res) => {
   session
   .run(`
     MATCH (aft:ApplicationFormTemplate)
-    WHERE id(aft) = toInteger($template_id)
+    WHERE aft._id = $template_id
 
     WITH aft
     MATCH (aft)-[:CREATED_BY]->(creator:User)
@@ -218,12 +220,12 @@ exports.get_all_application_form_templates_visible_to_user = (req, res) => {
   const user_id = get_current_user_id(res)
 
   // Get all templates (and their creator) visible to a user
-  var session = driver.session()
+  const session = driver.session()
   session
   .run(`
     // Find author
     MATCH (current_user:User)
-    WHERE id(current_user) = toInteger($user_id)
+    WHERE current_user._id = $user_id
 
     // Find the template and its creator
     WITH current_user

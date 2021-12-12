@@ -10,8 +10,44 @@ const {
 } = process.env
 
 const auth = neo4j.auth.basic( NEO4J_USERNAME, NEO4J_PASSWORD )
-
 const options = { disableLosslessIntegers: true }
+const driver = neo4j.driver( NEO4J_URL, auth, options )
 
-exports.driver = neo4j.driver( NEO4J_URL, auth, options )
+let connected = false
+const init = async () => {
+  console.log('[Neo4J] Initializing DB')
+
+  const id_setting_query = `
+  MATCH (n:ApplicationForm)
+  WHERE NOT EXISTS(n._id)
+  SET n._id = toString(id(n))
+  RETURN COUNT(n) as count
+  `
+
+  const index_query = `CREATE INDEX ON :ApplicationForm(_id)`
+
+  const session = driver.session()
+
+  try {
+    const {records} = await session.run(id_setting_query)
+    const count = records[0].get('count')
+    console.log(`[Neo4J] ID of ${count} nodes have been set`)
+    await session.run(index_query)
+    console.log(`[Neo4J] Index set on _id`)
+    connected = true
+  }
+  catch (e) {
+    console.log(e)
+    console.log(`[Neo4J] init failed, retrying in 10s`)
+    setTimeout(init,10000)
+  }
+  finally {
+    session.close()
+  }
+
+}
+
 exports.url = NEO4J_URL
+exports.driver = driver
+exports.get_connected = () => connected
+exports.init = init

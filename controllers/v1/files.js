@@ -4,6 +4,14 @@ const path = require('path')
 const { v4: uuidv4 } = require('uuid')
 const formidable = require('formidable')
 const {driver} = require('../../db.js')
+const {
+  visibility_enforcement,
+  get_current_user_id,
+  get_application_id,
+  error_handling,
+  filter_by_user_id,
+  filter_by_applcation_id,
+} = require('../../utils.js')
 
 // TODO: make this configurable
 const uploads_directory_path = "/usr/share/pv" // For production as docker container
@@ -14,7 +22,7 @@ exports.file_upload = (req, res) => {
   // TODO: use promises
   // NOTE: Could use multer
   const form = new formidable.IncomingForm()
-  form.parse(req, function (err, fields, files) {
+  form.parse(req, (err, fields, files) => {
     if (err) return res.status(500).send('Error parsing the data')
 
     if(!files.file_to_upload) return res.status(400).send('Missing file')
@@ -41,30 +49,23 @@ exports.file_upload = (req, res) => {
 
 exports.get_file = (req, res) => {
 
-  // TODO: probably now only using params so get rid of query
-  // TODO: Check if can be set as const
-  // TODO: refactor
-  let file_id = req.params.file_id
-    || req.query.file_id
+  const {file_id} = req.params
+  const user_id = get_current_user_id(res)
+  const application_id = get_application_id(req)
 
   if(!file_id) return res.status(400).send('File ID not specified')
-
-  let application_id = req.params.application_id
-    || req.query.application_id
-
   if(!application_id) return res.status(400).send('Application ID not specified')
 
-  const user_id = res.locals.user.identity.low ?? res.locals.user.identity
 
   const query = `
     // Find current user to check for authorization
     MATCH (user:User)
-    WHERE id(user)=toInteger($user_id)
+    ${filter_by_user_id}
 
     // Find application and applicant
     WITH user
     MATCH (application:ApplicationForm)
-    WHERE id(application) = toInteger($application_id)
+    ${filter_by_applcation_id}
 
     // Enforce privacy
     WITH user, application
@@ -84,35 +85,119 @@ exports.get_file = (req, res) => {
   .then(({records}) => {
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(!records.length) {
-      return res.send(400).send('The file cannot be downloaded. Either it does not exist or is private')
-    }
+    if(!records.length) throw {code: 400, message: `Application ${application_id} could not be queried`}
 
     // Check if the application has a file with the given ID
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
-    const found_file = form_data.find( (field) => field.value === file_id)
-    if(!found_file) return res.send(400).send('This application does not contain a file with the provided file ID')
+    const found_file = form_data.find( ({value}) => value === file_id)
+    if(!found_file) throw {code: 400, message: `Application ${application_id} does not includes file ${file_id}`}
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
-      if(err) {
-        console.log("Error reading uploads directory")
-        return res.status(500).send("Error reading uploads directory")
-      }
+      if(err) throw {code: 400, message: `Error reading uploads directory`}
       // Send first file in the directory (one file per directory)
       const file_to_download = items[0]
+      console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
       // NOTE: Why not sendFile?
       res.download( path.join(directory_path, file_to_download), file_to_download )
-      console.log(`File ${file_to_download} has been downloaded`)
     })
 
   })
+  .catch(error => { error_handling(error, res) })
+  .finally(() => { session.close() })
+
+}
+
+
+
+function get_unused_files(){
+
+  return new Promise((resolve, reject) => {
+    const session = driver.session()
+
+    session.run(`
+      MATCH (application:ApplicationForm)
+      WHERE application.form_data CONTAINS 'file'
+      RETURN application.form_data as form_data
+      `, {})
+    .then(({records}) => {
+
+      const attachments = records.reduce((acc, record) => {
+        const fields = JSON.parse(record.get('form_data'))
+
+        // File fileds of this record (can be empty)
+        const file_fields = fields.filter(field => field.type === 'file' && !!field.value)
+        if(file_fields.length > 0) {
+          file_fields.forEach(field => {acc.push(field.value)} )
+        }
+
+        return acc
+
+      }, [])
+
+      const directories = readdirSync(uploads_directory_path)
+
+      // ignore trash
+      const unused_uploads = directories.filter( directory => {
+        return !attachments.find(attachment => (directory === attachment || directory === 'trash') )
+      })
+
+      resolve(unused_uploads)
+    })
+    .catch(reject)
+    .finally(() => { session.close() })
+
+  })
+
+}
+
+exports.get_unused_files = (req, res) => {
+  get_unused_files()
+  .then(unused_uploads => {
+    res.send(unused_uploads)
+  })
   .catch(error => {
     console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
+    res.status(500).send(error)
   })
-  .finally(() => { session.close() })
+}
+
+exports.move_unused_files = (req, res) => {
+
+  const user = res.locals.user
+  if(!user.properties.isAdmin) return res.status(403).send('User must be admin')
+
+  get_unused_files()
+  .then(unused_uploads => {
+
+    const promises = []
+    unused_uploads.forEach(upload => {
+
+      const promise = new Promise((resolve, reject) => {
+        const old_path = path.join(uploads_directory_path,upload)
+        const new_path = path.join(uploads_directory_path,'trash',upload)
+
+        mv(old_path, new_path, {mkdirp: true}, (err) => {
+          if (err) return reject(err)
+          resolve(upload)
+        })
+      })
+
+      promises.push(promise)
+
+    })
+
+    return Promise.all(promises)
+
+  })
+  .then( (items) => {
+    res.send({deleted_count: items.length})
+  })
+  .catch(error => {
+    console.log(error)
+    res.status(500).send(error)
+  })
 
 }

@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --timeout 10000 --exit"
+    "test": "mocha --timeout 10000 --exit",
+    "coverage": "nyc mocha --timeout 15000 --exit"
   },
   "keywords": [],
   "author": "Maxime MOREILLON",

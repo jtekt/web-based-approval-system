@@ -2,6 +2,9 @@ const request = require("supertest")
 const {expect} = require("chai")
 const {app} = require("../index.js")
 const axios = require('axios')
+const dotenv = require('dotenv')
+
+dotenv.config()
 
 const {
   LOGIN_URL,
@@ -9,6 +12,7 @@ const {
   TEST_USER_USERNAME,
   TEST_USER_PASSWORD,
 } = process.env
+
 
 const login = async () => {
   const body = {username: TEST_USER_USERNAME, password: TEST_USER_PASSWORD}
@@ -26,7 +30,7 @@ describe("/applications", () => {
 
   let user, jwt, application_id
 
-  beforeEach( async () => {
+  before( async () => {
     //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
@@ -40,7 +44,7 @@ describe("/applications", () => {
         title: 'tdd',
         type: 'tdd',
         form_data: {test: 'test'},
-        recipients_ids: [(user.identity.low || user.identity)] // self as recipient
+        recipients_ids: [user.properties._id] // self as recipient
       }
 
       const {body, status, text} = await request(app)
@@ -48,7 +52,7 @@ describe("/applications", () => {
         .send(application)
         .set('Authorization', `Bearer ${jwt}`)
 
-      application_id = body.identity
+      application_id = body.properties._id
 
       expect(status).to.equal(200)
     })

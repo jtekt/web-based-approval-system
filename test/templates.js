@@ -26,7 +26,7 @@ describe("/templates", () => {
 
   let user, jwt, template_id
 
-  beforeEach( async () => {
+  before( async () => {
     //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)

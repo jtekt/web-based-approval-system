@@ -17,6 +17,7 @@ const retrieve_jwt = (req, res) => {
   return req.headers.authorization?.split(" ")[1]
     || req.headers.authorization
     || (new Cookies(req, res)).get('jwt')
+    || (new Cookies(req, res)).get('token')
     || req.query.jwt
     || req.query.token
 

@@ -26,7 +26,7 @@ describe("/files", () => {
 
   let user, jwt
 
-  beforeEach( async () => {
+  before( async () => {
     //console.log = () => {} // silence the console
     jwt = await login()
     user = await whoami(jwt)
