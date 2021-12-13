@@ -32,8 +32,8 @@ const init = async () => {
     const {records} = await session.run(id_setting_query)
     const count = records[0].get('count')
     console.log(`[Neo4J] ID of ${count} nodes have been set`)
-    await session.run(index_query)
-    console.log(`[Neo4J] Index set on _id`)
+    // await session.run(index_query)
+    // console.log(`[Neo4J] Index set on _id`)
     connected = true
   }
   catch (e) {

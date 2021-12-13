@@ -9,7 +9,7 @@ const {
 } = require('./auth.js')
 const {
   url: neo4j_url,
-  connected: neo4j_connected,
+  get_connected: get_neo4j_connection_status,
   init: db_init,
 } = require('./db.js')
 
@@ -37,7 +37,7 @@ app.get('/', (req, res) => {
     version,
     neo4j: {
       url: neo4j_url,
-      connected: neo4j_connected()
+      connected: get_neo4j_connection_status()
     },
     authentication_url,
   })
