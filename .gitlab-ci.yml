@@ -92,7 +92,7 @@ test:
       --env TEST_USER_USERNAME=admin
       --env TEST_USER_PASSWORD=admin
       ${CONTAINER_IMAGE_TEST}
-      npm run test
+      npm run coverage
     # If pass, then push the images
     # Tagging
     - docker tag ${CONTAINER_IMAGE_TEST} ${CONTAINER_IMAGE_TAGGED}
