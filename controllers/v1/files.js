@@ -110,6 +110,28 @@ exports.get_file = (req, res) => {
 
 }
 
+exports.get_file_name = (req, res) => {
+
+  const {file_id} = req.params
+
+  if(!file_id) return res.status(400).send('File ID not specified')
+
+
+  // Now download the file
+  const directory_path = path.join(uploads_directory_path, file_id)
+  fs.readdir(directory_path, (err, items) => {
+
+    if(err) return res.status(400).send(`File could not be opened`)
+    // Send first file in the directory (one file per directory)
+    const filename = items[0]
+    // NOTE: Why not sendFile?
+    res.send({filename})
+  })
+
+
+
+}
+
 
 
 function get_unused_files(){

@@ -32,7 +32,8 @@ router.route('/visibility_to_group')
 router.route('/files/:file_id')
   .get(file_controller.get_file)
 
-
+router.route('/files/:file_id/filename')
+  .get(file_controller.get_file_name)
 
 
 module.exports = router
