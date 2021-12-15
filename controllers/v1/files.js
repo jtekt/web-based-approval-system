@@ -96,7 +96,10 @@ exports.get_file = (req, res) => {
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
-      if(err) throw {code: 400, message: `Error reading uploads directory`}
+      if(err) {
+        console.log(err)
+        return res.status(400).send(`File could not be opened`)
+      }
       // Send first file in the directory (one file per directory)
       const file_to_download = items[0]
       console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
@@ -121,7 +124,10 @@ exports.get_file_name = (req, res) => {
   const directory_path = path.join(uploads_directory_path, file_id)
   fs.readdir(directory_path, (err, items) => {
 
-    if(err) return res.status(400).send(`File could not be opened`)
+    if(err) {
+      console.log(err)
+      return res.status(400).send(`File could not be opened`)
+    }
     // Send first file in the directory (one file per directory)
     const filename = items[0]
     // NOTE: Why not sendFile?
@@ -179,7 +185,7 @@ exports.get_unused_files = (req, res) => {
 
   const user = res.locals.user
   if(!user.properties.isAdmin) return res.status(403).send('User must be admin')
-  
+
   get_unused_files()
   .then(unused_uploads => {
     res.send(unused_uploads)
