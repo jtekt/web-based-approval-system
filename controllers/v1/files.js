@@ -40,8 +40,8 @@ exports.file_upload = (req, res) => {
 
     mv(old_path, new_file_path, {mkdirp: true}, (err) => {
       if (err) return res.status(500).send('Error saving the file')
-      res.send(new_directory_name)
       console.log(`${file_name} uploaded`)
+      res.send(new_directory_name)
     })
 
   })
@@ -91,7 +91,7 @@ exports.get_file = (req, res) => {
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
     const found_file = form_data.find( ({value}) => value === file_id)
-    if(!found_file) throw {code: 400, message: `Application ${application_id} does not includes file ${file_id}`}
+    if(!found_file) throw {code: 400, message: `Application ${application_id} does not include the file ${file_id}`}
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)

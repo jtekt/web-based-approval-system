@@ -26,9 +26,12 @@ const whoami = async (jwt) => {
   return user
 }
 
+
+
+
 describe("/applications", () => {
 
-  let user, jwt, application_id
+  let user, jwt, application_id, file_id
 
   before( async () => {
     //console.log = () => {} // silence the console
@@ -36,14 +39,30 @@ describe("/applications", () => {
     user = await whoami(jwt)
   })
 
+  describe("POST /files", () => {
+    it("Should allow the upload of a file", async () => {
+
+      const {body, status, text} = await request(app)
+        .post("/files")
+        .attach('file_to_upload', 'test/sample_pdf.pdf')
+        .set('Authorization', `Bearer ${jwt}`)
+
+      file_id = text
+
+      expect(status).to.equal(200)
+    })
+
+  })
+
 
   describe("POST /applications", () => {
     it("Should allow the creation of an application", async () => {
 
+      const form_data = [ {label: 'test', value: file_id} ]
       const application = {
         title: 'tdd',
         type: 'tdd',
-        form_data: {test: 'test'},
+        form_data,
         recipients_ids: [user.properties._id] // self as recipient
       }
 
@@ -59,11 +78,12 @@ describe("/applications", () => {
 
     it("Should prevent the creation of an application to unauthenticated users", async () => {
 
+      const form_data = [ {label: 'test', value: file_id} ]
       const application = {
         title: 'tdd',
         type: 'tdd',
-        form_data: {test: 'test'},
-        recipients_ids: [(user.identity.low || user.identity)] // self as recipient
+        form_data,
+        recipients_ids: [user.properties._id] // self as recipient
       }
 
       const {body, status, text} = await request(app)
@@ -97,6 +117,47 @@ describe("/applications", () => {
 
       expect(status).to.equal(200)
     })
+  })
+
+  describe("GET /applications/:id/files/:file_id/filename", () => {
+    it("Should allow the query of an application attachment filename", async () => {
+
+      const {status, body} = await request(app)
+        .get(`/applications/${application_id}/files/${file_id}/filename`)
+        .set('Authorization', `Bearer ${jwt}`)
+
+      expect(status).to.equal(200)
+    })
+
+    it("Should not allow the query of an application attachment filename with invalid ID", async () => {
+
+      const {status, body} = await request(app)
+        .get(`/applications/${application_id}/files/banana/filename`)
+        .set('Authorization', `Bearer ${jwt}`)
+
+      expect(status).to.not.equal(200)
+    })
+  })
+
+  describe("GET /applications/:id/files/:file_id", () => {
+    it("Should allow the query of an application attachment", async () => {
+
+      const {status} = await request(app)
+        .get(`/applications/${application_id}/files/${file_id}`)
+        .set('Authorization', `Bearer ${jwt}`)
+
+      expect(status).to.equal(200)
+    })
+
+    it("Should not allow the query of an application attachment with invalid ID", async () => {
+
+      const {status} = await request(app)
+        .get(`/applications/${application_id}/files/banana`)
+        .set('Authorization', `Bearer ${jwt}`)
+
+      expect(status).to.not.equal(200)
+    })
+
   })
 
   describe("POST /applications/:id/approve", () => {
