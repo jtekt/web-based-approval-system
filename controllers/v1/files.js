@@ -176,6 +176,10 @@ function get_unused_files(){
 }
 
 exports.get_unused_files = (req, res) => {
+
+  const user = res.locals.user
+  if(!user.properties.isAdmin) return res.status(403).send('User must be admin')
+  
   get_unused_files()
   .then(unused_uploads => {
     res.send(unused_uploads)
