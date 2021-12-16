@@ -24,16 +24,12 @@ const init = async () => {
   RETURN COUNT(n) as count
   `
 
-  const index_query = `CREATE INDEX ON :ApplicationForm(_id)`
-
   const session = driver.session()
 
   try {
     const {records} = await session.run(id_setting_query)
     const count = records[0].get('count')
     console.log(`[Neo4J] ID of ${count} nodes have been set`)
-    // await session.run(index_query)
-    // console.log(`[Neo4J] Index set on _id`)
     connected = true
   }
   catch (e) {
