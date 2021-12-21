@@ -559,15 +559,17 @@ exports.make_application_visible_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
 
   const application_id = get_application_id(req)
-
   if(!application_id) return res.status(400).send('Application ID not defined')
+
+  const {group_id} = req.params
+  if(!group_id) return res.status(400).send('Group ID not defined')
 
   var session = driver.session();
   session
   .run(`
     // Find the application
     // Only the applicant can make the update
-    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user:User)
+    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
     WHERE application._id = $application_id
       AND applicant._id = $user_id
 
@@ -608,7 +610,7 @@ exports.remove_application_visibility_to_group = (req, res) => {
   .run(`
     // Find the application
     // Only the applicant can make the update
-    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user:User)
+    MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
     WHERE application._id = $application_id
       AND applicant._id = $user_id
 
