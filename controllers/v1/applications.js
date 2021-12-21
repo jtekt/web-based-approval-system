@@ -561,7 +561,7 @@ exports.make_application_visible_to_group = (req, res) => {
   const application_id = get_application_id(req)
   if(!application_id) return res.status(400).send('Application ID not defined')
 
-  const {group_id} = req.params
+  const {group_id} = req.body
   if(!group_id) return res.status(400).send('Group ID not defined')
 
   var session = driver.session();
