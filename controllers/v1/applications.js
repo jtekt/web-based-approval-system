@@ -550,7 +550,7 @@ exports.update_application_visibility = (req, res) => {
     if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
     res.send(records[0].get('application'))
    })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+   .catch(error => { error_handling(error, res) })
   .finally(() => { session.close() })
 }
 
@@ -590,7 +590,7 @@ exports.make_application_visible_to_group = (req, res) => {
     if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
     res.send(records[0].get('application'))
    })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+   .catch(error => { error_handling(error, res) })
   .finally(() => { session.close() })
 }
 
@@ -598,7 +598,9 @@ exports.remove_application_visibility_to_group = (req, res) => {
   // Deletes all relationships to groups and recreate them
 
   const application_id = get_application_id(req)
+  const {group_id} = req.query
 
+  if(!group_id) return res.status(400).send('Group ID not defined')
   if(!application_id) return res.status(400).send('Application ID not defined')
 
   var session = driver.session();
@@ -623,12 +625,12 @@ exports.remove_application_visibility_to_group = (req, res) => {
     `, {
     user_id: get_current_user_id(res),
     application_id,
-    group_id: req.query.group_id,
+    group_id,
   })
   .then(({records}) => {
     if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
     res.send(records[0].get('application'))
    })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
+  .catch(error => { error_handling(error, res) })
   .finally(() => { session.close() })
 }
