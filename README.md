@@ -1,14 +1,14 @@
 # Shinsei manager
-A web-based application approval system
+A web application to manage approval workflows
 
 ## API
 ### Application forms
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
-| /v2/applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
-| /v3/applications/submitted | GET | Coming soon... | Find application forms |
-| /v2/applications/{application_id} | GET | - | gets an application forms using its ID (Please note the v2 in the URL)|
-| /v2/applications/{application_id} | DELETE | - | Deletes an application forms |
+| /applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
+| /applications/submitted | GET | Coming soon... | Find application forms |
+| /applications/{application_id} | GET | - | gets an application forms using its ID (Please note the v2 in the URL)|
+| /applications/{application_id} | DELETE | - | Deletes an application forms |
 | /applications/{application_id}/approve | POST | - | Approves an application forms |
 | /applications/{application_id}/reject | POST | - | Rejects an application forms |
 | /applications/{application_id}/files/{file_id} | GET | - | Gets an attachment of an application |
@@ -36,6 +36,7 @@ This is how an application form is formatted when querying it using a GET reques
 {
   identity: Number,
   properties: {
+    _id: String,
     title: String,
     type: String,
     form_data: Object,
