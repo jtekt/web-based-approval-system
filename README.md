@@ -7,7 +7,7 @@ A web application to manage approval workflows.
 | --- | --- | --- | --- |
 | /applications | POST | type, title, private, form_data, recipients_ids, group_ids | Creates an application form |
 | /applications | GET | filters, query parameters, etc. | Query application forms |
-| /applications/{application_id} | GET | - | gets an application forms using its ID (Please note the v2 in the URL)|
+| /applications/{application_id} | GET | - | gets an application forms using its ID |
 | /applications/{application_id} | DELETE | - | Deletes an application forms |
 | /applications/{application_id}/approve | POST | - | Approves an application forms |
 | /applications/{application_id}/reject | POST | - | Rejects an application forms |
