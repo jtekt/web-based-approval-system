@@ -1,5 +1,5 @@
 # Shinsei manager
-A web application to manage approval workflows
+A web application to manage approval workflows.
 
 ## API
 ### Application forms
