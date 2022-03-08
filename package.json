@@ -9,7 +9,7 @@
   },
   "keywords": [],
   "author": "Maxime MOREILLON",
-  "license": "ISC",
+  "license": "GNU GPLv3",
   "dependencies": {
     "@moreillon/express_identification_middleware": "^1.1.0",
     "axios": "^0.21.4",
