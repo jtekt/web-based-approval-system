@@ -1,8 +1,15 @@
-# Shinsei manager
-A web application to manage approval workflows.
+# 申請マネージャ
+
+In Japan, the approval of application forms and other documents is generally achieved by printing those out and stamping them with one's personal seal, called ハンコ (Hanko). This practice has been a a significant obstacle to the adoption of remote work, as many employees still need to commute to work in order to get paper documents stamped by their superiors. This repository contains the source-code of 申請マネージャ (Shinsei-manager), a web-based approval system that aims at solving this problem.
+
+申請マネージャ is a Node.js application that allows the approval of virtually any kind of application forms or documents. It manages those, alongside their approval or rejections, as nodes and relationships in a Neo4J database.
+
+The current repository contains the source-code of the back-end application of 申請マネージャ. For its GUI, please see the dedicated repository.
 
 ## API
+
 ### Application forms
+
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
 | /applications | POST | type, title, private, form_data, recipients_ids, group_ids | Create an application form |
@@ -13,7 +20,9 @@ A web application to manage approval workflows.
 | /applications/{application_id}/reject | POST | - | Reject an application form |
 | /applications/{application_id}/files/{file_id} | GET | - | Query an attachment of an application |
 
+
 ### Application form templates
+
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
 | /templates/ | POST | template_properties | Create a form template |
@@ -23,7 +32,9 @@ A web application to manage approval workflows.
 | /templates/{template_id} | PUT | fields, label, description, group_ids | Updates an application form template |
 | /templates/{template_id} | DELETE | - | Deletes an application form template |
 
+
 ### Attachments
+
 | Endpoint | Method | body/query | Description
 | --- | --- | --- | --- |
 | /files | POST | multipart/form-data with file as 'file_to_upload' | Creates an attachment |
