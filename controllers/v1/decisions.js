@@ -1,13 +1,13 @@
+const createError = require('http-errors')
 const {driver} = require('../../db.js')
 const {
   get_current_user_id,
   get_application_id,
-  error_handling,
   filter_by_user_id,
 } = require('../../utils.js')
 
 
-exports.update_comment = (req, res) => {
+exports.update_comment = (req, res, next) => {
 
   const {decision_id} = req.params
   const {comment} = req.body
@@ -46,6 +46,6 @@ exports.update_comment = (req, res) => {
     res.send(decision)
     console.log(`Comment of decision ${decision_id} updated`)
   })
-  .catch(error => { error_handling(error, res) })
+  .catch(next)
   .finally(() => { session.close() })
 }

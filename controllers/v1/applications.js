@@ -1,10 +1,10 @@
 const {driver} = require('../../db.js')
+const createError = require('http-errors')
 const { v4: uuidv4 } = require('uuid')
 const {
   visibility_enforcement,
   get_current_user_id,
   get_application_id,
-  error_handling,
   filter_by_user_id,
   filter_by_applcation_id,
   application_batching,
@@ -27,7 +27,7 @@ const {
 
 
 
-exports.create_application = async (req, res) => {
+exports.create_application = async (req, res, next) => {
   // Route to create or edit an application
 
   const session = driver.session()
@@ -49,7 +49,7 @@ exports.create_application = async (req, res) => {
     const user_id = get_current_user_id(res)
 
     // Change back to const when done
-    let query = `
+    const query = `
       // Create the application node
       MATCH (user:User)
       ${filter_by_user_id}
@@ -109,8 +109,9 @@ exports.create_application = async (req, res) => {
     res.send(application)
     console.log(`Application ${application.properties._id} created`)
 
-  } catch (error) {
-    error_handling(error, res)
+  }
+  catch (error) {
+    next(error)
   }
   finally {
     session.close()
@@ -121,10 +122,10 @@ exports.create_application = async (req, res) => {
 
 
 
-exports.get_applications = async (req,res) => {
+exports.get_applications = async (req, res, next) => {
 
   // get applications according to specific filters
-  // Idea, could think of having submitted_by: <user id>
+
 
   const current_user_id = get_current_user_id(res)
 
@@ -195,7 +196,7 @@ exports.get_applications = async (req,res) => {
 
   }
   catch (error) {
-    error_handling(error, res)
+    next(error)
   }
   finally {
     session.close()
@@ -203,38 +204,39 @@ exports.get_applications = async (req,res) => {
 
 }
 
-exports.get_application_types = (req, res) => {
+exports.get_application_types = (req, res, next) => {
 
   // Used for search
 
-  var session = driver.session()
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // Find applications
     MATCH (application:ApplicationForm)
 
     // Return the application count
     RETURN distinct(application.type) as application_type
 
-    `, {})
-  .then( ({records}) => {
-    res.send(records.map(record => record.get('application_type')))
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
-  .finally(() => { session.close() })
+    `
+  session
+    .run(query, {})
+    .then( ({records}) => {
+      res.send(records.map(record => record.get('application_type')))
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 }
 
 
-exports.get_application = (req, res) => {
-  // Get a single application using its ID
+exports.get_application = (req, res, next) => {
 
+  // Get a single application using its ID
 
   const user_id = get_current_user_id(res)
   const {application_id} = req.params
-  if(!application_id) return res.status(400).send('Application ID not defined')
+
+  if(!user_id) return next(createError(400, 'User ID not defined'))
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
   const query = `
     // Find application
@@ -255,33 +257,27 @@ exports.get_application = (req, res) => {
 
     const record = records[0]
 
-    if(!record) {
-      console.log(`Application ${application_id} not found`)
-      return res.status(404).send(`Application ${application_id} not found`)
-    }
+    if(!record) return next(createError(404, `Application ${application_id} not found`))
 
     const application = format_application_from_record(record)
 
     console.log(`Application ${application_id} queried by user ${user_id}`)
     res.send(application)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
+  .catch(next)
   .finally(() => { session.close() })
 }
 
-exports.delete_application = (req, res) => {
+exports.delete_application = (req, res, next) => {
   // Deleting an application
   // Only the creator can delete the application
   // Applications are not actually deleted, just flagged as so
 
   const user_id = get_current_user_id(res)
-  if(!user_id) return res.status(400).send('User ID not defined')
+  if(!user_id) return next(createError(400, 'User ID not defined'))
 
   const application_id = get_application_id(req)
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
   const query = `
     // Only the applicant can delete an application
@@ -301,36 +297,30 @@ exports.delete_application = (req, res) => {
   session.run(query,params)
   .then(({records}) => {
 
-    if(!records.length) {
-      console.log(`Application ${application_id} not found`)
-      return res.status(404).send(`Application ${application_id} not found`)
-    }
+    if(!records.length) return next(createError(404, `Application ${application_id} not found`))
 
     const application = records[0].get('application')
 
     res.send(application)
     console.log(`Application ${application_id} marked as deleted`)
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
+  .catch(next)
   .finally(() => { session.close() })
 }
 
 
-exports.get_application_visibility = (req, res) => {
+exports.get_application_visibility = (req, res, next) => {
   // Get a the groups an application is visible to
 
   // Actually used!
   // WHERE? WHY?
-  let application_id = get_application_id(req)
 
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  const application_id = get_application_id(req)
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
-  var session = driver.session()
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // Find current user to check for authorization
     MATCH (user:User)
     ${filter_by_user_id}
@@ -350,24 +340,27 @@ exports.get_application_visibility = (req, res) => {
     // Return
     RETURN group
 
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
-    application_id: application_id,
-  })
-  .then(result => { res.send(result.records) })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
-  .finally(() => { session.close() })
+    application_id,
+  }
+
+  session.run(query, params)
+    .then( ({records}) => {
+      res.send(records)
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 }
 
-exports.approve_application = (req, res) => {
+exports.approve_application = (req, res, next) => {
 
   // TODO: prevent re-approval
 
   const application_id = get_application_id(req)
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
   const {
     attachment_hankos,
@@ -409,31 +402,31 @@ exports.approve_application = (req, res) => {
 
   const session = driver.session()
   session.run(query, params)
-  .then(({records}) => {
-    if(!records.length) return res.status(404).send(`Application not found`)
-    res.send(records[0].get('approval'))
-    console.log(`Application ${records[0].get('application').identity} got approved by user ${records[0].get('recipient').identity}`)
-  })
-  .catch(error => {
-    res.status(500).send(`Error accessing DB: ${error}`)
-    console.log(error)
-  })
-  .finally(() => { session.close() })
+    .then(({records}) => {
+
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+
+      const approval = records[0].get('approval')
+      console.log(`Application ${approval.properties._id} got approved by user ${records[0].get('recipient').properties._id}`)
+      res.send(approval)
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 
 }
 
-exports.reject_application = (req, res) => {
+exports.reject_application = (req, res, next) => {
   // basically the opposite of putting a hanko
 
   const application_id = get_application_id(req)
 
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
-  const comment =  req.body.comment || ''
+  const {comment = ''} = req.body
 
-  var session = driver.session()
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // TODO: USE QUERIES FROM UTILS
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
@@ -451,34 +444,39 @@ exports.reject_application = (req, res) => {
     SET rejection.comment = $comment
 
     // RETURN APPLICATION
-    RETURN application, recipient, rejection`, {
+    RETURN application, recipient, rejection`
+
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
     comment,
-  })
-  .then(({records}) => {
-    if(records.loength < 1) return res.status(404).send(`Application not found`)
-    res.send(records[0].get('rejection'))
-    console.log(`Application ${records[0].get('application').identity} got rejected by user ${records[0].get('recipient').identity}`)
-  })
-  .catch(error => {
-    console.error(error)
-    res.status(500).send(`Error accessing DB: ${error}`)
-  })
-  .finally(() => { session.close() })
+  }
+
+  session
+    .run(query, params)
+    .then(({records}) => {
+
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+
+      const application = records[0].get('application').identity
+      res.send(records[0].get('rejection'))
+      console.log(`Application ${application.properties._id} got rejected by user ${records[0].get('recipient').properties._id}`)
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 
 }
 
-exports.update_privacy_of_application = (req, res) => {
+exports.update_privacy_of_application = (req, res, next) => {
   // Riute to make an application confidential or public
 
   let application_id = get_application_id(req)
 
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
-  var session = driver.session()
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // Find the application
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
     WHERE application._id = $application_id
@@ -489,18 +487,23 @@ exports.update_privacy_of_application = (req, res) => {
 
     // Return the application
     RETURN application
+    `
 
-    `, {
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
     private: req.body.private,
-  })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
-  .catch(error => { res.status(500).send(`Error accessing DB: ${error}`) })
-  .finally(() => { session.close() })
+  }
+
+  session
+    .run(query, params)
+    .then(({records}) => {
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      const application = records[0].get('application')
+      res.send(application)
+     })
+    .catch(next)
+    .finally(() => { session.close() })
 
 }
 
@@ -509,11 +512,11 @@ exports.update_application_visibility = (req, res) => {
 
   const application_id = get_application_id(req)
 
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
-  var session = driver.session();
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user:User)
@@ -541,32 +544,37 @@ exports.update_application_visibility = (req, res) => {
 
     // Return the application
     RETURN application, group
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
     group_ids: req.body.group_ids,
-  })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
-   .catch(error => { error_handling(error, res) })
-  .finally(() => { session.close() })
+  }
+  session
+    .run(query,params)
+    .then( ({records}) => {
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      res.send(records[0].get('application'))
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 }
 
 
-exports.make_application_visible_to_group = (req, res) => {
+exports.make_application_visible_to_group = (req, res, next) => {
+
   // Deletes all relationships to groups and recreate them
 
   const application_id = get_application_id(req)
-  if(!application_id) return res.status(400).send('Application ID not defined')
-
   const {group_id} = req.body
-  if(!group_id) return res.status(400).send('Group ID not defined')
 
-  var session = driver.session();
-  session
-  .run(`
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!group_id) return next(createError(400, 'Group ID not defined'))
+
+  const session = driver.session()
+
+  const query = `
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
@@ -583,31 +591,35 @@ exports.make_application_visible_to_group = (req, res) => {
 
     // Return the application
     RETURN application, group
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
     group_id: req.body.group_id,
-  })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
-   .catch(error => { error_handling(error, res) })
-  .finally(() => { session.close() })
+  }
+
+  session
+    .run(query,params)
+    .then( ({records}) => {
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      res.send(records[0].get('application'))
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 }
 
-exports.remove_application_visibility_to_group = (req, res) => {
-  // Deletes all relationships to groups and recreate them
+exports.remove_application_visibility_to_group = (req, res, next) => {
 
   const application_id = get_application_id(req)
-  const {group_id} = req.query
+  const { group_id } = req.query
 
-  if(!group_id) return res.status(400).send('Group ID not defined')
-  if(!application_id) return res.status(400).send('Application ID not defined')
+  if(!group_id) return next(createError(400, 'Group ID not defined'))
+  if(!application_id) return next(createError(400, 'Application ID not defined'))
 
-  var session = driver.session();
-  session
-  .run(`
+  const session = driver.session()
+
+  const query = `
     // Find the application
     // Only the applicant can make the update
     MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
@@ -624,15 +636,21 @@ exports.remove_application_visibility_to_group = (req, res) => {
 
     // Return the application
     RETURN application
-    `, {
+    `
+
+  const params = {
     user_id: get_current_user_id(res),
     application_id,
     group_id,
-  })
-  .then(({records}) => {
-    if(records.length < 1) return res.status(404).send(`Application ${application_id} not found`)
-    res.send(records[0].get('application'))
-   })
-  .catch(error => { error_handling(error, res) })
-  .finally(() => { session.close() })
+  }
+
+  session
+    .run(query, params)
+    .then(({records}) => {
+      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      const application = records[0].get('application')
+      res.send(application)
+     })
+    .catch(next)
+    .finally(() => { session.close() })
 }

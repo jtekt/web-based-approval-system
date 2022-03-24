@@ -19,8 +19,9 @@
     "express": "^4.17.3",
     "express-prometheus-middleware": "^1.2.0",
     "formidable": "^1.2.6",
+    "http-errors": "^2.0.0",
     "mv": "^2.1.1",
-    "neo4j-driver": "^4.4.3",
+    "neo4j-driver": "^4.4.4",
     "prom-client": "^12.0.0",
     "prometheus-api-metrics": "^3.2.1",
     "uuid": "^3.4.0"

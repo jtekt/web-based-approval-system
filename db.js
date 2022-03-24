@@ -14,6 +14,7 @@ const options = { disableLosslessIntegers: true }
 const driver = neo4j.driver( NEO4J_URL, auth, options )
 
 let connected = false
+
 const init = async () => {
   console.log('[Neo4J] Initializing DB')
 

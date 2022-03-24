@@ -1,12 +1,3 @@
-exports.error_handling = (error, res) => {
-  console.log(error)
-  const {tag} = error
-  let status_code = error.code || 500
-  if(isNaN(status_code)) status_code = 500
-  const message = error.message || error
-  res.status(status_code).send(message)
-}
-
 exports.get_current_user_id = (res) => {
 
   const user = res.locals.user
@@ -65,69 +56,69 @@ exports.format_application_from_record = (record) => {
 }
 
 const filter_by_applcation_id = `
-// FINAL
-// WHERE application._id = $application_id
-// TEMPORARY
-WHERE (application._id = $application_id OR id(application) = toInteger($application_id))
-`
+  // FINAL
+  // WHERE application._id = $application_id
+  // TEMPORARY
+  WHERE (application._id = $application_id OR id(application) = toInteger($application_id))
+  `
 exports.filter_by_applcation_id = filter_by_applcation_id
 
 const filter_by_user_id = `
-// FINAL
-WHERE user._id = $user_id
-// TEMPORARY
-//WHERE (user._id = $user_id OR id(user) = toInteger($user_id))
-`
+  // FINAL
+  WHERE user._id = $user_id
+  // TEMPORARY
+  //WHERE (user._id = $user_id OR id(user) = toInteger($user_id))
+  `
 exports.filter_by_user_id = filter_by_user_id
 
 
 exports.return_application_and_related_nodes = `
-// Counting is done in batching
-WITH application, application_count
-MATCH (user:User)
-${filter_by_user_id}
+  // Counting is done in batching
+  WITH application, application_count
+  MATCH (user:User)
+  ${filter_by_user_id}
 
-// Adding a forbidden flag to applications that the user cannot see
-WITH application, application_count,
-  application.private
-  AND NOT (application)-[:SUBMITTED_BY]->(user)
-  AND NOT (application)-[:SUBMITTED_TO]->(user)
-  AND NOT (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
-AS forbidden
+  // Adding a forbidden flag to applications that the user cannot see
+  WITH application, application_count,
+    application.private
+    AND NOT (application)-[:SUBMITTED_BY]->(user)
+    AND NOT (application)-[:SUBMITTED_TO]->(user)
+    AND NOT (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
+  AS forbidden
 
-// Find applicant
-WITH application, forbidden, application_count
-OPTIONAL MATCH (application)-[authorship:SUBMITTED_BY]->(applicant:User)
+  // Find applicant
+  WITH application, forbidden, application_count
+  OPTIONAL MATCH (application)-[authorship:SUBMITTED_BY]->(applicant:User)
 
-// Find recipients
-WITH application, applicant, authorship, forbidden, application_count
-OPTIONAL MATCH (application)-[submission:SUBMITTED_TO]->(recipient:User)
+  // Find recipients
+  WITH application, applicant, authorship, forbidden, application_count
+  OPTIONAL MATCH (application)-[submission:SUBMITTED_TO]->(recipient:User)
 
-// Find approvals
-WITH application, applicant, authorship, recipient, submission, forbidden, application_count
-OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
+  // Find approvals
+  WITH application, applicant, authorship, recipient, submission, forbidden, application_count
+  OPTIONAL MATCH (application)<-[approval:APPROVED]-(recipient)
 
-// Find rejections
-WITH application, applicant, authorship, recipient, submission, approval, forbidden, application_count
-OPTIONAL MATCH (application)<-[refusal:REJECTED]-(recipient)
+  // Find rejections
+  WITH application, applicant, authorship, recipient, submission, approval, forbidden, application_count
+  OPTIONAL MATCH (application)<-[refusal:REJECTED]-(recipient)
 
-// visibility
-WITH application, applicant, authorship, recipient, submission, approval, refusal, forbidden, application_count
-OPTIONAL MATCH (application)-[:VISIBLE_TO]->(group:Group)
-  WHERE application.private = true
+  // visibility
+  WITH application, applicant, authorship, recipient, submission, approval, refusal, forbidden, application_count
+  OPTIONAL MATCH (application)-[:VISIBLE_TO]->(group:Group)
+    WHERE application.private = true
 
-// Return everything
-RETURN application,
-  applicant,
-  authorship,
-  collect(distinct recipient) as recipients,
-  collect(distinct submission) as submissions,
-  collect(distinct approval) as approvals,
-  collect(distinct refusal) as refusals,
-  collect(distinct group) as visibility,
-  forbidden,
-  application_count
-`
+  // Return everything
+  RETURN application,
+    applicant,
+    authorship,
+    collect(distinct recipient) as recipients,
+    collect(distinct submission) as submissions,
+    collect(distinct approval) as approvals,
+    collect(distinct refusal) as refusals,
+    collect(distinct group) as visibility,
+    forbidden,
+    application_count
+  `
 
 // This might be unused
 exports.visibility_enforcement = `
@@ -174,56 +165,53 @@ WHERE recipient_count = approval_count
 exports.query_submitted_approved_applications = query_submitted_approved_applications
 
 
-const query_received_pending_applications =
-`
-// Check if recipient is next in the flow
-WITH application
+const query_received_pending_applications =`
+  // Check if recipient is next in the flow
+  WITH application
 
-// Get the current user
-// Also filter out rejected applications
-MATCH (application)-[submission:SUBMITTED_TO]->(user:User)
-${filter_by_user_id}
-AND NOT (application)<-[:REJECTED]-(:User)
+  // Get the current user
+  // Also filter out rejected applications
+  MATCH (application)-[submission:SUBMITTED_TO]->(user:User)
+  ${filter_by_user_id}
+  AND NOT (application)<-[:REJECTED]-(:User)
 
-// Get the approval count
-WITH application, submission
-OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
-WITH submission, application, count(approval) as approval_count
-WHERE submission.flow_index = approval_count
-`
+  // Get the approval count
+  WITH application, submission
+  OPTIONAL MATCH (application)<-[approval:APPROVED]-(:User)
+  WITH submission, application, count(approval) as approval_count
+  WHERE submission.flow_index = approval_count
+  `
 exports.query_received_pending_applications = query_received_pending_applications
 
-const query_received_rejected_applications =
-`
-// Check if recipient is next in the flow
-WITH application
+const query_received_rejected_applications =`
+  // Check if recipient is next in the flow
+  WITH application
 
-// Get the current user
-// Also filter out rejected applications
-MATCH (application)<-[:REJECTED]->(user:User)
-${filter_by_user_id}
-`
+  // Get the current user
+  // Also filter out rejected applications
+  MATCH (application)<-[:REJECTED]->(user:User)
+  ${filter_by_user_id}
+  `
 exports.query_received_rejected_applications = query_received_rejected_applications
 
-const query_received_approved_applications =
-`
-// Check if recipient is next in the flow
-WITH application
+const query_received_approved_applications =`
+  // Check if recipient is next in the flow
+  WITH application
 
-// Get the current user
-// Also filter out rejected applications
-MATCH (application)<-[:APPROVED]->(user:User)
-${filter_by_user_id}
-`
+  // Get the current user
+  // Also filter out rejected applications
+  MATCH (application)<-[:APPROVED]->(user:User)
+  ${filter_by_user_id}
+  `
 exports.query_received_approved_applications = query_received_approved_applications
 
 exports.application_batching = `
-// Counting must be done before batching
-WITH application ORDER BY application.creation_date DESC
-WITH collect(application) AS application_collection, count(application) as application_count
-WITH application_count, application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
-UNWIND application_batch AS application
-`
+  // Counting must be done before batching
+  WITH application ORDER BY application.creation_date DESC
+  WITH collect(application) AS application_collection, count(application) as application_count
+  WITH application_count, application_collection[toInteger($start_index)..toInteger($start_index)+toInteger($batch_size)] AS application_batch
+  UNWIND application_batch AS application
+  `
 
 exports.filter_by_type = (type) => {
   if(!type) return ``

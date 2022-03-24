@@ -12,6 +12,8 @@ const {
 const authentication_url = IDENTIFICATION_URL
   || `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
 
+if(!authentication_url) throw `URL of the authenticatin service not set`
+
 const retrieve_jwt = (req, res) => {
 
   return req.headers.authorization?.split(" ")[1]
@@ -28,9 +30,7 @@ exports.middleware = (req, res, next) => {
   let jwt = retrieve_jwt(req,res)
 
   // if no JWT available, reject requst
-  if(!jwt) {
-    return res.status(403).send(`Missing JWT`)
-  }
+  if(!jwt) return res.status(403).send(`Missing JWT`)
 
   const headers = { Authorization: `Bearer ${jwt}`}
 
@@ -45,13 +45,8 @@ exports.middleware = (req, res, next) => {
     next()
   })
   .catch(error => {
-    if(error.response){
-      res.status(error.response.status)
-        .send(error.response.data)
-    }
-    else {
-      res.status(500).send(error)
-    }
+    if(error.response) res.status(error.response.status).send(error.response.data)
+    else res.status(500).send(error)
 
   })
 }
