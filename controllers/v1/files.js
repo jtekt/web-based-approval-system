@@ -1,3 +1,4 @@
+const createError = require('http-errors')
 const mv = require('mv')
 const fs = require('fs')
 const path = require('path')
@@ -8,7 +9,6 @@ const {
   visibility_enforcement,
   get_current_user_id,
   get_application_id,
-  error_handling,
   filter_by_user_id,
   filter_by_applcation_id,
 } = require('../../utils.js')
@@ -17,37 +17,38 @@ const {
 const uploads_directory_path = "/usr/share/pv" // For production as docker container
 
 
-exports.file_upload = (req, res) => {
+exports.file_upload = (req, res, next) => {
   // Route to upload an attachment
   // TODO: use promises
   // NOTE: Could use multer
   const form = new formidable.IncomingForm()
   form.parse(req, (err, fields, files) => {
-    if (err) return res.status(500).send('Error parsing the data')
 
-    if(!files.file_to_upload) return res.status(400).send('Missing file')
+    if (err) return next(createError(500, 'Error parsing body'))
+
+    if(!files.file_to_upload) return next(createError(400, 'Missing file'))
 
     const {
       path: old_path,
       name: file_name
     } = files.file_to_upload
 
-    const new_directory_name = uuidv4()
-    const new_directory_path = path.join(uploads_directory_path, new_directory_name)
+    const file_id = uuidv4()
+    const new_directory_path = path.join(uploads_directory_path, file_id)
 
     // Create the new directory
     const new_file_path = path.join(new_directory_path,file_name);
 
     mv(old_path, new_file_path, {mkdirp: true}, (err) => {
-      if (err) return res.status(500).send('Error saving the file')
+      if (err) return next(createError(500, 'Error saving file'))
       console.log(`${file_name} uploaded`)
-      res.send(new_directory_name)
+      res.send(file_id)
     })
 
   })
 }
 
-exports.get_file = (req, res) => {
+exports.get_file = (req, res, next) => {
 
   const {file_id} = req.params
   const user_id = get_current_user_id(res)
@@ -85,21 +86,20 @@ exports.get_file = (req, res) => {
   .then(({records}) => {
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(!records.length) throw {code: 400, message: `Application ${application_id} could not be queried`}
+    if(!records.length) return next(createError(400, `Application ${application_id} could not be queried`))
 
     // Check if the application has a file with the given ID
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
     const found_file = form_data.find( ({value}) => value === file_id)
-    if(!found_file) throw {code: 400, message: `Application ${application_id} does not include the file ${file_id}`}
+    if(!found_file) return next(createError(400, `Application ${application_id} does not include the file ${file_id}`))
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
-      if(err) {
-        console.log(err)
-        return res.status(400).send(`File could not be opened`)
-      }
+
+      if(err) return next(createError(500, `File ${file_id} could not be opened`))
+
       // Send first file in the directory (one file per directory)
       const file_to_download = items[0]
       console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
@@ -108,26 +108,23 @@ exports.get_file = (req, res) => {
     })
 
   })
-  .catch(error => { error_handling(error, res) })
+  .catch(next)
   .finally(() => { session.close() })
 
 }
 
-exports.get_file_name = (req, res) => {
+exports.get_file_name = (req, res, next) => {
 
   const {file_id} = req.params
 
-  if(!file_id) return res.status(400).send('File ID not specified')
+  if(!file_id) return next(createError(400, `File ID not specified`))
 
 
   // Now download the file
   const directory_path = path.join(uploads_directory_path, file_id)
   fs.readdir(directory_path, (err, items) => {
 
-    if(err) {
-      console.log(err)
-      return res.status(400).send(`File could not be opened`)
-    }
+    if(err) return next(createError(500, `File could not be opened`))
     // Send first file in the directory (one file per directory)
     const filename = items[0]
     // NOTE: Why not sendFile?
@@ -140,46 +137,46 @@ exports.get_file_name = (req, res) => {
 
 
 
-function get_unused_files(){
+const  get_unused_files = () => new Promise((resolve, reject) => {
+  const session = driver.session()
 
-  return new Promise((resolve, reject) => {
-    const session = driver.session()
+  const query = `
+    MATCH (application:ApplicationForm)
+    WHERE application.form_data CONTAINS 'file'
+    RETURN application.form_data as form_data
+    `
 
-    session.run(`
-      MATCH (application:ApplicationForm)
-      WHERE application.form_data CONTAINS 'file'
-      RETURN application.form_data as form_data
-      `, {})
-    .then(({records}) => {
+  session.run(query, {})
+  .then(({records}) => {
 
-      const attachments = records.reduce((acc, record) => {
-        const fields = JSON.parse(record.get('form_data'))
+    const attachments = records.reduce((acc, record) => {
+      const fields = JSON.parse(record.get('form_data'))
 
-        // File fileds of this record (can be empty)
-        const file_fields = fields.filter(field => field.type === 'file' && !!field.value)
-        if(file_fields.length > 0) {
-          file_fields.forEach(field => {acc.push(field.value)} )
-        }
+      // File fileds of this record (can be empty)
+      const file_fields = fields.filter(field => field.type === 'file' && !!field.value)
+      if(file_fields.length > 0) {
+        file_fields.forEach(field => {acc.push(field.value)} )
+      }
 
-        return acc
+      return acc
 
-      }, [])
+    }, [])
 
-      const directories = readdirSync(uploads_directory_path)
+    const directories = readdirSync(uploads_directory_path)
 
-      // ignore trash
-      const unused_uploads = directories.filter( directory => {
-        return !attachments.find(attachment => (directory === attachment || directory === 'trash') )
-      })
-
-      resolve(unused_uploads)
+    // ignore trash
+    const unused_uploads = directories.filter( directory => {
+      return !attachments.find(attachment => (directory === attachment || directory === 'trash') )
     })
-    .catch(reject)
-    .finally(() => { session.close() })
 
+    resolve(unused_uploads)
   })
+  .catch(reject)
+  .finally(() => { session.close() })
 
-}
+})
+
+
 
 exports.get_unused_files = (req, res) => {
 
@@ -187,13 +184,10 @@ exports.get_unused_files = (req, res) => {
   if(!user.properties.isAdmin) return res.status(403).send('User must be admin')
 
   get_unused_files()
-  .then(unused_uploads => {
-    res.send(unused_uploads)
-  })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(error)
-  })
+    .then(unused_uploads => {
+      res.send(unused_uploads)
+    })
+    .catch(next)
 }
 
 exports.move_unused_files = (req, res) => {
@@ -227,9 +221,6 @@ exports.move_unused_files = (req, res) => {
   .then( (items) => {
     res.send({deleted_count: items.length})
   })
-  .catch(error => {
-    console.log(error)
-    res.status(500).send(error)
-  })
+  .catch(next)
 
 }
