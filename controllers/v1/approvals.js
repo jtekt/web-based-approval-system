@@ -13,7 +13,7 @@ exports.update_attachment_hankos = (req, res, next) => {
   // Used to save the location of stamps on an attachment
 
   const {approval_id} = req.params
-  const user_id =get_current_user_id(res)
+  const user_id = get_current_user_id(res)
 
   const session = driver.session()
 
@@ -40,7 +40,7 @@ exports.update_attachment_hankos = (req, res, next) => {
   session
     .run(query, params)
     .then( ({records}) => {
-      if(!records.length) throw {code: 404, message: `Approval ${approval_id} not found`}
+      if(!records.length) throw createError(404, `Approval ${approval_id} not found`)
       const approval = records[0].get('approval')
       console.log(`Attached hankos of approval ${approval_id} updated`)
       res.send(approval)

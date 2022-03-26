@@ -27,102 +27,91 @@ const {
 
 
 
-exports.create_application = async (req, res, next) => {
+exports.create_application = (req, res, next) => {
   // Route to create or edit an application
 
   const session = driver.session()
 
+  // parsing body
+  const {
+    type,
+    title,
+    form_data,
+    recipients_ids,
+    private = false,
+    group_ids = [],
+  } = req.body
 
-  try {
-    // parsing body
-    const {
-      type,
-      title,
-      form_data,
-      recipients_ids,
-      private = false,
-      group_ids = [],
-    } = req.body
+  const user_id = get_current_user_id(res)
 
+  const query = `
+    // Create the application node
+    MATCH (user:User)
+    ${filter_by_user_id}
+    CREATE (application:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(user)
 
-    // Necessary to convert to string
-    const user_id = get_current_user_id(res)
+    // Set the application properties using data passed in the request body
+    SET application._id = randomUUID()
+    SET application.creation_date = date()
+    SET application.title = $title
+    SET application.private = $private
+    SET application.form_data = $form_data
+    SET application.type = $type
 
-    // Change back to const when done
-    const query = `
-      // Create the application node
-      MATCH (user:User)
-      ${filter_by_user_id}
-      CREATE (application:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(user)
+    // Relationship with recipients
+    // This also creates flow indices
+    // Note: flow cannot be empty
+    WITH application, $recipients_ids as recipients_ids
+    UNWIND range(0, size(recipients_ids)-1) as i
+    MATCH (recipient:User)
+    WHERE recipient._id = toString(recipients_ids[i])
+    CREATE (recipient)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(application)
 
-      // Set the application properties using data passed in the request body
-      SET application._id = randomUUID()
-      SET application.creation_date = date()
-      SET application.title = $title
-      SET application.private = $private
-      SET application.form_data = $form_data
-      SET application.type = $type
+    // Groups to which the aplication is visible
+    // Note: can be an empty set so the logic to deal with it looks terrible
+    WITH application
+    UNWIND
+      CASE
+        WHEN $group_ids = []
+          THEN [null]
+        ELSE $group_ids
+      END AS group_id
 
-      // Relationship with recipients
-      // This also creates flow indices
-      // Note: flow cannot be empty
-      WITH application, $recipients_ids as recipients_ids
-      UNWIND range(0, size(recipients_ids)-1) as i
-      MATCH (recipient:User)
-      WHERE recipient._id = toString(recipients_ids[i])
-      CREATE (recipient)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(application)
+    OPTIONAL MATCH (group:Group)
+    WHERE group._id = group_id
+    WITH collect(group) as groups, application
+    FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
 
-      // Groups to which the aplication is visible
-      // Note: can be an empty set so the logic to deal with it looks terrible
-      WITH application
-      UNWIND
-        CASE
-          WHEN $group_ids = []
-            THEN [null]
-          ELSE $group_ids
-        END AS group_id
+    // Finally, Return the created application
+    RETURN application
+    `
 
-      OPTIONAL MATCH (group:Group)
-      WHERE group._id = group_id
-      WITH collect(group) as groups, application
-      FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
-
-      // Finally, Return the created application
-      RETURN application
-      `
-
-    const params = {
-      user_id,
-      type,
-      title,
-      recipients_ids, // Conversion as string here because Neo4J's version is too stupid
-      private,
-      group_ids,
-      form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
-    }
-
-
-    const {records} = await session.run(query,params)
-
-    if(!records.length) throw {code: 500, message: `Failed to create the application`}
-    const application = records[0].get('application')
-    res.send(application)
-    console.log(`Application ${application.properties._id} created`)
-
-  }
-  catch (error) {
-    next(error)
-  }
-  finally {
-    session.close()
+  const params = {
+    user_id,
+    type,
+    title,
+    recipients_ids, // Conversion as string here because Neo4J's version is too stupid
+    private,
+    group_ids,
+    form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
   }
 
 
+  session
+    .run(query,params)
+    .then( ({records}) => {
+      if(!records.length) throw createError(500, `Failed to create the application`)
+      const application = records[0].get('application')
+      console.log(`Application ${application.properties._id} created`)
+      res.send(application)
+    })
+    .catch(next)
+    .finally(() => { session.close() })
 }
 
 
 
-exports.get_applications = async (req, res, next) => {
+exports.get_applications = (req, res, next) => {
 
   // get applications according to specific filters
 
@@ -145,62 +134,59 @@ exports.get_applications = async (req, res, next) => {
   } = req.query
 
   const session = driver.session()
-  try {
 
-    const query = `
-    MATCH (user:User)
-    ${filter_by_user_id}
-    WITH user
-    MATCH (application:ApplicationForm)
-    ${query_with_relationship_and_state(relationship,state)}
+  const query = `
+  MATCH (user:User)
+  ${filter_by_user_id}
+  WITH user
+  MATCH (application:ApplicationForm)
+  ${query_with_relationship_and_state(relationship,state)}
 
-    // from here on, no need for user anymore
-    // gets requeried later on
-    ${query_deleted(deleted)}
-    ${filter_by_type(type)}
-    ${query_with_date(start_date,end_date)}
-    ${query_with_group(group_id)}
-    ${query_with_hanko_id(hanko_id)}
-    ${query_with_application_id(application_id)}
+  // from here on, no need for user anymore
+  // gets requeried later on
+  ${query_deleted(deleted)}
+  ${filter_by_type(type)}
+  ${query_with_date(start_date,end_date)}
+  ${query_with_group(group_id)}
+  ${query_with_hanko_id(hanko_id)}
+  ${query_with_application_id(application_id)}
 
-    // Batching does the count
-    ${application_batching}
-    ${return_application_and_related_nodes}
-    `
+  // Batching does the count
+  ${application_batching}
+  ${return_application_and_related_nodes}
+  `
 
-    const params = {
-      user_id,
-      relationship,
-      type,
-      start_date,
-      end_date,
-      start_index,
-      batch_size,
-      application_id,
-      hanko_id,
-      group_id,
-    }
+  const params = {
+    user_id,
+    relationship,
+    type,
+    start_date,
+    end_date,
+    start_index,
+    batch_size,
+    application_id,
+    hanko_id,
+    group_id,
+  }
 
-    const {records} = await session.run(query, params)
+  session
+    .run(query, params)
+    .then( ({records}) => {
 
-    const count = records.length ?  records[0].get('application_count') : 0
+      const count = records.length ?  records[0].get('application_count') : 0
 
-    const applications = records.map(record => format_application_from_record(record))
+      const applications = records.map(record => format_application_from_record(record))
 
-    res.send({
-      count,
-      applications,
-      start_index,
-      batch_size
+      res.send({
+        count,
+        applications,
+        start_index,
+        batch_size
+      })
+
     })
-
-  }
-  catch (error) {
-    next(error)
-  }
-  finally {
-    session.close()
-  }
+    .catch(next)
+    .finally(() => { session.close() })
 
 }
 
@@ -216,12 +202,15 @@ exports.get_application_types = (req, res, next) => {
 
     // Return the application count
     RETURN distinct(application.type) as application_type
-
     `
+
+  const params = {}
+
   session
-    .run(query, {})
+    .run(query, params)
     .then( ({records}) => {
-      res.send(records.map(record => record.get('application_type')))
+      const types = records.map(record => record.get('application_type'))
+      res.send(types)
     })
     .catch(next)
     .finally(() => { session.close() })
@@ -235,8 +224,8 @@ exports.get_application = (req, res, next) => {
   const user_id = get_current_user_id(res)
   const {application_id} = req.params
 
-  if(!user_id) return next(createError(400, 'User ID not defined'))
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!user_id) throw createError(400, 'User ID not defined')
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const query = `
     // Find application
@@ -257,7 +246,7 @@ exports.get_application = (req, res, next) => {
 
     const record = records[0]
 
-    if(!record) return next(createError(404, `Application ${application_id} not found`))
+    if(!record) throw createError(404, `Application ${application_id} not found`)
 
     const application = format_application_from_record(record)
 
@@ -273,11 +262,14 @@ exports.delete_application = (req, res, next) => {
   // Only the creator can delete the application
   // Applications are not actually deleted, just flagged as so
 
+
   const user_id = get_current_user_id(res)
-  if(!user_id) return next(createError(400, 'User ID not defined'))
+  if(!user_id) throw createError(400, 'User ID not defined')
 
   const application_id = get_application_id(req)
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
+
+  const session = driver.session()
 
   const query = `
     // Only the applicant can delete an application
@@ -293,11 +285,10 @@ exports.delete_application = (req, res, next) => {
 
   const params = {user_id, application_id}
 
-  var session = driver.session()
   session.run(query,params)
   .then(({records}) => {
 
-    if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+    if(!records.length) throw createError(404, `Application ${application_id} not found`)
 
     const application = records[0].get('application')
 
@@ -316,7 +307,7 @@ exports.get_application_visibility = (req, res, next) => {
   // WHERE? WHY?
 
   const application_id = get_application_id(req)
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const session = driver.session()
 
@@ -360,7 +351,7 @@ exports.approve_application = (req, res, next) => {
   // TODO: prevent re-approval
 
   const application_id = get_application_id(req)
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const {
     attachment_hankos,
@@ -404,7 +395,7 @@ exports.approve_application = (req, res, next) => {
   session.run(query, params)
     .then(({records}) => {
 
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
 
       const approval = records[0].get('approval')
       console.log(`Application ${approval.properties._id} got approved by user ${records[0].get('recipient').properties._id}`)
@@ -420,7 +411,7 @@ exports.reject_application = (req, res, next) => {
 
   const application_id = get_application_id(req)
 
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const {comment = ''} = req.body
 
@@ -456,7 +447,7 @@ exports.reject_application = (req, res, next) => {
     .run(query, params)
     .then(({records}) => {
 
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
 
       const application = records[0].get('application').identity
       res.send(records[0].get('rejection'))
@@ -472,7 +463,7 @@ exports.update_privacy_of_application = (req, res, next) => {
 
   let application_id = get_application_id(req)
 
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const session = driver.session()
 
@@ -498,7 +489,7 @@ exports.update_privacy_of_application = (req, res, next) => {
   session
     .run(query, params)
     .then(({records}) => {
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
       const application = records[0].get('application')
       res.send(application)
      })
@@ -512,7 +503,7 @@ exports.update_application_visibility = (req, res) => {
 
   const application_id = get_application_id(req)
 
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const session = driver.session()
 
@@ -554,7 +545,7 @@ exports.update_application_visibility = (req, res) => {
   session
     .run(query,params)
     .then( ({records}) => {
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
       res.send(records[0].get('application'))
     })
     .catch(next)
@@ -569,8 +560,8 @@ exports.make_application_visible_to_group = (req, res, next) => {
   const application_id = get_application_id(req)
   const {group_id} = req.body
 
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
-  if(!group_id) return next(createError(400, 'Group ID not defined'))
+  if(!application_id) throw createError(400, 'Application ID not defined')
+  if(!group_id) throw createError(400, 'Group ID not defined')
 
   const session = driver.session()
 
@@ -602,7 +593,7 @@ exports.make_application_visible_to_group = (req, res, next) => {
   session
     .run(query,params)
     .then( ({records}) => {
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
       res.send(records[0].get('application'))
     })
     .catch(next)
@@ -614,8 +605,8 @@ exports.remove_application_visibility_to_group = (req, res, next) => {
   const application_id = get_application_id(req)
   const { group_id } = req.query
 
-  if(!group_id) return next(createError(400, 'Group ID not defined'))
-  if(!application_id) return next(createError(400, 'Application ID not defined'))
+  if(!group_id) throw createError(400, 'Group ID not defined')
+  if(!application_id) throw createError(400, 'Application ID not defined')
 
   const session = driver.session()
 
@@ -647,7 +638,7 @@ exports.remove_application_visibility_to_group = (req, res, next) => {
   session
     .run(query, params)
     .then(({records}) => {
-      if(!records.length) return next(createError(404, `Application ${application_id} not found`))
+      if(!records.length) throw createError(404, `Application ${application_id} not found`)
       const application = records[0].get('application')
       res.send(application)
      })

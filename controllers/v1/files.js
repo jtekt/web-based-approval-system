@@ -17,38 +17,53 @@ const {
 const uploads_directory_path = "/usr/share/pv" // For production as docker container
 
 
-exports.file_upload = (req, res, next) => {
-  // Route to upload an attachment
-  // TODO: use promises
-  // NOTE: Could use multer
+const parse_form = (req) => new Promise ((resolve, reject) => {
   const form = new formidable.IncomingForm()
   form.parse(req, (err, fields, files) => {
+    if(err) reject(err)
+    resolve(files)
+  })
+})
 
-    if (err) return next(createError(500, 'Error parsing body'))
+const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
-    if(!files.file_to_upload) return next(createError(400, 'Missing file'))
+  const {
+    path: old_path,
+    name: file_name
+  } = file_to_upload
 
-    const {
-      path: old_path,
-      name: file_name
-    } = files.file_to_upload
 
-    const file_id = uuidv4()
-    const new_directory_path = path.join(uploads_directory_path, file_id)
+  const file_id = uuidv4()
+  const new_directory_path = path.join(uploads_directory_path, file_id)
+  const new_file_path = path.join(new_directory_path,file_name)
 
-    // Create the new directory
-    const new_file_path = path.join(new_directory_path,file_name);
-
-    mv(old_path, new_file_path, {mkdirp: true}, (err) => {
-      if (err) return next(createError(500, 'Error saving file'))
-      console.log(`${file_name} uploaded`)
-      res.send(file_id)
-    })
+  mv(old_path, new_file_path, {mkdirp: true}, (err) => {
+    if (err) reject(err)
+    resolve(file_id)
 
   })
+})
+
+exports.file_upload = (req, res, next) => {
+  // Upload an attachment
+
+  parse_form(req)
+  .then( ({file_to_upload}) => {
+    if(!file_to_upload) throw createError(400, 'Missing file')
+    return store_file(file_to_upload)
+  })
+  .then( (file_id) => {
+    console.log(`File ${file_id} uploaded`)
+    res.send(file_id)
+  })
+  .catch(next)
+
+
 }
 
 exports.get_file = (req, res, next) => {
+
+  // TODO: Use promises for reading directory
 
   const {file_id} = req.params
   const user_id = get_current_user_id(res)
@@ -86,19 +101,19 @@ exports.get_file = (req, res, next) => {
   .then(({records}) => {
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(!records.length) return next(createError(400, `Application ${application_id} could not be queried`))
+    if(!records.length) throw createError(400, `Application ${application_id} could not be queried`)
 
     // Check if the application has a file with the given ID
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
     const found_file = form_data.find( ({value}) => value === file_id)
-    if(!found_file) return next(createError(400, `Application ${application_id} does not include the file ${file_id}`))
+    if(!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
     fs.readdir(directory_path, (err, items) => {
 
-      if(err) return next(createError(500, `File ${file_id} could not be opened`))
+      if(err) throw createError(500, `File ${file_id} could not be opened`)
 
       // Send first file in the directory (one file per directory)
       const file_to_download = items[0]

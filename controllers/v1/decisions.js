@@ -41,7 +41,7 @@ exports.update_comment = (req, res, next) => {
 
   session.run(query,params)
   .then( ({records}) => {
-    if(!records.length) throw {code: 404, message: `Decision ${decision_id} of user ${user_id} not found`}
+    if(!records.length) throw createError(404, `Decision ${decision_id} of user ${user_id} not found`)
     const decision = records[0].get('decision')
     res.send(decision)
     console.log(`Comment of decision ${decision_id} updated`)
