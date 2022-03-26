@@ -13,8 +13,8 @@ exports.update_comment = (req, res, next) => {
   const {comment} = req.body
   const user_id = get_current_user_id(res)
 
-  if(!decision_id) return res.status(400).send(`Missing decision_id`)
-  if(!comment) return res.status(400).send(`Missing comment`)
+  if(!decision_id) throw createError(400, `Missing decision_id`)
+  if(!comment) throw createError(400, `Missing comment`)
 
   const session = driver.session()
 

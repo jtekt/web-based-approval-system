@@ -11,13 +11,11 @@ exports.create_application_form_template = (req, res, next) => {
   // Create application form template
 
   const {
-    label,
+    label = `Unnnamed template`,
     description = '',
     fields = [],
     group_ids = [],
   } = req.body
-
-  if(!label) return res.status(400).send(`missing label`)
 
   const session = driver.session()
 
@@ -80,6 +78,13 @@ exports.edit_application_form_template = (req, res, next) => {
     || req.body.template_id
     || req.body.id
 
+  const {
+    label,
+    description,
+    group_ids,
+    fields,
+  } = req.body
+
   const session = driver.session()
 
   const query = `
@@ -120,12 +125,12 @@ exports.edit_application_form_template = (req, res, next) => {
     `
 
   const params = {
+    template_id,
     user_id: get_current_user_id(res),
-    template_id: template_id,
-    fields: JSON.stringify(req.body.fields), // cannot have nested props
-    label: req.body.label,
-    description: req.body.description,
-    group_ids: req.body.group_ids
+    fields: JSON.stringify(fields), // cannot have nested props
+    label,
+    description,
+    group_ids
   }
 
   session
@@ -180,7 +185,7 @@ exports.delete_application_form_template = (req, res, next) => {
 exports.get_application_form_template = (req, res, next) => {
   // get a single  application form template
 
-  const template_id = req.params.template_id
+  const {template_id} = req.params
   const user_id = get_current_user_id(res)
 
 
@@ -199,18 +204,14 @@ exports.get_application_form_template = (req, res, next) => {
     RETURN aft, creator, collect(distinct group) as groups
     `
 
-  const params = { user_id, template_id, }
+  const params = { user_id, template_id }
 
   session
     .run(query,params)
     .then( ({records}) => {
       console.log(`Template ${template_id} queried`)
 
-      if(records.length < 1) {
-        console.log(`Template ${template_id} not found`)
-        return res.status(404).send(`Template ${template_id} not found`)
-      }
-
+      if(!records.length) throw createError(404, `Template ${template_id} not found`)
       const record = records[0]
 
       const template = record.get('aft')
@@ -230,7 +231,7 @@ exports.get_application_form_template = (req, res, next) => {
 exports.get_all_application_form_templates_visible_to_user = (req, res, next) => {
 
   // Used when creating an application form
-  // TODO: deprecate in favor of generic GET route
+  // TODO: deprecate in favor of generic GET
 
   const user_id = get_current_user_id(res)
 
@@ -254,7 +255,7 @@ exports.get_all_application_form_templates_visible_to_user = (req, res, next) =>
   session
     .run(query, { user_id, })
     .then( ({records}) => {
-      console.log(`Templates visible to user ${user_id}`)
+      console.log(`Queried templates visible to user ${user_id}`)
 
       const templates = records.map(record => {
         const template = record.get('aft')

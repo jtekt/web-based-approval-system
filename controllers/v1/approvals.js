@@ -28,9 +28,8 @@ exports.update_attachment_hankos = (req, res, next) => {
 
     // Return
     RETURN approval
-
     `
-
+    
   const params = {
     user_id,
     approval_id,
