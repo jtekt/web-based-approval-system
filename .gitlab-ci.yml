@@ -107,7 +107,7 @@ deploy:
   script:
     # create/update the deployment
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
-\  environment:
+  environment:
     name: production
     kubernetes:
       namespace: ${KUBERNETES_NAMESPACE} # Obtained from GitLab
