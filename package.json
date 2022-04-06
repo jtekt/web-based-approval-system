@@ -8,7 +8,7 @@
     "coverage": "nyc mocha --timeout 15000 --exit"
   },
   "keywords": [],
-  "author": "Maxime MOREILLON",
+  "author": "Maxime Moreillon",
   "license": "MIT",
   "dependencies": {
     "@moreillon/express_identification_middleware": "^1.1.0",

@@ -15,7 +15,6 @@ variables:
 
 services:
   - name: docker:19.03.12-dind
-    # command: ["--insecure-registry=172.16.98.151:5000"]
 
 build:
   stage: build
@@ -37,15 +36,12 @@ build:
     - docker image rm ${CONTAINER_IMAGE_TEST}
 
 
-
-
 test:
   stage: test
   only:
     - master
   tags:
     - dind
-
   before_script:
     # Docker hub login
     - >
@@ -110,11 +106,8 @@ deploy:
     - master
   script:
     # create/update the deployment
-    - envsubst < kubernetes/deployment.yml | kubectl apply -f -
-    # Pull latest image by restarting the deployment
-    #- kubectl rollout restart deployment/${APPLICATION_NAME}
-  environment:
+    - envsubst < kubernetes_manifest.yml | kubectl apply -f -
+\  environment:
     name: production
     kubernetes:
-      # Obtained from GitLab
-      namespace: ${KUBERNETES_NAMESPACE}
+      namespace: ${KUBERNETES_NAMESPACE} # Obtained from GitLab
