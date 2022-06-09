@@ -24,7 +24,6 @@ exports.update_comment = (req, res, next) => {
     MATCH (user:User)-[decision]->(application:ApplicationForm)
     ${filter_by_user_id}
       AND decision._id = $decision_id
-      OR id(decision) = toInteger($decision_id) // TEMPORARY
 
     // Set the attached hankos
     SET decision.comment = $comment

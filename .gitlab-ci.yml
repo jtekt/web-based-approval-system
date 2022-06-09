@@ -21,12 +21,7 @@ build:
   only:
     - master
   before_script:
-    # Docker hub login
-    - >
-      echo "${DOCKER_HUB_PASSWORD}" |
-      docker login
-      --username ${DOCKER_HUB_USERNAME}
-      --password-stdin
+    - docker login -usern ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
   script:
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
@@ -40,15 +35,11 @@ test:
   stage: test
   only:
     - master
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   tags:
     - dind
   before_script:
-    # Docker hub login
-    - >
-      echo "${DOCKER_HUB_PASSWORD}" |
-      docker login
-      --username ${DOCKER_HUB_USERNAME}
-      --password-stdin
+    - docker login -usern ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
     # Creating network for TDD
     - docker network create ${TEST_NETWORK}
     - >

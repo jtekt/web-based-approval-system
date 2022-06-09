@@ -246,7 +246,7 @@ exports.get_all_application_form_templates_visible_to_user = (req, res, next) =>
     WITH current_user
     MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
     WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
-      OR id(creator) = id(current_user)
+      OR id(creator) = id(current_user) // This is not a problem
 
     RETURN DISTINCT aft, creator`
 

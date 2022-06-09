@@ -1,4 +1,4 @@
-const {driver} = require('../../db.js')
+const { driver } = require('../../db.js')
 const createError = require('http-errors')
 const { v4: uuidv4 } = require('uuid')
 const {
