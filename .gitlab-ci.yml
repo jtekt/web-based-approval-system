@@ -13,15 +13,19 @@ variables:
   TEST_DB: tdd-db
   TEST_USER_MANAGER: tdd-user-manager
 
+image: moreillon/tdd-dind
 services:
   - name: docker:19.03.12-dind
 
+
 build:
   stage: build
+  tags:
+    - dind
   only:
     - master
   before_script:
-    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
   script:
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
@@ -39,7 +43,7 @@ test:
   tags:
     - dind
   before_script:
-    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
     # Creating network for TDD
     - docker network create ${TEST_NETWORK}
     - >
