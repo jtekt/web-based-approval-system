@@ -21,7 +21,7 @@ build:
   only:
     - master
   before_script:
-    - docker login -usern ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
   script:
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
@@ -39,7 +39,7 @@ test:
   tags:
     - dind
   before_script:
-    - docker login -usern ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
+    - docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_PASSWORD}
     # Creating network for TDD
     - docker network create ${TEST_NETWORK}
     - >
