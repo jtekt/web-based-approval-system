@@ -21,7 +21,7 @@ services:
 build:
   stage: build
   tags:
-    - dind-internal
+    - dind
   only:
     - master
   before_script:
@@ -41,7 +41,7 @@ test:
     - master
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   tags:
-    - dind-internal
+    - dind
   before_script:
     - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
     # Creating network for TDD
