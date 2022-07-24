@@ -17,7 +17,10 @@ const {
     query_deleted,
     query_with_relationship_and_state,
 } = require('../../utils.js')
+
+
 exports.create_application = async (req, res, next) => {
+    res.status(501).send('Not implemented')
 
     
 }
@@ -65,6 +68,10 @@ exports.read_applications = async (req, res, next) => {
         const params = {
             user_id
         }
+
+        res.status(501).send('Not implemented')
+
+
     } 
     catch (error) {
         next(error)
@@ -79,6 +86,7 @@ exports.read_applications = async (req, res, next) => {
 }
 
 exports.read_application = async (req, res, next) => {
+    res.status(501).send('Not implemented')
 
 
 }
