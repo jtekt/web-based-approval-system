@@ -55,28 +55,17 @@ exports.format_application_from_record = (record) => {
   }
 }
 
-const filter_by_applcation_id = `
-  // FINAL
-  // WHERE application._id = $application_id
-  // TEMPORARY
-  WHERE (application._id = $application_id OR id(application) = toInteger($application_id))
-  `
+const filter_by_applcation_id = `WHERE application._id = $application_id`
 exports.filter_by_applcation_id = filter_by_applcation_id
 
-const filter_by_user_id = `
-  // FINAL
-  WHERE user._id = $user_id
-  // TEMPORARY
-  //WHERE (user._id = $user_id OR id(user) = toInteger($user_id))
-  `
+const filter_by_user_id = `WHERE user._id = $user_id`
 exports.filter_by_user_id = filter_by_user_id
 
 
 exports.return_application_and_related_nodes = `
   // Counting is done in batching
   WITH application, application_count
-  MATCH (user:User)
-  ${filter_by_user_id}
+  MATCH (user:User {_id: $user_id})
 
   // Adding a forbidden flag to applications that the user cannot see
   WITH application, application_count,
@@ -171,8 +160,7 @@ const query_received_pending_applications =`
 
   // Get the current user
   // Also filter out rejected applications
-  MATCH (application)-[submission:SUBMITTED_TO]->(user:User)
-  ${filter_by_user_id}
+  MATCH (application)-[submission:SUBMITTED_TO]->(user:User {_id: $user_id})
   AND NOT (application)<-[:REJECTED]-(:User)
 
   // Get the approval count
@@ -236,9 +224,9 @@ exports.query_with_hanko_id = (hanko_id) => {
 exports.query_with_application_id = (application_id) => {
   if(!application_id) return ``
   return `
-  WITH application
-  ${filter_by_applcation_id}
-  `
+    WITH application
+    ${filter_by_applcation_id}
+    `
 }
 
 exports.query_with_date = (start_date, end_date) => {
