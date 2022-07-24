@@ -161,7 +161,7 @@ const query_received_pending_applications =`
   // Get the current user
   // Also filter out rejected applications
   MATCH (application)-[submission:SUBMITTED_TO]->(user:User {_id: $user_id})
-  AND NOT (application)<-[:REJECTED]-(:User)
+  WHERE NOT (application)<-[:REJECTED]-(:User)
 
   // Get the approval count
   WITH application, submission
