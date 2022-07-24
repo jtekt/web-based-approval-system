@@ -251,8 +251,7 @@ exports.query_with_group = (group_id) => {
   if(!group_id) return ``
   return `
   WITH application
-  MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group)
-  WHERE group._id = $group_id
+  MATCH (application)-[:SUBMITTED_BY]->(:User)-[:BELONGS_TO]->(group:Group {_id: $group_id})
   `
 }
 
@@ -275,9 +274,8 @@ exports.query_with_relationship_and_state = (relationship, state) => {
   // base query with relationship
   let query = `
   WITH application, user
-  MATCH (application)-[r]-(user)
+  MATCH (application)-[r]-(user {_id: $user_id})
   WHERE type(r) = $relationship
-    AND user._id = $user_id
   `
 
   if(relationship === 'SUBMITTED_BY') {
