@@ -25,6 +25,8 @@ exports.create_application = async (req, res, next) => {
 
 exports.read_applications = async (req, res, next) => {
 
+    // query a list of applications
+
     const session = driver.session()
 
     try {
@@ -99,13 +101,55 @@ exports.read_applications = async (req, res, next) => {
         session.close()
     }
     
-
-
-
 }
 
 exports.read_application = async (req, res, next) => {
-    res.status(501).send('Not implemented')
+
+    // query a single of applications
+
+    
+
+    const session = driver.session()
+
+    try {
+
+        const user_id = get_current_user_id(res)
+        const { application_id } = req.params
+
+        if (!user_id) throw createError(400, 'User ID not defined')
+        if (!application_id) throw createError(400, 'Application ID not defined')
+
+        const cypher = `
+            // Find application
+            MATCH (application:ApplicationForm {_id: $application_id})
+                AND NOT EXISTS(application.deleted)
+
+            // Dummy application_count because following query uses it
+            WITH application, 1 as application_count
+            ${return_application_and_related_nodes_v2}
+            `
+
+        const params = { user_id, application_id }
+
+        const { records } = await session.run(cypher, params)
+
+        const record = records[0]
+
+        if (!record) throw createError(404, `Application ${application_id} not found`)
+
+        const application = format_application_from_record_v2(record)
+
+        console.log(`Application ${application_id} queried by user ${user_id}`)
+        res.send(application)
+
+    }
+    catch (error) {
+        next(error)
+    }
+    finally {
+        session.close()
+    }
+
 
 
 }
