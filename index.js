@@ -48,11 +48,12 @@ app.use(authentication_middleware)
 
 app.use('/', require('./routes/v1/index.js'))
 app.use('/v1', require('./routes/v1/index.js'))
+app.use('/v2', require('./routes/v2/index.js'))
 
 // error handling
 app.use((err, req, res, next) => {
   console.error(err)
-  res.status(err.statusCode).send(err.message)
+  res.status(err.statusCode || 500).send(err.message)
 })
 
 app.listen(APP_PORT, () => console.log(`[Express] listening on port ${APP_PORT}`))

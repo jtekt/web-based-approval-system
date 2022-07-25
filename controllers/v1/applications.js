@@ -83,7 +83,7 @@ exports.create_application = (req, res, next) => {
     user_id,
     type,
     title,
-    recipients_ids, // Conversion as string here because Neo4J's version is too stupid
+    recipients_ids,
     private,
     group_ids,
     form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string

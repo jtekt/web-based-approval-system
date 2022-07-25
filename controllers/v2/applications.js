@@ -7,8 +7,8 @@ const {
     filter_by_user_id,
     filter_by_applcation_id,
     application_batching,
-    return_application_and_related_nodes,
-    format_application_from_record,
+    return_application_and_related_nodes_v2,
+    format_application_from_record_v2,
     filter_by_type,
     query_with_hanko_id,
     query_with_application_id,
@@ -21,8 +21,6 @@ const {
 
 exports.create_application = async (req, res, next) => {
     res.status(501).send('Not implemented')
-
-    
 }
 
 exports.read_applications = async (req, res, next) => {
@@ -31,24 +29,23 @@ exports.read_applications = async (req, res, next) => {
 
     try {
 
-        const current_user_id = get_current_user_id(req)
+        const current_user_id = get_current_user_id(res)
 
         const {
-            user_id = current_user_id, /// by default, focuses on current user
+            user_id = current_user_id, // by default, focuses on current user
             group_id,
             relationship,
-            state, // approved,
+            state,
             type,
             start_date,
             end_date,
-            application_id, // redudant with GET /applications/:application_id
             hanko_id,
             start_index = 0,
             batch_size = 10,
             deleted = false,
         } = req.query
 
-        const cypher_query = `
+        const cypher = `
             MATCH (user:User {_id: $user_id})
             WITH user
             MATCH (application:ApplicationForm)
@@ -61,16 +58,38 @@ exports.read_applications = async (req, res, next) => {
             ${query_with_date(start_date, end_date)}
             ${query_with_group(group_id)}
             ${query_with_hanko_id(hanko_id)}
-            ${query_with_application_id(application_id)}
+
+            // batching
+            ${application_batching}
+            ${return_application_and_related_nodes_v2}
 
             `
         
         const params = {
-            user_id
+            user_id,
+            relationship,
+            type,
+            start_date,
+            end_date,
+            start_index,
+            batch_size,
+            hanko_id,
+            group_id,
         }
 
-        res.status(501).send('Not implemented')
+        const { records } = await session.run(cypher, params)
 
+        const count = records.length ? records[0].get('application_count') : 0
+
+        const applications = records.map(record => format_application_from_record_v2(record))
+
+
+        res.send({
+            count,
+            applications,
+            start_index,
+            batch_size
+        })
 
     } 
     catch (error) {
