@@ -2,16 +2,14 @@
 
 const {Router} = require('express')
 const {
-  read_applications
+  read_application
 } = require('../../controllers/v2/applications.js')
 
 const router = Router({mergeParams: true})
 
 
 router.route('/')
-  .get(read_applications)
-
-router.use('/:application_id', require('./application'))
+  .get(read_application)
 
 
 

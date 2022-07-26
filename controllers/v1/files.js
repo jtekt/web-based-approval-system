@@ -61,6 +61,17 @@ exports.file_upload = (req, res, next) => {
 
 }
 
+
+const get_dir_files = (directory_path, file_id) => new Promise( (resolve, reject) => {
+  fs.readdir(directory_path, (err, items) => {
+
+    if (err) reject(err)
+    resolve(items)
+
+    
+  })
+})
+
 exports.get_file = (req, res, next) => {
 
   // TODO: Use promises for reading directory
@@ -75,8 +86,7 @@ exports.get_file = (req, res, next) => {
 
   const query = `
     // Find current user to check for authorization
-    MATCH (user:User)
-    ${filter_by_user_id}
+    MATCH (user:User {_id: $user_id})
 
     // Find application and applicant
     WITH user
@@ -111,19 +121,21 @@ exports.get_file = (req, res, next) => {
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
-    fs.readdir(directory_path, (err, items) => {
 
-      if(err) throw createError(500, `File ${file_id} could not be opened`)
-
-      // Send first file in the directory (one file per directory)
-      const file_to_download = items[0]
-      console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
-      // NOTE: Why not sendFile?
-      res.download( path.join(directory_path, file_to_download), file_to_download )
-    })
+    return get_dir_files(directory_path, file_id)
+    
 
   })
-  .catch(next)
+  .then( items => {
+    // Send first file in the directory (one file per directory)
+    const file_to_download = items[0]
+    if (!file_to_download) throw createError(500, `Could not open file`)
+    console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
+
+    // NOTE: Why not sendFile?
+    res.download(path.join(directory_path, file_to_download), file_to_download)
+  })
+  .catch( next )
   .finally(() => { session.close() })
 
 }
