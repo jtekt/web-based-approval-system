@@ -72,19 +72,20 @@ const get_dir_files = (directory_path, file_id) => new Promise( (resolve, reject
   })
 })
 
-exports.get_file = (req, res, next) => {
+exports.get_file = async (req, res, next) => {
 
-  // TODO: Use promises for reading directory
+  const session = driver.session()
 
-  const {file_id} = req.params
-  const user_id = get_current_user_id(res)
-  const application_id = get_application_id(req)
+  try {
+    const { file_id } = req.params
+    const user_id = get_current_user_id(res)
+    const application_id = get_application_id(req)
 
-  if(!file_id) return res.status(400).send('File ID not specified')
-  if(!application_id) return res.status(400).send('Application ID not specified')
+    if (!file_id) throw createError(400, 'File ID not specified')
+    if (!application_id) throw createError(400, 'Application ID not specified')
 
 
-  const query = `
+    const query = `
     // Find current user to check for authorization
     MATCH (user:User {_id: $user_id})
 
@@ -104,39 +105,39 @@ exports.get_file = (req, res, next) => {
     return application
     `
 
-  const params = { user_id, file_id, application_id }
+    const params = { user_id, file_id, application_id }
 
-  const session = driver.session()
-  session.run(query, params)
-  .then(({records}) => {
+    const { records } = await session.run(query, params)
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(!records.length) throw createError(400, `Application ${application_id} could not be queried`)
+    if (!records.length) throw createError(400, `Application ${application_id} could not be queried`)
 
     // Check if the application has a file with the given ID
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
-    const found_file = form_data.find( ({value}) => value === file_id)
-    if(!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
+    const found_file = form_data.find(({ value }) => value === file_id)
+    if (!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
 
     // Now download the file
     const directory_path = path.join(uploads_directory_path, file_id)
 
-    return get_dir_files(directory_path, file_id)
-    
+    const files = await get_dir_files(directory_path, file_id)
 
-  })
-  .then( items => {
-    // Send first file in the directory (one file per directory)
-    const file_to_download = items[0]
+    const file_to_download = files[0]
     if (!file_to_download) throw createError(500, `Could not open file`)
     console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
 
     // NOTE: Why not sendFile?
     res.download(path.join(directory_path, file_to_download), file_to_download)
-  })
-  .catch( next )
-  .finally(() => { session.close() })
+
+  } catch (error) {
+    next(error)
+  }
+  finally {
+    session.close()
+  }
+
+  
 
 }
 
