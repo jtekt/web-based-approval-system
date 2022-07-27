@@ -9,8 +9,6 @@ const {
   visibility_enforcement,
   get_current_user_id,
   get_application_id,
-  filter_by_user_id,
-  filter_by_applcation_id,
 } = require('../../utils.js')
 
 // TODO: make this configurable
@@ -64,11 +62,8 @@ exports.file_upload = (req, res, next) => {
 
 const get_dir_files = (directory_path, file_id) => new Promise( (resolve, reject) => {
   fs.readdir(directory_path, (err, items) => {
-
     if (err) reject(err)
     resolve(items)
-
-    
   })
 })
 
@@ -91,8 +86,7 @@ exports.get_file = async (req, res, next) => {
 
     // Find application and applicant
     WITH user
-    MATCH (application:ApplicationForm)
-    ${filter_by_applcation_id}
+    MATCH (application:ApplicationForm) {_id: $application_id}
 
     // Enforce privacy
     WITH user, application
@@ -180,11 +174,9 @@ const  get_unused_files = () => new Promise((resolve, reject) => {
     const attachments = records.reduce((acc, record) => {
       const fields = JSON.parse(record.get('form_data'))
 
-      // File fileds of this record (can be empty)
+      // File fields of this record (can be empty)
       const file_fields = fields.filter(field => field.type === 'file' && !!field.value)
-      if(file_fields.length > 0) {
-        file_fields.forEach(field => {acc.push(field.value)} )
-      }
+      if(file_fields.length > 0) file_fields.forEach(field => {acc.push(field.value)} )
 
       return acc
 
@@ -192,7 +184,7 @@ const  get_unused_files = () => new Promise((resolve, reject) => {
 
     const directories = readdirSync(uploads_directory_path)
 
-    // ignore trash
+    // ignore the trash directory itself
     const unused_uploads = directories.filter( directory => {
       return !attachments.find(attachment => (directory === attachment || directory === 'trash') )
     })

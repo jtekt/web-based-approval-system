@@ -21,7 +21,7 @@ const {
 
 
 exports.create_application = (req, res, next) => {
-  // Route to create or edit an application
+  // Create an application form
 
   const session = driver.session()
 
