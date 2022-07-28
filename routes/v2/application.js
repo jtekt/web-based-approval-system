@@ -7,6 +7,9 @@ const {
   approve_application,
   reject_application
 } = require('../../controllers/v2/applications')
+const {
+  update_comment,
+} = require('../../controllers/v2/recipient_comment')
 
 const router = Router({mergeParams: true})
 
@@ -17,6 +20,8 @@ router.route('/')
 
 router.route('/approve').post(approve_application)
 router.route('/reject').post(reject_application)
+
+router.route('/comment').put(update_comment)
 
 router.use('/privacy', require('./application_privacy'))
 
