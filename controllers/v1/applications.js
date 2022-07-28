@@ -531,6 +531,7 @@ exports.update_application_visibility = (req, res) => {
     application_id,
     group_ids: req.body.group_ids,
   }
+  
   session
     .run(query,params)
     .then( ({records}) => {

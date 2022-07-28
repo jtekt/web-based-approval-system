@@ -277,8 +277,6 @@ exports.delete_application = async (req, res, next) => {
 
 exports.approve_application = async (req, res, next) => {
 
-    // Approve an application
-
     const session = driver.session()
 
     try {
@@ -345,8 +343,6 @@ exports.approve_application = async (req, res, next) => {
 }
 
 exports.reject_application = async (req, res, next) => {
-
-    // Reject an application
 
     const session = driver.session()
 

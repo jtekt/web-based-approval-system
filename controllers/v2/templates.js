@@ -18,7 +18,6 @@ exports.create_template = async (req, res, next) => {
 
     const user_id = res.locals.user?._id
 
-
     const cypher = `
     // Find creator
     MATCH (creator:User {_id: $user_id})
