@@ -1,14 +1,11 @@
 const { driver } = require('../../db.js')
 const createHttpError = require('http-errors')
 const {
-    filter_by_user_id,
-    filter_by_applcation_id,
     application_batching,
     return_application_and_related_nodes_v2,
     format_application_from_record_v2,
     filter_by_type,
     query_with_hanko_id,
-    query_with_application_id,
     query_with_date,
     query_with_group,
     query_deleted,
@@ -372,7 +369,6 @@ exports.reject_application = async (req, res, next) => {
             AND recipient._id = $user_id
 
             // TODO: Add check if flow is respected
-            // Working fine without apparently
 
             // Mark as REJECTED
             WITH application, recipient

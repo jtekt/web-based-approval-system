@@ -359,7 +359,7 @@ exports.approve_application = (req, res, next) => {
     WHERE application._id = $application_id
       AND recipient._id = $user_id
 
-    // TODO: Add check if flow is respected
+    // TODO: check if flow is respected
 
     // Mark as approved
     WITH application, recipient
@@ -408,14 +408,12 @@ exports.reject_application = (req, res, next) => {
   const session = driver.session()
 
   const query = `
-    // TODO: USE QUERIES FROM UTILS
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE application._id = $application_id
       AND recipient._id = $user_id
 
     // TODO: Add check if flow is respected
-    // Working fine without apparently
 
     // Mark as REJECTED
     WITH application, recipient
@@ -425,7 +423,8 @@ exports.reject_application = (req, res, next) => {
     SET rejection.comment = $comment
 
     // RETURN APPLICATION
-    RETURN application, recipient, rejection`
+    RETURN application, recipient, rejection
+  `
 
   const params = {
     user_id: get_current_user_id(res),
