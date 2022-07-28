@@ -131,8 +131,6 @@ exports.read_template = async (req, res, next) => {
     const { template_id } = req.params
     const user_id = res.locals.user?._id
 
-
-
     const cypher = `
       MATCH (aft:ApplicationFormTemplate {_id: $template_id})
 
@@ -181,7 +179,72 @@ exports.update_template = async (req, res, next) => {
   const session = driver.session()
 
   try {
-    res.status(501).send('Not implemented')
+
+    const {template_id} = req.params
+    const {
+      label,
+      description,
+      group_ids,
+      fields,
+    } = req.body
+
+    const user_id = res.locals.user?._id
+
+
+    const cypher = `
+      // Find template
+      MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
+      WHERE aft._id = $template_id
+        AND creator._id = $user_id
+
+      // set properties
+      SET aft.fields=$fields
+      SET aft.label=$label
+      SET aft.description=$description
+
+      // update visibility (shared with)
+      // first delete everything
+      // THIS IS A PROBLEM IF NOT VISIBLE TO ANY GROUP
+      WITH aft
+      OPTIONAL MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
+      DETACH DELETE vis
+
+      // recreate visibility
+      // Note: can be an empty set so the logic to deal with it looks terrible
+      WITH aft
+      UNWIND
+        CASE
+          WHEN $group_ids = []
+            THEN [null]
+          ELSE $group_ids
+        END AS group_id
+
+      OPTIONAL MATCH (group:Group)
+      WHERE group._id = group_id
+      WITH collect(group) as groups, aft
+      FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
+
+      // RETURN
+      RETURN PROPERTIES(aft) AS template
+      `
+    
+    const params = {
+      template_id,
+      user_id,
+      fields: JSON.stringify(fields), // cannot have nested props
+      label,
+      description,
+      group_ids
+    }
+
+    const {records} = await session.run(cypher, params)
+
+    if(!records.length) throw createHttpError(500, `Failed to update template ${template_id}`)
+
+    const template = records[0].get('template')
+    console.log(`Template ${template_id} updated`)
+    res.send(template)
+
   }
   catch (error) {
     next(error)
@@ -197,7 +260,31 @@ exports.delete_template = async (req, res, next) => {
   const session = driver.session()
 
   try {
-    res.status(501).send('Not implemented')
+    const { template_id } = req.params
+    const user_id = res.locals.user?._id
+
+
+    const cypher = `
+      // Find application
+    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
+    WHERE aft._id = $template_id
+      AND creator._id = $user_id
+
+    // Delete the node
+    DETACH DELETE aft
+
+    RETURN aft._id AS template_id
+    `
+
+    const params = { template_id, user_id }
+
+    const { records } = await session.run(cypher, params)
+
+    if (!records.length) throw createHttpError(500, `Failed to delete template ${template_id}`)
+
+    const deleted_template_id = records[0].get('template_id')
+    console.log(`Template ${template_id} updated`)
+    res.send({ deleted_template_id })
   }
   catch (error) {
     next(error)

@@ -1,4 +1,4 @@
-const createError = require('http-errors')
+const createHttpError = require('http-errors')
 const { driver } = require('../../db.js')
 
 
@@ -11,8 +11,8 @@ exports.update_comment = async (req, res, next) => {
         const { comment } = req.body
         const user_id = res.locals.user?._id
 
-        if (!decision_id) throw createError(400, `Missing decision_id`)
-        if (!comment) throw createError(400, `Missing comment`)
+        if (!decision_id) throw createHttpError(400, `Missing decision_id`)
+        if (!comment) throw createHttpError(400, `Missing comment`)
 
         const cypher = `
             // Find current user to check for authorization
@@ -34,7 +34,7 @@ exports.update_comment = async (req, res, next) => {
         }
 
         const { records } = await session.run(cypher, params)
-        if (!records.length) throw createError(404, `Decision ${decision_id} of user ${user_id} not found`)
+        if (!records.length) throw createHttpError(404, `Decision ${decision_id} of user ${user_id} not found`)
         console.log(`Comment of decision ${decision_id} updated`)
         res.send({ comment: records[0].get('comment') })
     }
