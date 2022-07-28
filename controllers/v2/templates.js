@@ -94,7 +94,6 @@ exports.read_template = async (req, res, next) => {
   const session = driver.session()
 
   try {
-    res.status(501).send('Not implemented')
 
     const { template_id } = req.params
     const user_id = res.locals.user?._id

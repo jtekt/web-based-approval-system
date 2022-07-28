@@ -1,9 +1,6 @@
 const { driver } = require('../../db.js')
 const createHttpError = require('http-errors')
-const { v4: uuidv4 } = require('uuid')
 const {
-    get_current_user_id,
-    get_application_id,
     filter_by_user_id,
     filter_by_applcation_id,
     application_batching,
@@ -36,7 +33,7 @@ exports.create_application = async (req, res, next) => {
 
         const user_id = res.locals.user?._id
 
-        if (!recipients_ids.length) throw createError(400, `Application requires one or more recipient`)
+        if (!recipients_ids.length) throw createHttpError(400, `Application requires one or more recipient`)
 
         const cypher = `
         // Create the application node
@@ -88,7 +85,7 @@ exports.create_application = async (req, res, next) => {
 
         const { records } = await session.run(cypher, params)
 
-        if (!records.length) throw createError(500, `Failed to create the application`)
+        if (!records.length) throw createHttpError(500, `Failed to create the application`)
         const application = records[0].get('application')
         console.log(`Application ${application._id} created`)
         res.send(application)
@@ -195,8 +192,8 @@ exports.read_application = async (req, res, next) => {
         const user_id = res.locals.user?._id
         const { application_id } = req.params
 
-        if (!user_id) throw createError(400, 'User ID not defined')
-        if (!application_id) throw createError(400, 'Application ID not defined')
+        if (!user_id) throw createHttpError(400, 'User ID not defined')
+        if (!application_id) throw createHttpError(400, 'Application ID not defined')
 
         const cypher = `
             // Find application
@@ -214,7 +211,7 @@ exports.read_application = async (req, res, next) => {
 
         const record = records[0]
 
-        if (!record) throw createError(404, `Application ${application_id} not found`)
+        if (!record) throw createHttpError(404, `Application ${application_id} not found`)
 
         const application = format_application_from_record_v2(record)
 
@@ -245,12 +242,14 @@ exports.delete_application = async (req, res, next) => {
         const user_id = res.locals.user?._id
         const { application_id } = req.params
 
-        if (!user_id) throw createError(400, 'User ID not defined')
-        if (!application_id) throw createError(400, 'Application ID not defined')
+        if (!user_id) throw createHttpError(400, 'User ID not defined')
+        if (!application_id) throw createHttpError(400, 'Application ID not defined')
 
         const cypher = `
             // Find application
-            MATCH (applicant:User _{_id: $user_id})<-[:SUBMITTED_BY]-(application:ApplicationForm {_id: $application_id})
+            MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm )
+            WHERE applicant._id = $user_id
+                AND application._id = $application_id
 
             // flag as deleted
             SET application.deleted = True
@@ -261,7 +260,7 @@ exports.delete_application = async (req, res, next) => {
         const params = { user_id, application_id }
 
         const { records } = await session.run(cypher, params)
-        if (!records.length) throw createError(404, `Application ${application_id} not found`)
+        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
 
         const application = records[0].get('application')
 
@@ -276,6 +275,139 @@ exports.delete_application = async (req, res, next) => {
         session.close()
     }
 
+}
 
+
+exports.approve_application = async (req, res, next) => {
+
+    // Approve an application
+
+    const session = driver.session()
+
+    try {
+
+        const user_id = res.locals.user?._id
+        const { application_id } = req.params
+
+        const {
+            attachment_hankos,
+            comment = '',
+        } = req.body
+
+        if (!user_id) throw createHttpError(400, 'User ID not defined')
+        if (!application_id) throw createHttpError(400, 'Application ID not defined')
+
+        const attachment_hankos_query = attachment_hankos ? 
+            `SET approval.attachment_hankos = $attachment_hankos` : ''
+            
+        const cypher = `
+            // Find the application and get oneself at the same time
+            MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
+            WHERE application._id = $application_id
+            AND recipient._id = $user_id
+
+            // TODO: Add check if flow is respected
+
+            // Mark as approved
+            WITH application, recipient
+            MERGE (application)<-[approval:APPROVED]-(recipient)
+            ON CREATE SET approval.date = date()
+            ON CREATE SET approval._id = randomUUID()
+            SET approval.comment = $comment
+            ${attachment_hankos_query}
+
+            RETURN PROPERTIES(approval) as approval,
+                PROPERTIES(recipient) as recipient, 
+                PROPERTIES(application) as application
+            `
+
+        const params = {
+            user_id,
+            application_id,
+            comment,
+            attachment_hankos: JSON.stringify(attachment_hankos), // Neo4J does not support nested props so convert to string
+        }
+        
+        const { records } = await session.run(cypher, params)
+        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
+
+        const application = records[0].get('application')
+        const {_id: recipient_id} = records[0].get('recipient')
+
+        console.log(`Application ${application_id} approved by user ${recipient_id}`)
+        res.send(application)
+
+    }
+    catch (error) {
+        next(error)
+    }
+    finally {
+        session.close()
+    }
+
+}
+
+exports.reject_application = async (req, res, next) => {
+
+    // Reject an application
+
+    const session = driver.session()
+
+    try {
+
+        const user_id = res.locals.user?._id
+        const { application_id } = req.params
+
+        const {
+            comment = '',
+        } = req.body
+
+        if (!user_id) throw createHttpError(400, 'User ID not defined')
+        if (!application_id) throw createHttpError(400, 'Application ID not defined')
+
+
+        const cypher = `
+            MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
+            WHERE application._id = $application_id
+            AND recipient._id = $user_id
+
+            // TODO: Add check if flow is respected
+            // Working fine without apparently
+
+            // Mark as REJECTED
+            WITH application, recipient
+            MERGE (application)<-[rejection:REJECTED]-(recipient)
+            ON CREATE SET rejection._id = randomUUID()
+            ON CREATE SET rejection.date = date()
+            SET rejection.comment = $comment
+
+            RETURN PROPERTIES(approval) as approval,
+                PROPERTIES(recipient) as recipient, 
+                PROPERTIES(application) as application
+            `
+
+
+        const params = {
+            user_id,
+            application_id,
+            comment,
+        }
+
+        const { records } = await session.run(cypher, params)
+        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
+
+        const application = records[0].get('application')
+        const { _id: recipient_id } = records[0].get('recipient')
+
+        console.log(`Application ${application_id} rejected by user ${recipient_id}`)
+        res.send(application)
+
+    }
+    catch (error) {
+        next(error)
+    }
+    finally {
+        session.close()
+    }
 
 }

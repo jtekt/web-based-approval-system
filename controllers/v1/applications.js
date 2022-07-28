@@ -340,8 +340,6 @@ exports.get_application_visibility = (req, res, next) => {
 
 exports.approve_application = (req, res, next) => {
 
-  // TODO: prevent re-approval
-
   const application_id = get_application_id(req)
   if(!application_id) throw createError(400, 'Application ID not defined')
 
