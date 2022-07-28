@@ -92,8 +92,12 @@ exports.read_templates = async (req, res, next) => {
       WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
         OR creator._id = current_user._id
 
+      WITH aft, creator
+      OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
+
       RETURN DISTINCT PROPERTIES(aft) as template,
-        PROPERTIES(creator) as creator`
+        PROPERTIES(creator) as creator,
+        COLLECT(DISTINCT PROPERTIES(group)) as groups`
     
     const {records} = await session.run(cypher, {user_id})
 
@@ -103,6 +107,7 @@ exports.read_templates = async (req, res, next) => {
       return {
         ...template,
         author: record.get('creator'),
+        groups: record.get('groups'),
       }
     })
 
