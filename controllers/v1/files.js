@@ -86,7 +86,7 @@ exports.get_file = async (req, res, next) => {
 
     // Find application and applicant
     WITH user
-    MATCH (application:ApplicationForm) {_id: $application_id}
+    MATCH (application:ApplicationForm {_id: $application_id})
 
     // Enforce privacy
     WITH user, application
@@ -137,6 +137,8 @@ exports.get_file = async (req, res, next) => {
 
 exports.get_file_name = (req, res, next) => {
 
+  // Used by GET /applications/:application_id/files/:file_id/filename'
+
   const {file_id} = req.params
 
   if(!file_id) return next(createError(400, `File ID not specified`))
@@ -149,11 +151,8 @@ exports.get_file_name = (req, res, next) => {
     if(err) return next(createError(500, `File could not be opened`))
     // Send first file in the directory (one file per directory)
     const filename = items[0]
-    // NOTE: Why not sendFile?
     res.send({filename})
   })
-
-
 
 }
 

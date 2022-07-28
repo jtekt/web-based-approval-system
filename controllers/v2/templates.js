@@ -1,4 +1,4 @@
-const createError = require('http-errors')
+const createHttpError = require('http-errors')
 const {driver} = require('../../db.js')
 
 
@@ -56,7 +56,7 @@ exports.create_template = async (req, res, next) => {
     }
 
     const { records } = await session.run(cypher, params)
-    if (!records.length) throw createError(500, `Failed to create the template`)
+    if (!records.length) throw createHttpError(500, `Failed to create the template`)
     const template = records[0].get('template')
     console.log(`Application template ${template._id} created`)
     res.send(template)
@@ -78,7 +78,35 @@ exports.read_templates = async (req, res, next) => {
   const session = driver.session()
 
   try {
-    res.status(501).send('Not implemented')
+
+    const user_id = res.locals.user?._id
+
+
+    const cypher = `
+      // Find author
+      MATCH (current_user:User {_id: $user_id})
+
+      // Find the template and its creator
+      WITH current_user
+      MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
+      WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
+        OR creator._id = current_user._id
+
+      RETURN DISTINCT PROPERTIES(aft) as template,
+        PROPERTIES(creator) as creator`
+    
+    const {records} = await session.run(cypher, {user_id})
+
+    const templates = records.map(record => {
+      const template = record.get('template')
+      template.fields = JSON.parse(template.fields)
+      return {
+        ...template,
+        author: record.get('creator'),
+      }
+    })
+
+    res.send(templates)
   }
   catch (error) {
     next(error)
@@ -110,19 +138,19 @@ exports.read_template = async (req, res, next) => {
       OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
       RETURN 
-        PROPERTIES(aft), 
-        PROPERTIES(creator), 
+        PROPERTIES(aft) as template, 
+        PROPERTIES(creator) as creator, 
         COLLECT(DISTINCT PROPERTIES(group)) as groups
       `
 
     const params = { user_id, template_id }
 
     const { records } = await session.run(cypher, params)
-    if (!records.length) throw createError(400, `Template ${template_id} not found`)
+    if (!records.length) throw createHttpError(400, `Template ${template_id} not found`)
 
     const record = records[0]
 
-    const template = record.get('aft')
+    const template = record.get('template')
     template.fields = JSON.parse(template.fields)
 
     const response = {

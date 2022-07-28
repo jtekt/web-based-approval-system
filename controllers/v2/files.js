@@ -86,7 +86,7 @@ exports.get_file = async (req, res, next) => {
 
     // Find application and applicant
     WITH user
-    MATCH (application:ApplicationForm) {_id: $application_id}
+    MATCH (application:ApplicationForm {_id: $application_id})
 
     // Enforce privacy
     WITH user, application
@@ -134,24 +134,4 @@ exports.get_file = async (req, res, next) => {
 
 }
 
-exports.get_file_name = (req, res, next) => {
-
-  // Is this used?
-
-  try {
-    const { file_id } = req.params
-
-    if (!file_id) throw createError(400, `File ID not specified`)
-    const directory_path = path.join(uploads_directory_path, file_id)
-
-    const files = await get_dir_files(directory_path, file_id)
-    const filename = files[0]
-
-    res.send({ filename })
-  } 
-  catch (error) {
-    next(error)
-  }
-
-}
 
