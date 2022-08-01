@@ -62,8 +62,8 @@ exports.format_application_from_record_v2 = (record) => {
 
   if (record.get('forbidden')) {
     const application = record.get('application')
-    delete application.properties.form_data
-    application.properties.title = '機密 / Confidential'
+    delete application.form_data
+    application.title = '機密 / Confidential'
   }
 
   return {
