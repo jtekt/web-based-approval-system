@@ -12,6 +12,7 @@ const {
   get_connected: get_neo4j_connection_status,
   init: db_init,
 } = require('./db.js')
+const { uploads_path } = require('./config')
 
 dotenv.config()
 
@@ -41,6 +42,7 @@ app.get('/', (req, res) => {
       connected: get_neo4j_connection_status()
     },
     authentication_url,
+    uploads_path,
   })
 })
 

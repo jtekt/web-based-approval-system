@@ -4,15 +4,16 @@ const fs = require('fs')
 const path = require('path')
 const { v4: uuidv4 } = require('uuid')
 const formidable = require('formidable')
-const {driver} = require('../../db.js')
+const {driver} = require('../../db')
 const {
-  visibility_enforcement,
   get_current_user_id,
   get_application_id,
-} = require('../../utils.js')
+} = require('../../utils')
+const {
+  uploads_path
+} = require('../../config')
 
-// TODO: make this configurable
-const uploads_directory_path = "/usr/share/pv" // For production as docker container
+
 
 
 const parse_form = (req) => new Promise ((resolve, reject) => {
@@ -32,7 +33,7 @@ const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
 
   const file_id = uuidv4()
-  const new_directory_path = path.join(uploads_directory_path, file_id)
+  const new_directory_path = path.join(uploads_path, file_id)
   const new_file_path = path.join(new_directory_path,file_name)
 
   mv(old_path, new_file_path, {mkdirp: true}, (err) => {
@@ -113,7 +114,7 @@ exports.get_file = async (req, res, next) => {
     if (!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
 
     // Now download the file
-    const directory_path = path.join(uploads_directory_path, file_id)
+    const directory_path = path.join(uploads_path, file_id)
 
     const files = await get_dir_files(directory_path, file_id)
 
@@ -145,7 +146,7 @@ exports.get_file_name = (req, res, next) => {
 
 
   // Now download the file
-  const directory_path = path.join(uploads_directory_path, file_id)
+  const directory_path = path.join(uploads_path, file_id)
   fs.readdir(directory_path, (err, items) => {
 
     if(err) return next(createError(500, `File could not be opened`))
@@ -181,7 +182,7 @@ const  get_unused_files = () => new Promise((resolve, reject) => {
 
     }, [])
 
-    const directories = readdirSync(uploads_directory_path)
+    const directories = readdirSync(uploads_path)
 
     // ignore the trash directory itself
     const unused_uploads = directories.filter( directory => {
@@ -221,8 +222,8 @@ exports.move_unused_files = (req, res) => {
     unused_uploads.forEach(upload => {
 
       const promise = new Promise((resolve, reject) => {
-        const old_path = path.join(uploads_directory_path,upload)
-        const new_path = path.join(uploads_directory_path,'trash',upload)
+        const old_path = path.join(uploads_path,upload)
+        const new_path = path.join(uploads_path,'trash',upload)
 
         mv(old_path, new_path, {mkdirp: true}, (err) => {
           if (err) return reject(err)
@@ -243,3 +244,4 @@ exports.move_unused_files = (req, res) => {
   .catch(next)
 
 }
+

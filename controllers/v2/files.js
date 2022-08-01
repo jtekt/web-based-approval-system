@@ -5,9 +5,10 @@ const path = require('path')
 const formidable = require('formidable')
 const { v4: uuidv4 } = require('uuid')
 const {driver} = require('../../db.js')
+const {
+  uploads_path
+} = require('../../config')
 
-// TODO: make this configurable
-const uploads_directory_path = "/usr/share/pv" // For production as docker container
 
 
 const parse_form = (req) => new Promise ((resolve, reject) => {
@@ -28,7 +29,7 @@ const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
 
   const file_id = uuidv4()
-  const new_directory_path = path.join(uploads_directory_path, file_id)
+  const new_directory_path = path.join(uploads_path, file_id)
   const new_file_path = path.join(new_directory_path,file_name)
 
   mv(old_path, new_file_path, {mkdirp: true}, (err) => {
@@ -110,7 +111,7 @@ exports.get_file = async (req, res, next) => {
     if (!found_file) throw createHttpError(400, `Application ${application_id} does not include the file ${file_id}`)
 
     // Now download the file
-    const directory_path = path.join(uploads_directory_path, file_id)
+    const directory_path = path.join(uploads_path, file_id)
     const files = await get_dir_files(directory_path, file_id)
 
     const file_to_download = files[0]
