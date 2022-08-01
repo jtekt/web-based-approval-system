@@ -15,32 +15,64 @@ const driver = neo4j.driver( NEO4J_URL, auth, options )
 
 let connected = false
 
-const init = async () => {
-  console.log('[Neo4J] Initializing DB')
-
-  const id_setting_query = `
-  MATCH (n:ApplicationForm)
-  WHERE NOT EXISTS(n._id)
-  SET n._id = toString(id(n))
-  RETURN COUNT(n) as count
-  `
-
+const get_connection_status = async () => {
   const session = driver.session()
-
   try {
-    const {records} = await session.run(id_setting_query)
-    const count = records[0].get('count')
-    console.log(`[Neo4J] ID of ${count} nodes have been set`)
-    connected = true
+    console.log(`[Neo4J] Testing connection...`)
+    await session.run('RETURN 1')
+    console.log(`[Neo4J] Connection successful`)
+    return true
   }
   catch (e) {
-    console.log(e)
-    console.log(`[Neo4J] init failed, retrying in 10s`)
-    setTimeout(init,10000)
+    console.log(`[Neo4J] Connection failed`)
+    return false
   }
   finally {
     session.close()
   }
+}
+
+const set_ids = async () => {
+  // TODO: also deal with relationships?
+
+  const id_setting_query = `
+    MATCH (n:ApplicationForm)
+    WHERE NOT EXISTS(n._id)
+    SET n._id = toString(id(n))
+    RETURN COUNT(n) as count
+    `
+
+  const session = driver.session()
+
+  try {
+    const { records } = await session.run(id_setting_query)
+    const count = records[0].get('count')
+    console.log(`[Neo4J] Formatted new ID for ${count} nodes`)
+  }
+  catch (e) {
+    throw e
+  }
+  finally {
+    session.close()
+  }
+}
+
+const init = async () => {
+
+  if (await get_connection_status()) {
+    connected = true
+
+    try {
+      console.log('[Neo4J] Initializing DB')
+      await set_ids()
+    }
+    catch (error) {
+      console.log(error)
+    }
+  } else {
+    setTimeout(init, 10000)
+  }
+
 
 }
 
