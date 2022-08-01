@@ -21,7 +21,7 @@ const {
 
 
 exports.create_application = (req, res, next) => {
-  // Route to create or edit an application
+  // Create an application form
 
   const session = driver.session()
 
@@ -83,7 +83,7 @@ exports.create_application = (req, res, next) => {
     user_id,
     type,
     title,
-    recipients_ids, // Conversion as string here because Neo4J's version is too stupid
+    recipients_ids,
     private,
     group_ids,
     form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
@@ -340,8 +340,6 @@ exports.get_application_visibility = (req, res, next) => {
 
 exports.approve_application = (req, res, next) => {
 
-  // TODO: prevent re-approval
-
   const application_id = get_application_id(req)
   if(!application_id) throw createError(400, 'Application ID not defined')
 
@@ -361,7 +359,7 @@ exports.approve_application = (req, res, next) => {
     WHERE application._id = $application_id
       AND recipient._id = $user_id
 
-    // TODO: Add check if flow is respected
+    // TODO: check if flow is respected
 
     // Mark as approved
     WITH application, recipient
@@ -410,14 +408,12 @@ exports.reject_application = (req, res, next) => {
   const session = driver.session()
 
   const query = `
-    // TODO: USE QUERIES FROM UTILS
     // Find the application and get oneself at the same time
     MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
     WHERE application._id = $application_id
       AND recipient._id = $user_id
 
     // TODO: Add check if flow is respected
-    // Working fine without apparently
 
     // Mark as REJECTED
     WITH application, recipient
@@ -427,7 +423,8 @@ exports.reject_application = (req, res, next) => {
     SET rejection.comment = $comment
 
     // RETURN APPLICATION
-    RETURN application, recipient, rejection`
+    RETURN application, recipient, rejection
+  `
 
   const params = {
     user_id: get_current_user_id(res),
@@ -534,6 +531,7 @@ exports.update_application_visibility = (req, res) => {
     application_id,
     group_ids: req.body.group_ids,
   }
+  
   session
     .run(query,params)
     .then( ({records}) => {

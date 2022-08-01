@@ -4,17 +4,16 @@ const fs = require('fs')
 const path = require('path')
 const { v4: uuidv4 } = require('uuid')
 const formidable = require('formidable')
-const {driver} = require('../../db.js')
+const {driver} = require('../../db')
 const {
-  visibility_enforcement,
   get_current_user_id,
   get_application_id,
-  filter_by_user_id,
-  filter_by_applcation_id,
-} = require('../../utils.js')
+} = require('../../utils')
+const {
+  uploads_path
+} = require('../../config')
 
-// TODO: make this configurable
-const uploads_directory_path = "/usr/share/pv" // For production as docker container
+
 
 
 const parse_form = (req) => new Promise ((resolve, reject) => {
@@ -34,7 +33,7 @@ const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
 
   const file_id = uuidv4()
-  const new_directory_path = path.join(uploads_directory_path, file_id)
+  const new_directory_path = path.join(uploads_path, file_id)
   const new_file_path = path.join(new_directory_path,file_name)
 
   mv(old_path, new_file_path, {mkdirp: true}, (err) => {
@@ -61,27 +60,34 @@ exports.file_upload = (req, res, next) => {
 
 }
 
-exports.get_file = (req, res, next) => {
 
-  // TODO: Use promises for reading directory
+const get_dir_files = (directory_path, file_id) => new Promise( (resolve, reject) => {
+  fs.readdir(directory_path, (err, items) => {
+    if (err) reject(err)
+    resolve(items)
+  })
+})
 
-  const {file_id} = req.params
-  const user_id = get_current_user_id(res)
-  const application_id = get_application_id(req)
+exports.get_file = async (req, res, next) => {
 
-  if(!file_id) return res.status(400).send('File ID not specified')
-  if(!application_id) return res.status(400).send('Application ID not specified')
+  const session = driver.session()
+
+  try {
+    const { file_id } = req.params
+    const user_id = get_current_user_id(res)
+    const application_id = get_application_id(req)
+
+    if (!file_id) throw createError(400, 'File ID not specified')
+    if (!application_id) throw createError(400, 'Application ID not specified')
 
 
-  const query = `
+    const query = `
     // Find current user to check for authorization
-    MATCH (user:User)
-    ${filter_by_user_id}
+    MATCH (user:User {_id: $user_id})
 
     // Find application and applicant
     WITH user
-    MATCH (application:ApplicationForm)
-    ${filter_by_applcation_id}
+    MATCH (application:ApplicationForm {_id: $application_id})
 
     // Enforce privacy
     WITH user, application
@@ -94,41 +100,45 @@ exports.get_file = (req, res, next) => {
     return application
     `
 
-  const params = { user_id, file_id, application_id }
+    const params = { user_id, file_id, application_id }
 
-  const session = driver.session()
-  session.run(query, params)
-  .then(({records}) => {
+    const { records } = await session.run(query, params)
 
     // Check if the application exists (i.e. can be seen by the user)
-    if(!records.length) throw createError(400, `Application ${application_id} could not be queried`)
+    if (!records.length) throw createError(400, `Application ${application_id} could not be queried`)
 
     // Check if the application has a file with the given ID
     const application_node = records[0].get('application')
     const form_data = JSON.parse(application_node.properties.form_data)
-    const found_file = form_data.find( ({value}) => value === file_id)
-    if(!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
+    const found_file = form_data.find(({ value }) => value === file_id)
+    if (!found_file) throw createError(400, `Application ${application_id} does not include the file ${file_id}`)
 
     // Now download the file
-    const directory_path = path.join(uploads_directory_path, file_id)
-    fs.readdir(directory_path, (err, items) => {
+    const directory_path = path.join(uploads_path, file_id)
 
-      if(err) throw createError(500, `File ${file_id} could not be opened`)
+    const files = await get_dir_files(directory_path, file_id)
 
-      // Send first file in the directory (one file per directory)
-      const file_to_download = items[0]
-      console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
-      // NOTE: Why not sendFile?
-      res.download( path.join(directory_path, file_to_download), file_to_download )
-    })
+    const file_to_download = files[0]
+    if (!file_to_download) throw createError(500, `Could not open file`)
+    console.log(`File ${file_id} of application ${application_id} downloaded by user ${user_id}`)
 
-  })
-  .catch(next)
-  .finally(() => { session.close() })
+    // NOTE: Why not sendFile?
+    res.download(path.join(directory_path, file_to_download), file_to_download)
+
+  } catch (error) {
+    next(error)
+  }
+  finally {
+    session.close()
+  }
+
+  
 
 }
 
 exports.get_file_name = (req, res, next) => {
+
+  // Used by GET /applications/:application_id/files/:file_id/filename'
 
   const {file_id} = req.params
 
@@ -136,17 +146,14 @@ exports.get_file_name = (req, res, next) => {
 
 
   // Now download the file
-  const directory_path = path.join(uploads_directory_path, file_id)
+  const directory_path = path.join(uploads_path, file_id)
   fs.readdir(directory_path, (err, items) => {
 
     if(err) return next(createError(500, `File could not be opened`))
     // Send first file in the directory (one file per directory)
     const filename = items[0]
-    // NOTE: Why not sendFile?
     res.send({filename})
   })
-
-
 
 }
 
@@ -167,19 +174,17 @@ const  get_unused_files = () => new Promise((resolve, reject) => {
     const attachments = records.reduce((acc, record) => {
       const fields = JSON.parse(record.get('form_data'))
 
-      // File fileds of this record (can be empty)
+      // File fields of this record (can be empty)
       const file_fields = fields.filter(field => field.type === 'file' && !!field.value)
-      if(file_fields.length > 0) {
-        file_fields.forEach(field => {acc.push(field.value)} )
-      }
+      if(file_fields.length > 0) file_fields.forEach(field => {acc.push(field.value)} )
 
       return acc
 
     }, [])
 
-    const directories = readdirSync(uploads_directory_path)
+    const directories = readdirSync(uploads_path)
 
-    // ignore trash
+    // ignore the trash directory itself
     const unused_uploads = directories.filter( directory => {
       return !attachments.find(attachment => (directory === attachment || directory === 'trash') )
     })
@@ -217,8 +222,8 @@ exports.move_unused_files = (req, res) => {
     unused_uploads.forEach(upload => {
 
       const promise = new Promise((resolve, reject) => {
-        const old_path = path.join(uploads_directory_path,upload)
-        const new_path = path.join(uploads_directory_path,'trash',upload)
+        const old_path = path.join(uploads_path,upload)
+        const new_path = path.join(uploads_path,'trash',upload)
 
         mv(old_path, new_path, {mkdirp: true}, (err) => {
           if (err) return reject(err)
@@ -239,3 +244,4 @@ exports.move_unused_files = (req, res) => {
   .catch(next)
 
 }
+

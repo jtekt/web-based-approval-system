@@ -230,6 +230,8 @@ exports.get_application_form_template = (req, res, next) => {
 
 exports.get_all_application_form_templates_visible_to_user = (req, res, next) => {
 
+  // Note: This should be achieved with GET /templates
+
   // Used when creating an application form
 
   const user_id = get_current_user_id(res)
