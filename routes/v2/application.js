@@ -24,6 +24,7 @@ router.route('/reject').post(reject_application)
 router.route('/comment').put(update_comment)
 
 router.use('/privacy', require('./application_privacy'))
+router.use('/files', require('./files'))
 
 
 module.exports = router
