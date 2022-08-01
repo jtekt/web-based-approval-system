@@ -7,7 +7,7 @@ const {
   get_file_name
 } = require('../../controllers/v2/files.js')
 
-const router = Router()
+const router = Router({mergeParams: true})
 
 router.route('/')
   .post(file_upload)

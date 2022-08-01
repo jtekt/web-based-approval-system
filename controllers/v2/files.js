@@ -22,6 +22,8 @@ const parse_form = (req) => new Promise ((resolve, reject) => {
 
 const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
+  // Store file in the uploads directory
+  
   const {
     path: old_path,
     name: file_name
