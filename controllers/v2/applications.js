@@ -227,6 +227,29 @@ exports.read_application = async (req, res, next) => {
 
 }
 
+exports.get_application_types = async (req, res, next) => {
+
+    // Used for search
+    const session = driver.session()
+
+    try {
+        const cypher = `
+        MATCH (application:ApplicationForm)
+        RETURN DISTINCE(application.type) as application_type
+        `
+
+        const {records} = await session.run(query, params)
+        const types = records.map(record => record.get('application_type'))
+        res.send(types)
+    } 
+    catch (error) {
+        next(error)
+    }
+    finally {
+        session.close()
+    }
+}
+
 exports.delete_application = async (req, res, next) => {
 
     // Delete a single of applications
