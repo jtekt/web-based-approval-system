@@ -210,7 +210,10 @@ exports.read_application = async (req, res, next) => {
 
         if (!record) throw createHttpError(404, `Application ${application_id} not found`)
 
+
         const application = format_application_from_record_v2(record)
+        console.log(application.recipients)
+
 
         console.log(`Application ${application_id} queried by user ${user_id}`)
         res.send(application)
@@ -235,10 +238,10 @@ exports.get_application_types = async (req, res, next) => {
     try {
         const cypher = `
         MATCH (application:ApplicationForm)
-        RETURN DISTINCE(application.type) as application_type
+        RETURN DISTINCT(application.type) as application_type
         `
 
-        const {records} = await session.run(query, params)
+        const { records } = await session.run(cypher, {})
         const types = records.map(record => record.get('application_type'))
         res.send(types)
     } 
