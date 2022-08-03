@@ -77,9 +77,9 @@ exports.format_application_from_record_v2 = (record) => {
     recipients: record.get('recipients')
       .map(recipient => ({
         ...recipient.properties,
-        submission: record.get('submissions').find(submission => submission.end === recipient.identity).properties,
-        approval: record.get('approvals').find(approval => approval.start === recipient.identity).properties,
-        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity).properties, 
+        submission: record.get('submissions').find(submission => submission.end === recipient.identity)?.properties,
+        approval: record.get('approvals').find(approval => approval.start === recipient.identity)?.properties,
+        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity)?.properties, 
       }))
       .sort((a, b) => a.submission.flow_index - b.submission.flow_index),
     forbidden: record.get('forbidden'),
