@@ -212,8 +212,6 @@ exports.read_application = async (req, res, next) => {
 
 
         const application = format_application_from_record_v2(record)
-        console.log(application.recipients)
-
 
         console.log(`Application ${application_id} queried by user ${user_id}`)
         res.send(application)
