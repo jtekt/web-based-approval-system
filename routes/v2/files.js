@@ -15,8 +15,9 @@ router.route('/')
 router.route('/:file_id')
   .get(get_file)
 
-// router.route('/:file_id/filename')
-//   .get(get_file_name)
+router.route('/:file_id/filename')
+  .get(get_file_name)
+
 
 // router.route('/unused')
 //   .get(get_unused_files)
