@@ -4,8 +4,6 @@ const { driver } = require('../../db.js')
 
 exports.update_comment = async (req, res, next) => {
 
-    // TODO: Consider MATCHing comment using application ID and user ID
-
     const session = driver.session()
 
     try {
