@@ -10,7 +10,7 @@ const {
 } = process.env
 
 const authentication_url = IDENTIFICATION_URL
-  || `${process.env.AUTHENTICATION_API_URL}/v2/whoami`
+  || `${AUTHENTICATION_API_URL}/v2/whoami`
 
 if(!authentication_url) throw `URL of the authenticatin service not set`
 
@@ -52,9 +52,3 @@ exports.middleware = (req, res, next) => {
 }
 
 exports.url = authentication_url
-
-exports.get_current_user_id = (req) => {
-  // Currently not used
-  return res.locals.user.identity.low
-    ?? res.locals.user.identity
-}
