@@ -9,45 +9,26 @@ exports.update_application_privacy = async (req, res, next) => {
 
     try {
 
+        if ( ! ('private' in req.body) ) throw createHttpError(400, 'Private not defined')
+
         const user_id = res.locals.user?._id
-        const { application_id } = req.params
-        const { group_ids } = req.body
+        const { application_id } = req.params        
+        const { private } = req.body
 
         const cypher = `
-        // Find the application
-        // Only the applicant can make the update
-        MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(user:User)
-        WHERE application._id = $application_id
-        AND applicant._id = $user_id
+            // Find the application
+            MATCH (application:ApplicationForm)-[:SUBMITTED_BY]->(applicant:User)
+            WHERE application._id = $application_id
+            AND applicant._id = $user_id
 
-        // delete all visibility relationships
-        WITH application
-        MATCH (application)-[rel:VISIBLE_TO]->(:Group)
-        DELETE rel
+            // Set the privacy property
+            SET application.private = $private
 
-        // Now recreate all relationships
-        WITH application
-        UNWIND
-        CASE
-            WHEN $group_ids = []
-            THEN [null]
-            ELSE $group_ids
-        END AS group_id
+            // Return the application
+            RETURN PROPERTIES(application) as application
+            `
 
-        OPTIONAL MATCH (group:Group {_id: group_id})
-        WITH collect(group) as groups, application
-        FOREACH(group IN groups | MERGE (application)-[:VISIBLE_TO]->(group))
-
-        // Return the application
-        RETURN PROPERTIES(application) as application, 
-            PROPERTIES(group) as group
-        `
-
-        const params = {
-            user_id,
-            group_ids,
-            application_id,
-        }
+        const params = { user_id, private, application_id }
 
         const { records } = await session.run(cypher, params)
 
@@ -138,7 +119,7 @@ exports.remove_application_visibility_to_group = async (req, res, next) => {
     try {
 
         const user_id = res.locals.user?._id
-        const { application_id, group_ids } = req.params
+        const { application_id, group_id } = req.params
 
         const cypher = `
         // Find the application
@@ -161,7 +142,7 @@ exports.remove_application_visibility_to_group = async (req, res, next) => {
 
         const params = {
             user_id,
-            group_ids,
+            group_id,
             application_id,
         }
 

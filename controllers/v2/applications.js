@@ -210,6 +210,7 @@ exports.read_application = async (req, res, next) => {
 
         if (!record) throw createHttpError(404, `Application ${application_id} not found`)
 
+
         const application = format_application_from_record_v2(record)
 
         console.log(`Application ${application_id} queried by user ${user_id}`)
@@ -225,6 +226,29 @@ exports.read_application = async (req, res, next) => {
 
 
 
+}
+
+exports.get_application_types = async (req, res, next) => {
+
+    // Used for search
+    const session = driver.session()
+
+    try {
+        const cypher = `
+        MATCH (application:ApplicationForm)
+        RETURN DISTINCT(application.type) as application_type
+        `
+
+        const { records } = await session.run(cypher, {})
+        const types = records.map(record => record.get('application_type'))
+        res.send(types)
+    } 
+    catch (error) {
+        next(error)
+    }
+    finally {
+        session.close()
+    }
 }
 
 exports.delete_application = async (req, res, next) => {

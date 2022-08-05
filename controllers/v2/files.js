@@ -22,6 +22,8 @@ const parse_form = (req) => new Promise ((resolve, reject) => {
 
 const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
 
+  // Store file in the uploads directory
+  
   const {
     path: old_path,
     name: file_name
@@ -128,7 +130,23 @@ exports.get_file = async (req, res, next) => {
     session.close()
   }
 
-  
+}
+
+exports.get_file_name = async (req, res, next) => {
+
+  // Used by GET /applications/:application_id/files/:file_id/filename'
+
+  const { file_id } = req.params
+
+  if (!file_id) return next(createError(400, `File ID not specified`))
+
+
+  // Now download the file
+  const directory_path = path.join(uploads_path, file_id)
+  const files = await get_dir_files(directory_path, file_id)
+  const filename = files[0]
+  res.send({ filename })
+
 
 }
 

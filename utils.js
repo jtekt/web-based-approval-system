@@ -60,10 +60,11 @@ exports.format_application_from_record_v2 = (record) => {
   // An utility function to format the output of a neo4j query of applications
   // In order to be sent to a front end via JSON
 
+
   if (record.get('forbidden')) {
     const application = record.get('application')
-    delete application.properties.form_data
-    application.properties.title = '機密 / Confidential'
+    delete application.form_data
+    application.title = '機密 / Confidential'
   }
 
   return {
@@ -75,10 +76,10 @@ exports.format_application_from_record_v2 = (record) => {
     visibility: record.get('visibility'),
     recipients: record.get('recipients')
       .map(recipient => ({
-        ...recipient,
-        submission: record.get('submissions').find(submission => submission.end === recipient.identity),
-        approval: record.get('approvals').find(approval => approval.start === recipient.identity),
-        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity),
+        ...recipient.properties,
+        submission: record.get('submissions').find(submission => submission.end === recipient.identity)?.properties,
+        approval: record.get('approvals').find(approval => approval.start === recipient.identity)?.properties,
+        refusal: record.get('refusals').find(refusal => refusal.start === recipient.identity)?.properties, 
       }))
       .sort((a, b) => a.submission.flow_index - b.submission.flow_index),
     forbidden: record.get('forbidden'),
@@ -130,15 +131,17 @@ exports.return_application_and_related_nodes = `
   RETURN application,
     applicant,
     authorship,
-    collect(DISTINCT recipient) as recipients,
-    collect(DISTINCT submission) as submissions,
-    collect(DISTINCT approval) as approvals,
-    collect(DISTINCT refusal) as refusals,
-    collect(DISTINCT group) as visibility,
+    COLLECT(DISTINCT recipient) as recipients,
+    COLLECT(DISTINCT submission) as submissions,
+    COLLECT(DISTINCT approval) as approvals,
+    COLLECT(DISTINCT refusal) as refusals,
+    COLLECT(DISTINCT group) as visibility,
     forbidden,
     application_count
   `
 
+
+  // TODO: Try to format output better
 exports.return_application_and_related_nodes_v2 = `
   // application and count provided by batching
   WITH application, application_count
@@ -177,11 +180,12 @@ exports.return_application_and_related_nodes_v2 = `
   RETURN PROPERTIES(application) as application,
     PROPERTIES (applicant) as applicant,
     PROPERTIES (authorship) as authorship,
-    collect(DISTINCT PROPERTIES(recipient)) as recipients,
-    collect(DISTINCT PROPERTIES(submission)) as submissions,
-    collect(DISTINCT PROPERTIES(approval)) as approvals,
-    collect(DISTINCT PROPERTIES(refusal)) as refusals,
-    collect(DISTINCT PROPERTIES(group)) as visibility,
+    COLLECT(DISTINCT PROPERTIES(group)) as visibility,
+    // NOTE: Properties not used on the four hereunder
+    COLLECT(DISTINCT recipient) as recipients,
+    COLLECT(DISTINCT submission) as submissions,
+    COLLECT(DISTINCT approval) as approvals,
+    COLLECT(DISTINCT refusal) as refusals,
     forbidden,
     application_count
 
