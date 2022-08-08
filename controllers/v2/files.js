@@ -5,9 +5,8 @@ const path = require('path')
 const formidable = require('formidable')
 const { v4: uuidv4 } = require('uuid')
 const {driver} = require('../../db.js')
-const {
-  uploads_path
-} = require('../../config')
+const { get_current_user_id } = require('../../utils.js')
+const { uploads_path } = require('../../config')
 
 
 
@@ -73,7 +72,7 @@ exports.get_file = async (req, res, next) => {
 
   try {
     const { file_id } = req.params
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
     const { application_id } = req.params
 
     if (!file_id) throw createHttpError(400, 'File ID not specified')

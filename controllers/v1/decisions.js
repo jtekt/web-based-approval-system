@@ -2,7 +2,6 @@ const createError = require('http-errors')
 const {driver} = require('../../db.js')
 const {
   get_current_user_id,
-  get_application_id,
   filter_by_user_id,
 } = require('../../utils.js')
 

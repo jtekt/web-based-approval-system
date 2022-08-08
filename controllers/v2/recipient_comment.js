@@ -1,4 +1,5 @@
 const createHttpError = require('http-errors')
+const { get_current_user_id } = require('../../utils.js')
 const { driver } = require('../../db.js')
 
 
@@ -9,7 +10,7 @@ exports.update_comment = async (req, res, next) => {
     try {
         const { application_id } = req.params
         const { comment } = req.body
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
 
         if (!application_id) throw createHttpError(400, `Missing application_id`)
         if (!comment) throw createHttpError(400, `Missing comment`)

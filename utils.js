@@ -1,11 +1,12 @@
 exports.get_current_user_id = (res) => {
 
   const user = res.locals?.user
-  if(!user) throw `User not authenticated`
+  if(!user) throw `User is not authenticated`
+
   const user_id = res.locals.user._id
     ?? res.locals.user.properties._id
-    ?? res.locals.user.identity.low // to be removed
-    ?? res.locals.user.identity // to be removed
+    // ?? res.locals.user.identity.low
+    // ?? res.locals.user.identity
 
   if(!user_id) throw `User does not have an ID`
 

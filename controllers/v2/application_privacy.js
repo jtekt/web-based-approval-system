@@ -1,5 +1,6 @@
-const { driver } = require('../../db.js')
 const createHttpError = require('http-errors')
+const { driver } = require('../../db.js')
+const { get_current_user_id } = require('../../utils.js')
 
 exports.update_application_privacy = async (req, res, next) => {
 
@@ -11,7 +12,7 @@ exports.update_application_privacy = async (req, res, next) => {
 
         if ( ! ('private' in req.body) ) throw createHttpError(400, 'Private not defined')
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params        
         const { private } = req.body
 
@@ -59,7 +60,7 @@ exports.make_application_visible_to_group = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
         const { group_id } = req.body
 
@@ -118,7 +119,7 @@ exports.remove_application_visibility_to_group = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id, group_id } = req.params
 
         const cypher = `

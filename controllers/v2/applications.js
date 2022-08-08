@@ -1,6 +1,7 @@
-const { driver } = require('../../db.js')
 const createHttpError = require('http-errors')
+const { driver } = require('../../db.js')
 const {
+    get_current_user_id,
     application_batching,
     return_application_and_related_nodes_v2,
     format_application_from_record_v2,
@@ -28,7 +29,7 @@ exports.create_application = async (req, res, next) => {
             group_ids = [],
         } = req.body
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
 
         if (!recipients_ids.length) throw createHttpError(400, `Application requires one or more recipient`)
 
@@ -106,7 +107,7 @@ exports.read_applications = async (req, res, next) => {
 
     try {
 
-        const current_user_id = res.locals.user?._id
+        const current_user_id = get_current_user_id(res)
 
         const {
             user_id = current_user_id, // by default, focuses on current user
@@ -186,7 +187,7 @@ exports.read_application = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
 
         if (!user_id) throw createHttpError(400, 'User ID not defined')
@@ -260,7 +261,7 @@ exports.delete_application = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
 
         if (!user_id) throw createHttpError(400, 'User ID not defined')
@@ -305,7 +306,7 @@ exports.approve_application = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
 
         const {
@@ -372,7 +373,7 @@ exports.reject_application = async (req, res, next) => {
 
     try {
 
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
 
         const {

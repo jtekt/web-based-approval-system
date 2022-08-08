@@ -1,5 +1,6 @@
 const createHttpError = require('http-errors')
 const {driver} = require('../../db.js')
+const { get_current_user_id } = require('../../utils.js')
 
 
 
@@ -16,7 +17,7 @@ exports.create_template = async (req, res, next) => {
       group_ids = [],
     } = req.body
 
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
 
     const cypher = `
     // Find creator
@@ -78,7 +79,7 @@ exports.read_templates = async (req, res, next) => {
 
   try {
 
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
 
 
     const cypher = `
@@ -128,7 +129,7 @@ exports.read_template = async (req, res, next) => {
   try {
 
     const { template_id } = req.params
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
 
     const cypher = `
       MATCH (aft:ApplicationFormTemplate {_id: $template_id})
@@ -187,7 +188,7 @@ exports.update_template = async (req, res, next) => {
       fields,
     } = req.body
 
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
 
 
     const cypher = `
@@ -260,7 +261,7 @@ exports.delete_template = async (req, res, next) => {
 
   try {
     const { template_id } = req.params
-    const user_id = res.locals.user?._id
+    const user_id = get_current_user_id(res)
 
 
     const cypher = `

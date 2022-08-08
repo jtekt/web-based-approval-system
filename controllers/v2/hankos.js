@@ -1,11 +1,12 @@
 const { driver } = require('../../db.js')
+const { get_current_user_id } = require('../../utils.js')
 const createHttpError = require('http-errors')
 
 exports.update_hankos = async (req, res, next) => {
     const session = driver.session()
 
     try {
-        const user_id = res.locals.user?._id
+        const user_id = get_current_user_id(res)
         const { application_id } = req.params
         const { attachment_hankos } = req.body
 
