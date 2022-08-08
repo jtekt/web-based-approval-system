@@ -397,7 +397,7 @@ exports.reject_application = async (req, res, next) => {
             ON CREATE SET rejection.date = date()
             SET rejection.comment = $comment
 
-            RETURN PROPERTIES(approval) as approval,
+            RETURN PROPERTIES(rejection) as rejection,
                 PROPERTIES(recipient) as recipient, 
                 PROPERTIES(application) as application
             `
