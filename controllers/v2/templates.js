@@ -272,7 +272,7 @@ exports.delete_template = async (req, res, next) => {
     // Delete the node
     DETACH DELETE aft
 
-    RETURN aft._id AS template_id
+    RETURN $template_id AS template_id
     `
 
     const params = { template_id, user_id }
