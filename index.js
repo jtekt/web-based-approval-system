@@ -2,11 +2,8 @@ const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const apiMetrics = require('prometheus-api-metrics')
+const auth = require('@moreillon/express_identification_middleware')
 const { version, author } = require('./package.json')
-const {
-  middleware: authentication_middleware,
-  url: authentication_url
-} = require('./auth.js')
 const {
   url: neo4j_url,
   get_connected: get_neo4j_connection_status,
@@ -21,7 +18,11 @@ console.log(`Shinsei manager v${version}`)
 db_init()
 
 // Reading environment variables
-const { APP_PORT = 80 } = process.env
+const { 
+  APP_PORT = 80,
+  IDENTIFICATION_URL
+} = process.env
+
 
 process.env.TZ = process.env.TZ || 'Asia/Tokyo'
 
@@ -41,12 +42,13 @@ app.get('/', (req, res) => {
       url: neo4j_url,
       connected: get_neo4j_connection_status()
     },
-    authentication_url,
+    identification: IDENTIFICATION_URL,
     uploads_path,
   })
 })
 
-app.use(authentication_middleware)
+// Require authentication for all following routes
+app.use(auth({ url: IDENTIFICATION_URL }))
 
 app.use('/', require('./routes/v1/index.js'))
 app.use('/v1', require('./routes/v1/index.js'))
