@@ -3,19 +3,21 @@ stages:
   - test
   - deploy
 
-variables:
-  APPLICATION_NAME: shinsei-manager
-  CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
-  CONTAINER_IMAGE_TEST: ${CONTAINER_IMAGE}:test
-  CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
-  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
-  TEST_NETWORK: tdd
-  TEST_DB: tdd-db
-  TEST_USER_MANAGER: tdd-user-manager
-
 image: moreillon/tdd-dind
 services:
   - name: docker:19.03.12-dind
+
+variables:
+  APPLICATION_NAME: shinsei-manager
+  # Docker
+  CONTAINER_IMAGE: ${AWS_ECR_PUBLIC_URL}/${APPLICATION_NAME}
+  CONTAINER_IMAGE_TEST: ${CONTAINER_IMAGE}:test
+  CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  # TDD
+  TEST_NETWORK: tdd
+  TEST_DB: tdd-db
+  TEST_USER_MANAGER: tdd-user-manager
 
 
 build:
@@ -25,15 +27,17 @@ build:
   only:
     - master
   before_script:
-    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    # Registry login
+    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
+    # Create repository in ECR if it does not exist yet
+    - >
+      aws ecr-public create-repository --region us-east-1 --repository-name ${APPLICATION_NAME}
+      || echo "Repository might have already existed"
   script:
     # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
     # Pushing image to registry
     - docker push ${CONTAINER_IMAGE_TEST}
-    # Cleanup
-    - docker image rm ${CONTAINER_IMAGE_TEST}
-
 
 test:
   stage: test
@@ -43,7 +47,8 @@ test:
   tags:
     - dind
   before_script:
-    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    # Registry login
+    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
     # Creating network for TDD
     - docker network create ${TEST_NETWORK}
     - >
@@ -69,8 +74,6 @@ test:
       --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
       moreillon/user-manager
-
-
   script:
     - >
       docker run
