@@ -19,6 +19,8 @@ spec:
       containers:
       - name: ${APPLICATION_NAME}
         image: ${CONTAINER_IMAGE_TAGGED}
+        # Backup
+        #image: moreillon/shinsei-manager:042e6d83
         ports:
         - containerPort: 80
         # Get environment variables from K8s

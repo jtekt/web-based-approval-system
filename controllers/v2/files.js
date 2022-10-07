@@ -28,7 +28,6 @@ const store_file = (file_to_upload) => new Promise ((resolve, reject) => {
     name: file_name
   } = file_to_upload
 
-
   const file_id = uuidv4()
   const new_directory_path = path.join(uploads_path, file_id)
   const new_file_path = path.join(new_directory_path,file_name)
@@ -57,7 +56,8 @@ exports.file_upload = async (req, res, next) => {
     const file_id = await store_file(file_to_upload)
     console.log(`File ${file_id} uploaded`)
     res.send({file_id})
-  } catch (error) {
+  } 
+  catch (error) {
     next(error)
   }
 
