@@ -91,7 +91,7 @@ exports.create_application = async (req, res, next) => {
     logger.info({
       message: `Application ${application._id} created by user ${user_id}`,
     })
-    // console.log(`Application ${application._id} created`)
+
     res.send(application)
   } catch (error) {
     next(error)
@@ -209,7 +209,6 @@ exports.read_application = async (req, res, next) => {
 
     const application = format_application_from_record_v2(record)
 
-    console.log(`Application ${application_id} queried by user ${user_id}`)
     res.send(application)
   } catch (error) {
     next(error)
@@ -333,9 +332,10 @@ exports.approve_application = async (req, res, next) => {
     const application = records[0].get("application")
     const { _id: recipient_id } = records[0].get("recipient")
 
-    console.log(
-      `Application ${application_id} approved by user ${recipient_id}`
-    )
+    logger.info({
+      message: `Application ${application_id} approved by user ${recipient_id}`,
+    })
+
     res.send(application)
   } catch (error) {
     next(error)
@@ -389,9 +389,10 @@ exports.reject_application = async (req, res, next) => {
     const application = records[0].get("application")
     const { _id: recipient_id } = records[0].get("recipient")
 
-    console.log(
-      `Application ${application_id} rejected by user ${recipient_id}`
-    )
+    logger.info({
+      message: `Application ${application_id} rejected by user ${recipient_id}`,
+    })
+
     res.send(application)
   } catch (error) {
     next(error)
