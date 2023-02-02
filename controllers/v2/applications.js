@@ -1,39 +1,40 @@
-const createHttpError = require('http-errors')
-const { driver } = require('../../db.js')
+const createHttpError = require("http-errors")
+const { driver } = require("../../db.js")
+const { logger } = require("../../logger.js")
 const {
-    get_current_user_id,
-    application_batching,
-    return_application_and_related_nodes_v2,
-    format_application_from_record_v2,
-    filter_by_type,
-    query_with_hanko_id,
-    query_with_date,
-    query_with_group,
-    query_deleted,
-    query_with_relationship_and_state,
-} = require('../../utils.js')
-
+  get_current_user_id,
+  application_batching,
+  return_application_and_related_nodes_v2,
+  format_application_from_record_v2,
+  filter_by_type,
+  query_with_hanko_id,
+  query_with_date,
+  query_with_group,
+  query_deleted,
+  query_with_relationship_and_state,
+} = require("../../utils.js")
 
 exports.create_application = async (req, res, next) => {
-    // Create an application form
+  // Create an application form
 
-    const session = driver.session()
+  const session = driver.session()
 
-    try {
-        const {
-            type,
-            title,
-            form_data,
-            recipients_ids = [],
-            private = false,
-            group_ids = [],
-        } = req.body
+  try {
+    const {
+      type,
+      title,
+      form_data,
+      recipients_ids = [],
+      private = false,
+      group_ids = [],
+    } = req.body
 
-        const user_id = get_current_user_id(res)
+    const user_id = get_current_user_id(res)
 
-        if (!recipients_ids.length) throw createHttpError(400, `Application requires one or more recipient`)
+    if (!recipients_ids.length)
+      throw createHttpError(400, `Application requires one or more recipient`)
 
-        const cypher = `
+    const cypher = `
         // Create the application node
         MATCH (user:User {_id: $user_id})
         CREATE (application:ApplicationForm)-[:SUBMITTED_BY {date: date()} ]->(user)
@@ -67,63 +68,61 @@ exports.create_application = async (req, res, next) => {
 
         // Finally, Return the created application
         RETURN properties(application) as application
-        `  
+        `
 
-        const params = {
-            user_id,
-            application_properties: {
-                form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
-                type,
-                title,
-                private,
-            },
-            group_ids,
-            recipients_ids,
-        }
-
-        const { records } = await session.run(cypher, params)
-
-        if (!records.length) throw createHttpError(500, `Failed to create the application`)
-        const application = records[0].get('application')
-        console.log(`Application ${application._id} created`)
-        res.send(application)
-
-    } 
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
+    const params = {
+      user_id,
+      application_properties: {
+        form_data: JSON.stringify(form_data), // Neo4J does not support nested props so convert to string
+        type,
+        title,
+        private,
+      },
+      group_ids,
+      recipients_ids,
     }
 
+    const { records } = await session.run(cypher, params)
+
+    if (!records.length)
+      throw createHttpError(500, `Failed to create the application`)
+    const application = records[0].get("application")
+
+    logger.info({
+      message: `Application ${application._id} created by user ${user_id}`,
+    })
+    // console.log(`Application ${application._id} created`)
+    res.send(application)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
-
 exports.read_applications = async (req, res, next) => {
+  // query a list of applications
 
-    // query a list of applications
+  const session = driver.session()
 
-    const session = driver.session()
+  try {
+    const current_user_id = get_current_user_id(res)
 
-    try {
+    const {
+      user_id = current_user_id, // by default, focuses on current user
+      group_id,
+      relationship,
+      state,
+      type,
+      start_date,
+      end_date,
+      hanko_id,
+      start_index = 0,
+      batch_size = 10,
+      deleted = false,
+    } = req.query
 
-        const current_user_id = get_current_user_id(res)
-
-        const {
-            user_id = current_user_id, // by default, focuses on current user
-            group_id,
-            relationship,
-            state,
-            type,
-            start_date,
-            end_date,
-            hanko_id,
-            start_index = 0,
-            batch_size = 10,
-            deleted = false,
-        } = req.query
-
-        const cypher = `
+    const cypher = `
             MATCH (user:User {_id: $user_id})
             WITH user
             MATCH (application:ApplicationForm)
@@ -142,58 +141,54 @@ exports.read_applications = async (req, res, next) => {
             ${return_application_and_related_nodes_v2}
 
             `
-        
-        const params = {
-            user_id,
-            relationship,
-            type,
-            start_date,
-            end_date,
-            start_index,
-            batch_size,
-            hanko_id,
-            group_id,
-        }
 
-        const { records } = await session.run(cypher, params)
-
-        const count = records.length ? records[0].get('application_count') : 0
-
-        const applications = records.map(record => format_application_from_record_v2(record))
-
-
-        res.send({
-            count,
-            applications,
-            start_index,
-            batch_size
-        })
-
-    } 
-    catch (error) {
-        next(error)
+    const params = {
+      user_id,
+      relationship,
+      type,
+      start_date,
+      end_date,
+      start_index,
+      batch_size,
+      hanko_id,
+      group_id,
     }
-    finally {
-        session.close()
-    }
-    
+
+    const { records } = await session.run(cypher, params)
+
+    const count = records.length ? records[0].get("application_count") : 0
+
+    const applications = records.map((record) =>
+      format_application_from_record_v2(record)
+    )
+
+    res.send({
+      count,
+      applications,
+      start_index,
+      batch_size,
+    })
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
 exports.read_application = async (req, res, next) => {
+  // query a single of applications
 
-    // query a single of applications
+  const session = driver.session()
 
-    const session = driver.session()
+  try {
+    const user_id = get_current_user_id(res)
+    const { application_id } = req.params
 
-    try {
+    if (!user_id) throw createHttpError(400, "User ID not defined")
+    if (!application_id)
+      throw createHttpError(400, "Application ID not defined")
 
-        const user_id = get_current_user_id(res)
-        const { application_id } = req.params
-
-        if (!user_id) throw createHttpError(400, 'User ID not defined')
-        if (!application_id) throw createHttpError(400, 'Application ID not defined')
-
-        const cypher = `
+    const cypher = `
             // Find application
             MATCH (application:ApplicationForm {_id: $application_id})
             WHERE NOT EXISTS(application.deleted)
@@ -203,71 +198,61 @@ exports.read_application = async (req, res, next) => {
             ${return_application_and_related_nodes_v2}
             `
 
-        const params = { user_id, application_id }
+    const params = { user_id, application_id }
 
-        const { records } = await session.run(cypher, params)
+    const { records } = await session.run(cypher, params)
 
-        const record = records[0]
+    const record = records[0]
 
-        if (!record) throw createHttpError(404, `Application ${application_id} not found`)
+    if (!record)
+      throw createHttpError(404, `Application ${application_id} not found`)
 
+    const application = format_application_from_record_v2(record)
 
-        const application = format_application_from_record_v2(record)
-
-        console.log(`Application ${application_id} queried by user ${user_id}`)
-        res.send(application)
-
-    }
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
-    }
-
-
-
+    console.log(`Application ${application_id} queried by user ${user_id}`)
+    res.send(application)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
 exports.get_application_types = async (req, res, next) => {
+  // Used for search
+  const session = driver.session()
 
-    // Used for search
-    const session = driver.session()
-
-    try {
-        const cypher = `
+  try {
+    const cypher = `
         MATCH (application:ApplicationForm)
         RETURN DISTINCT(application.type) as application_type
         `
 
-        const { records } = await session.run(cypher, {})
-        const types = records.map(record => record.get('application_type'))
-        res.send(types)
-    } 
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
-    }
+    const { records } = await session.run(cypher, {})
+    const types = records.map((record) => record.get("application_type"))
+    res.send(types)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
 exports.delete_application = async (req, res, next) => {
+  // Delete a single of applications
+  // Note: only marks applications as deleted and not actually delete nodes
 
-    // Delete a single of applications
-    // Note: only marks applications as deleted and not actually delete nodes
+  const session = driver.session()
 
-    const session = driver.session()
+  try {
+    const user_id = get_current_user_id(res)
+    const { application_id } = req.params
 
-    try {
+    if (!user_id) throw createHttpError(400, "User ID not defined")
+    if (!application_id)
+      throw createHttpError(400, "Application ID not defined")
 
-        const user_id = get_current_user_id(res)
-        const { application_id } = req.params
-
-        if (!user_id) throw createHttpError(400, 'User ID not defined')
-        if (!application_id) throw createHttpError(400, 'Application ID not defined')
-
-        const cypher = `
+    const cypher = `
             // Find application
             MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm )
             WHERE applicant._id = $user_id
@@ -279,48 +264,41 @@ exports.delete_application = async (req, res, next) => {
             RETURN properties(application) as application
             `
 
-        const params = { user_id, application_id }
+    const params = { user_id, application_id }
 
-        const { records } = await session.run(cypher, params)
-        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
+    const { records } = await session.run(cypher, params)
+    if (!records.length)
+      throw createHttpError(404, `Application ${application_id} not found`)
 
-        const application = records[0].get('application')
+    const application = records[0].get("application")
 
-        console.log(`Application ${application_id} deleted`)
-        res.send(application)
-
-    }
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
-    }
-
+    console.log(`Application ${application_id} deleted`)
+    res.send(application)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
-
 exports.approve_application = async (req, res, next) => {
+  const session = driver.session()
 
-    const session = driver.session()
+  try {
+    const user_id = get_current_user_id(res)
+    const { application_id } = req.params
 
-    try {
+    const { attachment_hankos, comment = "" } = req.body
 
-        const user_id = get_current_user_id(res)
-        const { application_id } = req.params
+    if (!user_id) throw createHttpError(400, "User ID not defined")
+    if (!application_id)
+      throw createHttpError(400, "Application ID not defined")
 
-        const {
-            attachment_hankos,
-            comment = '',
-        } = req.body
+    const attachment_hankos_query = attachment_hankos
+      ? `SET approval.attachment_hankos = $attachment_hankos`
+      : ""
 
-        if (!user_id) throw createHttpError(400, 'User ID not defined')
-        if (!application_id) throw createHttpError(400, 'Application ID not defined')
-
-        const attachment_hankos_query = attachment_hankos ? 
-            `SET approval.attachment_hankos = $attachment_hankos` : ''
-            
-        const cypher = `
+    const cypher = `
             // Find the application and get oneself at the same time
             MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
             WHERE application._id = $application_id
@@ -341,50 +319,45 @@ exports.approve_application = async (req, res, next) => {
                 PROPERTIES(application) as application
             `
 
-        const params = {
-            user_id,
-            application_id,
-            comment,
-            attachment_hankos: JSON.stringify(attachment_hankos), // Neo4J does not support nested props so convert to string
-        }
-        
-        const { records } = await session.run(cypher, params)
-        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
-
-        const application = records[0].get('application')
-        const {_id: recipient_id} = records[0].get('recipient')
-
-        console.log(`Application ${application_id} approved by user ${recipient_id}`)
-        res.send(application)
-
-    }
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
+    const params = {
+      user_id,
+      application_id,
+      comment,
+      attachment_hankos: JSON.stringify(attachment_hankos), // Neo4J does not support nested props so convert to string
     }
 
+    const { records } = await session.run(cypher, params)
+    if (!records.length)
+      throw createHttpError(404, `Application ${application_id} not found`)
+
+    const application = records[0].get("application")
+    const { _id: recipient_id } = records[0].get("recipient")
+
+    console.log(
+      `Application ${application_id} approved by user ${recipient_id}`
+    )
+    res.send(application)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
 
 exports.reject_application = async (req, res, next) => {
+  const session = driver.session()
 
-    const session = driver.session()
+  try {
+    const user_id = get_current_user_id(res)
+    const { application_id } = req.params
 
-    try {
+    const { comment = "" } = req.body
 
-        const user_id = get_current_user_id(res)
-        const { application_id } = req.params
+    if (!user_id) throw createHttpError(400, "User ID not defined")
+    if (!application_id)
+      throw createHttpError(400, "Application ID not defined")
 
-        const {
-            comment = '',
-        } = req.body
-
-        if (!user_id) throw createHttpError(400, 'User ID not defined')
-        if (!application_id) throw createHttpError(400, 'Application ID not defined')
-
-
-        const cypher = `
+    const cypher = `
             MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
             WHERE application._id = $application_id
             AND recipient._id = $user_id
@@ -403,28 +376,26 @@ exports.reject_application = async (req, res, next) => {
                 PROPERTIES(application) as application
             `
 
-
-        const params = {
-            user_id,
-            application_id,
-            comment,
-        }
-
-        const { records } = await session.run(cypher, params)
-        if (!records.length) throw createHttpError(404, `Application ${application_id} not found`)
-
-        const application = records[0].get('application')
-        const { _id: recipient_id } = records[0].get('recipient')
-
-        console.log(`Application ${application_id} rejected by user ${recipient_id}`)
-        res.send(application)
-
-    }
-    catch (error) {
-        next(error)
-    }
-    finally {
-        session.close()
+    const params = {
+      user_id,
+      application_id,
+      comment,
     }
 
+    const { records } = await session.run(cypher, params)
+    if (!records.length)
+      throw createHttpError(404, `Application ${application_id} not found`)
+
+    const application = records[0].get("application")
+    const { _id: recipient_id } = records[0].get("recipient")
+
+    console.log(
+      `Application ${application_id} rejected by user ${recipient_id}`
+    )
+    res.send(application)
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
 }
