@@ -1,3 +1,4 @@
+// /applications/:id/hankos
 const { Router } = require('express')
 const {
     update_hankos

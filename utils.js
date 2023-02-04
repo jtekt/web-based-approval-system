@@ -16,6 +16,8 @@ exports.get_current_user_id = (res) => {
 
 exports.get_application_id = (req) => {
 
+  // Prrobably unused now
+
   const application_id = req.params.application_id
     ?? req.body.application_id
     ?? req.body.id
@@ -142,7 +144,7 @@ exports.return_application_and_related_nodes = `
   `
 
 
-  // TODO: Try to format output better
+// TODO: Try to format output better
 exports.return_application_and_related_nodes_v2 = `
   // application and count provided by batching
   WITH application, application_count

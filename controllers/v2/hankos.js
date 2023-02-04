@@ -20,7 +20,6 @@ exports.update_hankos = async (req, res, next) => {
             SET approval.attachment_hankos = $attachment_hankos
 
             RETURN PROPERTIES(approval) as approval
-
             `
 
         const params = { 

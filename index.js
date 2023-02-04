@@ -9,7 +9,7 @@ const {
   url: neo4j_url,
   get_connected: get_neo4j_connection_status,
   init: db_init,
-} = require("./db.js")
+} = require("./db")
 const { uploads_path } = require("./config")
 
 dotenv.config()
@@ -47,9 +47,9 @@ app.get("/", (req, res) => {
 // Require authentication for all following routes
 app.use(auth({ url: IDENTIFICATION_URL }))
 
-app.use("/", require("./routes/v1/index.js"))
-app.use("/v1", require("./routes/v1/index.js"))
-app.use("/v2", require("./routes/v2/index.js"))
+app.use("/", require("./routes/v1"))
+app.use("/v1", require("./routes/v1"))
+app.use("/v2", require("./routes/v2"))
 
 // error handling
 app.use((err, req, res, next) => {

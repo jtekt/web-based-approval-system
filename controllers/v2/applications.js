@@ -47,10 +47,11 @@ exports.create_application = async (req, res, next) => {
         // Relationship with recipients
         // This also creates flow indices
         // Note: flow cannot be empty
+        // WARNING: submission does not have an ID. probably not an issue because submissions never accessed directly
         WITH application, $recipients_ids as recipients_ids
         UNWIND range(0, size(recipients_ids)-1) as i
         MATCH (recipient:User {_id: recipients_ids[i]})
-        CREATE (recipient)<-[:SUBMITTED_TO {date: date(), flow_index: i} ]-(application)
+        CREATE (recipient)<-[submission:SUBMITTED_TO {date: date(), flow_index: i} ]-(application)
 
         // Groups to which the aplication is visible
         // Note: can be an empty set so the logic to deal with it looks terrible
