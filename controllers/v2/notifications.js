@@ -3,26 +3,28 @@ const { get_current_user_id } = require("../../utils.js")
 const createHttpError = require("http-errors")
 
 exports.mark_recipient_as_notified = async (req, res, next) => {
-  console.log("HERE???")
   const session = driver.session()
 
   try {
     const { recipient_id, application_id } = req.params
 
     // TODO: Prevent unrelated users from marking submission as notified
-    //   const current_user_id = get_current_user_id(res)
+    const current_user_id = get_current_user_id(res)
 
     const cypher = `
-            MATCH (recipient:User)<-[submission:SUBMITTED_TO]-(application:ApplicationForm)
-            WHERE recipient._id = $recipient_id
-                AND application._id = $application_id
+      MATCH (currentUser:User {_id: $current_user_id})
+      WITH (currentUser)
+      MATCH (recipient:User {_id: $recipient_id} )<-[submission:SUBMITTED_TO]-(application:ApplicationForm {_id: $application_id})
+      WHERE (currentUser)<-[:SUBMITTED_TO]-(application:ApplicationForm)
+        OR (currentUser)<-[:SUBMITTED_BY]-(application:ApplicationForm)
+        
+      SET submission.notified = true
 
-            SET submission.notified = true
-
-            RETURN PROPERTIES(submission) as submission
-            `
+      RETURN PROPERTIES(submission) as submission
+      `
 
     const params = {
+      current_user_id,
       recipient_id,
       application_id,
     }
@@ -33,7 +35,7 @@ exports.mark_recipient_as_notified = async (req, res, next) => {
 
     const submission = records[0].get("submission")
     console.log(
-      `User ${recipient_id._id} notified of application ${application_id}`
+      `User ${recipient_id} notified of application ${application_id}`
     )
     res.send(submission)
   } catch (error) {
