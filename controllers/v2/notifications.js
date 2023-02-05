@@ -8,9 +8,10 @@ exports.mark_recipient_as_notified = async (req, res, next) => {
   try {
     const { recipient_id, application_id } = req.params
 
-    // TODO: Prevent unrelated users from marking submission as notified
     const current_user_id = get_current_user_id(res)
 
+    // TODO: consider saving notifications for applicant too
+    // WARNING: applicant can be recipient at the same time
     const cypher = `
       MATCH (currentUser:User {_id: $current_user_id})
       WITH (currentUser)
