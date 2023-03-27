@@ -1,6 +1,6 @@
 const createHttpError = require("http-errors")
-const { driver } = require("../../db.js")
-const { logger } = require("../../logger.js")
+const { driver } = require("../db.js")
+const { logger } = require("../logger.js")
 const {
   get_current_user_id,
   application_batching,
@@ -12,9 +12,9 @@ const {
   query_with_group,
   query_deleted,
   query_with_relationship_and_state,
-} = require("../../utils.js")
+} = require("../utils.js")
 
-exports.create_application = async (req, res, next) => {
+exports.create_application = async (req, res) => {
   // Create an application form
 
   const session = driver.session()
@@ -101,7 +101,7 @@ exports.create_application = async (req, res, next) => {
   }
 }
 
-exports.read_applications = async (req, res, next) => {
+exports.read_applications = async (req, res) => {
   // query a list of applications
 
   const session = driver.session()
@@ -176,7 +176,7 @@ exports.read_applications = async (req, res, next) => {
   }
 }
 
-exports.read_application = async (req, res, next) => {
+exports.read_application = async (req, res) => {
   // query a single of applications
 
   const session = driver.session()
@@ -218,7 +218,7 @@ exports.read_application = async (req, res, next) => {
   }
 }
 
-exports.get_application_types = async (req, res, next) => {
+exports.get_application_types = async (req, res) => {
   // Used for search
   const session = driver.session()
 
@@ -238,7 +238,7 @@ exports.get_application_types = async (req, res, next) => {
   }
 }
 
-exports.delete_application = async (req, res, next) => {
+exports.delete_application = async (req, res) => {
   // Delete a single of applications
   // Note: only marks applications as deleted and not actually delete nodes
 
@@ -281,7 +281,7 @@ exports.delete_application = async (req, res, next) => {
   }
 }
 
-exports.approve_application = async (req, res, next) => {
+exports.approve_application = async (req, res) => {
   const session = driver.session()
 
   try {
@@ -345,7 +345,7 @@ exports.approve_application = async (req, res, next) => {
   }
 }
 
-exports.reject_application = async (req, res, next) => {
+exports.reject_application = async (req, res) => {
   const session = driver.session()
 
   try {

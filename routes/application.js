@@ -1,13 +1,11 @@
-// Router for single application
-
 const { Router } = require("express")
+const { update_comment } = require("../controllers/recipient_comment")
 const {
   read_application,
   delete_application,
   approve_application,
   reject_application,
-} = require("../../controllers/v2/applications")
-const { update_comment } = require("../../controllers/v2/recipient_comment")
+} = require("../controllers/applications")
 
 const router = Router({ mergeParams: true })
 

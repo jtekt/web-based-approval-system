@@ -5,7 +5,7 @@ const {
   move_unused_files,
   get_file,
   get_file_name,
-} = require("../../controllers/v2/files.js")
+} = require("../controllers/files.js")
 
 const router = Router({ mergeParams: true })
 

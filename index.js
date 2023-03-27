@@ -11,6 +11,7 @@ const {
   init: db_init,
 } = require("./db")
 const { uploads_path } = require("./config")
+const router = require("./routes")
 
 dotenv.config()
 
@@ -19,9 +20,9 @@ console.log(`Shinsei manager v${version}`)
 db_init()
 
 // Reading environment variables
-const { APP_PORT = 80, IDENTIFICATION_URL } = process.env
+const { APP_PORT = 80, IDENTIFICATION_URL, TZ } = process.env
 
-process.env.TZ = process.env.TZ || "Asia/Tokyo"
+process.env.TZ = TZ || "Asia/Tokyo"
 
 const app = express()
 
@@ -47,9 +48,9 @@ app.get("/", (req, res) => {
 // Require authentication for all following routes
 app.use(auth({ url: IDENTIFICATION_URL }))
 
-app.use("/", require("./routes/v1"))
-app.use("/v1", require("./routes/v1"))
-app.use("/v2", require("./routes/v2"))
+app.use("/", router)
+app.use("/v1", router) // Temporary alias
+app.use("/v2", router) // Temporary alias
 
 // error handling
 app.use((err, req, res, next) => {

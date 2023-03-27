@@ -1,8 +1,6 @@
 // /applications/:id/hankos
 const { Router } = require("express")
-const {
-  mark_recipient_as_notified,
-} = require("../../controllers/v2/notifications")
+const { mark_recipient_as_notified } = require("../controllers/notifications")
 
 const router = Router({ mergeParams: true })
 

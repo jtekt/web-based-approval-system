@@ -1,18 +1,15 @@
-const createHttpError = require('http-errors')
-const {driver} = require('../../db.js')
-const { get_current_user_id } = require('../../utils.js')
+const createHttpError = require("http-errors")
+const { driver } = require("../db.js")
+const { get_current_user_id } = require("../utils.js")
 
-
-
-
-exports.create_template = async (req, res, next) => {
+exports.create_template = async (req, res) => {
   // Create application form template
   const session = driver.session()
 
   try {
     const {
       label = `Unnnamed template`,
-      description = '',
+      description = "",
       fields = [],
       group_ids = [],
     } = req.body
@@ -56,31 +53,24 @@ exports.create_template = async (req, res, next) => {
     }
 
     const { records } = await session.run(cypher, params)
-    if (!records.length) throw createHttpError(500, `Failed to create the template`)
-    const template = records[0].get('template')
+    if (!records.length)
+      throw createHttpError(500, `Failed to create the template`)
+    const template = records[0].get("template")
     console.log(`Application template ${template._id} created`)
     res.send(template)
-  }
-  catch (error) {
+  } catch (error) {
     next(error)
-  }
-  finally {
+  } finally {
     session.close()
   }
-  
-
 }
 
-
-
-exports.read_templates = async (req, res, next) => {
+exports.read_templates = async (req, res) => {
   // Read application form templates
   const session = driver.session()
 
   try {
-
     const user_id = get_current_user_id(res)
-
 
     const cypher = `
       // Find author
@@ -98,36 +88,32 @@ exports.read_templates = async (req, res, next) => {
       RETURN DISTINCT PROPERTIES(aft) as template,
         PROPERTIES(creator) as creator,
         COLLECT(DISTINCT PROPERTIES(group)) as groups`
-    
-    const {records} = await session.run(cypher, {user_id})
 
-    const templates = records.map(record => {
-      const template = record.get('template')
+    const { records } = await session.run(cypher, { user_id })
+
+    const templates = records.map((record) => {
+      const template = record.get("template")
       template.fields = JSON.parse(template.fields)
       return {
         ...template,
-        author: record.get('creator'),
-        groups: record.get('groups'),
+        author: record.get("creator"),
+        groups: record.get("groups"),
       }
     })
 
     res.send(templates)
-  }
-  catch (error) {
+  } catch (error) {
     next(error)
-  }
-  finally {
+  } finally {
     session.close()
   }
-
 }
 
-exports.read_template = async (req, res, next) => {
+exports.read_template = async (req, res) => {
   // Read single application form template
   const session = driver.session()
 
   try {
-
     const { template_id } = req.params
     const user_id = get_current_user_id(res)
 
@@ -149,47 +135,37 @@ exports.read_template = async (req, res, next) => {
     const params = { user_id, template_id }
 
     const { records } = await session.run(cypher, params)
-    if (!records.length) throw createHttpError(400, `Template ${template_id} not found`)
+    if (!records.length)
+      throw createHttpError(400, `Template ${template_id} not found`)
 
     const record = records[0]
 
-    const template = record.get('template')
+    const template = record.get("template")
     template.fields = JSON.parse(template.fields)
 
     const response = {
       ...template,
-      author: record.get('creator'),
-      groups: record.get('groups'),
+      author: record.get("creator"),
+      groups: record.get("groups"),
     }
 
     res.send(response)
-
-  }
-  catch (error) {
+  } catch (error) {
     next(error)
-  }
-  finally {
+  } finally {
     session.close()
   }
-
 }
 
-exports.update_template = async (req, res, next) => {
+exports.update_template = async (req, res) => {
   // Update single application form template
   const session = driver.session()
 
   try {
-
-    const {template_id} = req.params
-    const {
-      label,
-      description,
-      group_ids,
-      fields,
-    } = req.body
+    const { template_id } = req.params
+    const { label, description, group_ids, fields } = req.body
 
     const user_id = get_current_user_id(res)
-
 
     const cypher = `
       // Find template
@@ -227,42 +203,38 @@ exports.update_template = async (req, res, next) => {
       // RETURN
       RETURN PROPERTIES(aft) AS template
       `
-    
+
     const params = {
       template_id,
       user_id,
       fields: JSON.stringify(fields), // cannot have nested props
       label,
       description,
-      group_ids
+      group_ids,
     }
 
-    const {records} = await session.run(cypher, params)
+    const { records } = await session.run(cypher, params)
 
-    if(!records.length) throw createHttpError(500, `Failed to update template ${template_id}`)
+    if (!records.length)
+      throw createHttpError(500, `Failed to update template ${template_id}`)
 
-    const template = records[0].get('template')
+    const template = records[0].get("template")
     console.log(`Template ${template_id} updated`)
     res.send(template)
-
-  }
-  catch (error) {
+  } catch (error) {
     next(error)
-  }
-  finally {
+  } finally {
     session.close()
   }
-
 }
 
-exports.delete_template = async (req, res, next) => {
+exports.delete_template = async (req, res) => {
   // Delete single application form template
   const session = driver.session()
 
   try {
     const { template_id } = req.params
     const user_id = get_current_user_id(res)
-
 
     const cypher = `
       // Find application
@@ -280,17 +252,15 @@ exports.delete_template = async (req, res, next) => {
 
     const { records } = await session.run(cypher, params)
 
-    if (!records.length) throw createHttpError(500, `Failed to delete template ${template_id}`)
+    if (!records.length)
+      throw createHttpError(500, `Failed to delete template ${template_id}`)
 
-    const deleted_template_id = records[0].get('template_id')
+    const deleted_template_id = records[0].get("template_id")
     console.log(`Template ${template_id} updated`)
     res.send({ deleted_template_id })
-  }
-  catch (error) {
+  } catch (error) {
     next(error)
-  }
-  finally {
+  } finally {
     session.close()
   }
-
 }

@@ -1,8 +1,8 @@
 const createHttpError = require("http-errors")
-const { get_current_user_id } = require("../../utils.js")
-const { driver } = require("../../db.js")
+const { get_current_user_id } = require("../utils.js")
+const { driver } = require("../db.js")
 
-exports.update_comment = async (req, res, next) => {
+exports.update_comment = async (req, res) => {
   const session = driver.session()
 
   try {

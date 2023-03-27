@@ -1,8 +1,8 @@
-const { driver } = require("../../db.js")
-const { get_current_user_id } = require("../../utils.js")
+const { driver } = require("../db.js")
+const { get_current_user_id } = require("../utils.js")
 const createHttpError = require("http-errors")
 
-exports.mark_recipient_as_notified = async (req, res, next) => {
+exports.mark_recipient_as_notified = async (req, res) => {
   const session = driver.session()
 
   try {
@@ -13,9 +13,13 @@ exports.mark_recipient_as_notified = async (req, res, next) => {
     // TODO: consider saving notifications for applicant too
     // WARNING: applicant can be recipient at the same time
     const cypher = `
+      // Find current user for access control
       MATCH (currentUser:User {_id: $current_user_id})
-      WITH (currentUser)
+      WITH currentUser
+
       MATCH (recipient:User {_id: $recipient_id} )<-[submission:SUBMITTED_TO]-(application:ApplicationForm {_id: $application_id})
+
+      // Only allow recipient or applicant to perform operation
       WHERE (currentUser)<-[:SUBMITTED_TO]-(application:ApplicationForm)
         OR (currentUser)<-[:SUBMITTED_BY]-(application:ApplicationForm)
         
