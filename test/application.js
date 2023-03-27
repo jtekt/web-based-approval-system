@@ -56,7 +56,7 @@ describe("/applications", () => {
         title: "tdd",
         type: "tdd",
         form_data,
-        recipients_ids: [user.properties._id], // self as recipient
+        recipients_ids: [user._id], // self as recipient
       }
 
       const { body, status, text } = await request(app)
@@ -75,7 +75,7 @@ describe("/applications", () => {
         title: "tdd",
         type: "tdd",
         form_data,
-        recipients_ids: [user.properties._id], // self as recipient
+        recipients_ids: [user._id], // self as recipient
       }
 
       const { body, status, text } = await request(app)
