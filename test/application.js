@@ -38,12 +38,12 @@ describe("/applications", () => {
 
   describe("POST /files", () => {
     it("Should allow the upload of a file", async () => {
-      const { body, status, text } = await request(app)
+      const { body, status } = await request(app)
         .post("/files")
         .attach("file_to_upload", "test/sample_pdf.pdf")
         .set("Authorization", `Bearer ${jwt}`)
 
-      file_id = text
+      file_id = body.file_id
 
       expect(status).to.equal(200)
     })
