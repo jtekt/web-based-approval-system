@@ -108,7 +108,7 @@ describe("/applications", () => {
 
   describe("GET /applications/:id/files/:file_id/filename", () => {
     it("Should allow the query of an application attachment filename", async () => {
-      const { status, body } = await request(app)
+      const { status } = await request(app)
         .get(`/applications/${application_id}/files/${file_id}/filename`)
         .set("Authorization", `Bearer ${jwt}`)
 
@@ -116,7 +116,7 @@ describe("/applications", () => {
     })
 
     it("Should not allow the query of an application attachment filename with invalid ID", async () => {
-      const { status, body } = await request(app)
+      const { status } = await request(app)
         .get(`/applications/${application_id}/files/banana/filename`)
         .set("Authorization", `Bearer ${jwt}`)
 

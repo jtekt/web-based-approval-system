@@ -128,14 +128,13 @@ exports.get_file = async (req, res) => {
   }
 }
 
-exports.get_file_name = async (req, res) => {
+exports.get_file_name = async (req, res, next) => {
   // Used by GET /applications/:application_id/files/:file_id/filename'
 
   const { file_id } = req.params
 
-  if (!file_id) return next(createError(400, `File ID not specified`))
+  if (!file_id) throw createError(400, `File ID not specified`)
 
-  // Now download the file
   const directory_path = path.join(uploads_path, file_id)
   const files = await get_dir_files(directory_path, file_id)
   const filename = files[0]

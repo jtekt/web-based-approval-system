@@ -18,6 +18,7 @@
     "cors": "^2.8.5",
     "dotenv": "^8.6.0",
     "express": "^4.17.3",
+    "express-async-errors": "^3.1.1",
     "formidable": "^1.2.6",
     "http-errors": "^2.0.0",
     "mv": "^2.1.1",
