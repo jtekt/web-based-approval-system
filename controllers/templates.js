@@ -2,7 +2,7 @@ const createHttpError = require("http-errors")
 const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 
-exports.create_template = async (req, res) => {
+exports.create_template = async (req, res, next) => {
   // Create application form template
   const session = driver.session()
 
@@ -63,7 +63,7 @@ exports.create_template = async (req, res) => {
   }
 }
 
-exports.read_templates = async (req, res) => {
+exports.read_templates = async (req, res, next) => {
   // Read application form templates
   const session = driver.session()
 
@@ -111,7 +111,7 @@ exports.read_templates = async (req, res) => {
   }
 }
 
-exports.read_template = async (req, res) => {
+exports.read_template = async (req, res, next) => {
   // Read single application form template
   const session = driver.session()
 
@@ -164,7 +164,7 @@ exports.read_template = async (req, res) => {
   }
 }
 
-exports.update_template = async (req, res) => {
+exports.update_template = async (req, res, next) => {
   // Update single application form template
   const session = driver.session()
 
@@ -176,7 +176,7 @@ exports.update_template = async (req, res) => {
 
     const cypher = `
       // Find template
-      MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED]->(creator:User {_id: $user_id})
+      MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED_BY]->(creator:User {_id: $user_id})
 
       // set properties
       SET aft.fields=$fields
@@ -233,7 +233,7 @@ exports.update_template = async (req, res) => {
   }
 }
 
-exports.delete_template = async (req, res) => {
+exports.delete_template = async (req, res, next) => {
   // Delete single application form template
   const session = driver.session()
 
@@ -242,7 +242,7 @@ exports.delete_template = async (req, res) => {
     const user_id = get_current_user_id(res)
 
     const cypher = `
-    MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED]->(creator:User {_id: $user_id})
+    MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED_BY]->(creator:User {_id: $user_id})
     DETACH DELETE aft
     RETURN $template_id AS template_id
     `

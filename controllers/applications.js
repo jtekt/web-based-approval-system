@@ -14,7 +14,7 @@ const {
   query_with_relationship_and_state,
 } = require("../utils.js")
 
-exports.create_application = async (req, res) => {
+exports.create_application = async (req, res, next) => {
   // Create an application form
 
   const session = driver.session()
@@ -101,7 +101,7 @@ exports.create_application = async (req, res) => {
   }
 }
 
-exports.read_applications = async (req, res) => {
+exports.read_applications = async (req, res, next) => {
   // query a list of applications
 
   const session = driver.session()
@@ -176,7 +176,7 @@ exports.read_applications = async (req, res) => {
   }
 }
 
-exports.read_application = async (req, res) => {
+exports.read_application = async (req, res, next) => {
   // query a single of applications
 
   const session = driver.session()
@@ -218,7 +218,7 @@ exports.read_application = async (req, res) => {
   }
 }
 
-exports.get_application_types = async (req, res) => {
+exports.get_application_types = async (req, res, next) => {
   // Used for search
   const session = driver.session()
 
@@ -238,7 +238,7 @@ exports.get_application_types = async (req, res) => {
   }
 }
 
-exports.delete_application = async (req, res) => {
+exports.delete_application = async (req, res, next) => {
   // Delete a single of applications
   // Note: only marks applications as deleted and not actually delete nodes
 
@@ -281,7 +281,7 @@ exports.delete_application = async (req, res) => {
   }
 }
 
-exports.approve_application = async (req, res) => {
+exports.approve_application = async (req, res, next) => {
   const session = driver.session()
 
   try {
@@ -345,7 +345,7 @@ exports.approve_application = async (req, res) => {
   }
 }
 
-exports.reject_application = async (req, res) => {
+exports.reject_application = async (req, res, next) => {
   const session = driver.session()
 
   try {

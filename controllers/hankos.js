@@ -2,7 +2,7 @@ const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 const createHttpError = require("http-errors")
 
-exports.update_hankos = async (req, res) => {
+exports.update_hankos = async (req, res, next) => {
   const session = driver.session()
 
   try {

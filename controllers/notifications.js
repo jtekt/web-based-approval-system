@@ -2,7 +2,7 @@ const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 const createHttpError = require("http-errors")
 
-exports.mark_recipient_as_notified = async (req, res) => {
+exports.mark_recipient_as_notified = async (req, res, next) => {
   const session = driver.session()
 
   try {

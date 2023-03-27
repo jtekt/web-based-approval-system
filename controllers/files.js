@@ -43,7 +43,7 @@ const get_dir_files = (directory_path, file_id) =>
     })
   })
 
-exports.file_upload = async (req, res) => {
+exports.file_upload = async (req, res, next) => {
   // Upload an attachment
 
   try {
@@ -128,7 +128,7 @@ exports.get_file = async (req, res, next) => {
   }
 }
 
-exports.get_file_name = async (req, res) => {
+exports.get_file_name = async (req, res, next) => {
   // Used by GET /applications/:application_id/files/:file_id/filename'
 
   const { file_id } = req.params
