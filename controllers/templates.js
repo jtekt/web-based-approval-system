@@ -73,11 +73,11 @@ exports.read_templates = async (req, res) => {
     const cypher = `
       MATCH (current_user:User {_id: $user_id})
 
-      // Find the template and its creator
+      // Find the template and its creator (creator is not important)
       WITH current_user
-      MATCH (creator:User)<-[:CREATED_BY]-(aft:ApplicationFormTemplate)
+      MATCH (aft:ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
       WHERE (aft)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(current_user)
-        OR creator._id = current_user._id
+        OR (aft)-[:MANAGED_BY]->(current_user)
 
       WITH aft, creator
       OPTIONAL MATCH (aft)-[:MANAGED_BY]->(manager:User)
