@@ -5,6 +5,7 @@ const {
   read_template,
   update_template,
   delete_template,
+  add_template_manager,
 } = require("../controllers/templates.js")
 
 const router = Router()
@@ -17,5 +18,7 @@ router
   .put(update_template)
   .patch(update_template)
   .delete(delete_template)
+
+router.route("/:template_id/managers").post(add_template_manager)
 
 module.exports = router

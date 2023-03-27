@@ -17,14 +17,12 @@ exports.create_template = async (req, res) => {
     const user_id = get_current_user_id(res)
 
     const cypher = `
-    // Find creator
     MATCH (creator:User {_id: $user_id})
     CREATE (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator)
-
-    // setting all properties
+    CREATE (aft)-[:MANAGED_BY]->(creator)
+    
     SET aft = $template_properties
     SET aft._id = randomUUID()
-
 
     // visibility (shared with)
     WITH aft
@@ -73,7 +71,6 @@ exports.read_templates = async (req, res) => {
     const user_id = get_current_user_id(res)
 
     const cypher = `
-      // Find author
       MATCH (current_user:User {_id: $user_id})
 
       // Find the template and its creator
@@ -83,10 +80,14 @@ exports.read_templates = async (req, res) => {
         OR creator._id = current_user._id
 
       WITH aft, creator
+      OPTIONAL MATCH (aft)-[:MANAGED_BY]->(manager:User)
+
+      WITH aft, creator, manager
       OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
       RETURN DISTINCT PROPERTIES(aft) as template,
         PROPERTIES(creator) as creator,
+        COLLECT(DISTINCT PROPERTIES(manager)) as managers,
         COLLECT(DISTINCT PROPERTIES(group)) as groups`
 
     const { records } = await session.run(cypher, { user_id })
@@ -98,6 +99,7 @@ exports.read_templates = async (req, res) => {
         ...template,
         author: record.get("creator"),
         groups: record.get("groups"),
+        managers: record.get("managers"),
       }
     })
 
@@ -121,14 +123,18 @@ exports.read_template = async (req, res) => {
       MATCH (aft:ApplicationFormTemplate {_id: $template_id})
 
       WITH aft
-      MATCH (aft)-[:CREATED_BY]->(creator:User)
+      OPTIONAL MATCH (aft)-[:CREATED_BY]->(creator:User)
 
       WITH aft, creator
+      OPTIONAL MATCH (aft)-[:MANAGED_BY]->(manager:User)
+
+      WITH aft, creator, manager
       OPTIONAL MATCH (aft)-[:VISIBLE_TO]->(group:Group)
 
       RETURN 
         PROPERTIES(aft) as template, 
         PROPERTIES(creator) as creator, 
+        COLLECT(DISTINCT PROPERTIES(manager)) as managers,
         COLLECT(DISTINCT PROPERTIES(group)) as groups
       `
 
@@ -147,6 +153,7 @@ exports.read_template = async (req, res) => {
       ...template,
       author: record.get("creator"),
       groups: record.get("groups"),
+      managers: record.get("managers"),
     }
 
     res.send(response)
@@ -169,9 +176,7 @@ exports.update_template = async (req, res) => {
 
     const cypher = `
       // Find template
-      MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-      WHERE aft._id = $template_id
-        AND creator._id = $user_id
+      MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED]->(creator:User {_id: $user_id})
 
       // set properties
       SET aft.fields=$fields
@@ -237,14 +242,8 @@ exports.delete_template = async (req, res) => {
     const user_id = get_current_user_id(res)
 
     const cypher = `
-      // Find application
-    MATCH (aft: ApplicationFormTemplate)-[:CREATED_BY]->(creator:User)
-    WHERE aft._id = $template_id
-      AND creator._id = $user_id
-
-    // Delete the node
+    MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED]->(creator:User {_id: $user_id})
     DETACH DELETE aft
-
     RETURN $template_id AS template_id
     `
 
@@ -256,8 +255,48 @@ exports.delete_template = async (req, res) => {
       throw createHttpError(500, `Failed to delete template ${template_id}`)
 
     const deleted_template_id = records[0].get("template_id")
-    console.log(`Template ${template_id} updated`)
+    console.log(`Template ${template_id} deleted`)
     res.send({ deleted_template_id })
+  } catch (error) {
+    next(error)
+  } finally {
+    session.close()
+  }
+}
+
+exports.add_template_manager = async (req, res, next) => {
+  const session = driver.session()
+
+  try {
+    const { template_id } = req.params
+    const { user_id } = req.body
+    const current_user_id = get_current_user_id(res)
+
+    const cypher = `
+      // Find application
+    MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED_BY]->(creator:User {_id: $current_user_id})
+    WITH aft
+    MATCH (user:User {_id: $user_id})
+    MERGE (user)<-[:MANAGED_BY]-(aft)
+
+    RETURN properties(aft) as template
+    `
+
+    const params = { template_id, user_id, current_user_id }
+
+    const { records } = await session.run(cypher, params)
+
+    if (!records.length)
+      throw createHttpError(
+        500,
+        `Failed to update template  ${template_id} managers`
+      )
+
+    const template = records[0].get("template")
+    console.log(
+      `user ${user_id} made manager of template ${template_id} by user ${current_user_id} `
+    )
+    res.send({ template })
   } catch (error) {
     next(error)
   } finally {
