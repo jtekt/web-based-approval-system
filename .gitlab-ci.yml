@@ -1,6 +1,7 @@
 stages:
   - build
   - test
+  - release
   - deploy
 
 image: moreillon/tdd-dind
@@ -13,36 +14,31 @@ variables:
   CONTAINER_IMAGE: ${AWS_ECR_PUBLIC_URL}/${APPLICATION_NAME}
   CONTAINER_IMAGE_TEST: ${CONTAINER_IMAGE}:test
   CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
-  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_TAG}
   # TDD
   TEST_NETWORK: tdd
   TEST_DB: tdd-db
   TEST_USER_MANAGER: tdd-user-manager
-
 
 build:
   stage: build
   tags:
     - dind
   only:
-    - master
+    - tags
   before_script:
-    # Registry login
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
-    # Create repository in ECR if it does not exist yet
     - >
       aws ecr-public create-repository --region us-east-1 --repository-name ${APPLICATION_NAME}
       || echo "Repository might have already existed"
   script:
-    # Build the docker image. Pass proxy variables if set
     - docker build -t ${CONTAINER_IMAGE_TEST} .
-    # Pushing image to registry
     - docker push ${CONTAINER_IMAGE_TEST}
 
 test:
   stage: test
   only:
-    - master
+    - tags
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   tags:
     - dind
@@ -87,7 +83,17 @@ test:
       --env TEST_USER_PASSWORD=admin
       ${CONTAINER_IMAGE_TEST}
       npm run coverage
-    # If pass, then push the images
+
+release:
+  stage: release
+  only:
+    - tags
+  tags:
+    - dind
+  before_script:
+    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
+  script:
+    - docker pull ${CONTAINER_IMAGE_TEST}
     # Tagging
     - docker tag ${CONTAINER_IMAGE_TEST} ${CONTAINER_IMAGE_TAGGED}
     - docker tag ${CONTAINER_IMAGE_TEST} ${CONTAINER_IMAGE_LATEST}
@@ -95,17 +101,13 @@ test:
     - docker push ${CONTAINER_IMAGE_TAGGED}
     - docker push ${CONTAINER_IMAGE_LATEST}
 
-
-
-
 deploy:
   stage: deploy
   only:
-    - master
+    - tags
   script:
-    # create/update the deployment
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
   environment:
     name: production
     kubernetes:
-      namespace: ${KUBERNETES_NAMESPACE} # Obtained from GitLab
+      namespace: ${KUBERNETES_NAMESPACE}
