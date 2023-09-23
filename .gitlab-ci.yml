@@ -55,7 +55,7 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_DB}
       --env NEO4J_AUTH=none
-      neo4j:3.5-community
+      neo4j:5.12.0
     - sleep 60 # Wait for Neo4J to become available
     # Deploy a user-manager / authentication system
     - >
