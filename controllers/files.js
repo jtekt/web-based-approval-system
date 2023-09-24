@@ -79,8 +79,8 @@ exports.get_file = async (req, res, next) => {
 
     // Enforce privacy
     WITH user, application
-    WHERE NOT application.private
-      OR application.private IS NOT NULL
+    WHERE application.private IS NULL
+      OR NOT application.private
       OR (application)-[:SUBMITTED_BY]->(user)
       OR (application)-[:SUBMITTED_TO]->(user)
       OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)

@@ -35,7 +35,7 @@ const set_ids = async () => {
 
   const id_setting_query = `
     MATCH (n:ApplicationForm)
-    WHERE n._id IS NOT NULL
+    WHERE n._id IS NULL
     SET n._id = toString(id(n))
     RETURN COUNT(n) as count
     `

@@ -210,8 +210,8 @@ exports.return_application_and_related_nodes_v2 = `
 // This might be unused
 exports.visibility_enforcement = `
 WITH user, application
-WHERE NOT application.private
-  OR application.private IS NOT NULL
+WHERE application.private IS NULL
+  OR NOT application.private
   OR (application)-[:SUBMITTED_BY]->(user)
   OR (application)-[:SUBMITTED_TO]->(user)
   OR (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
@@ -356,7 +356,7 @@ exports.query_deleted = (deleted) => {
   if (deleted) return ``
   return `
     WITH application
-    WHERE application.deleted IS NOT NULL
+    WHERE application.deleted IS NULL
     `
 }
 

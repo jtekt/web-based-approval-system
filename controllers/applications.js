@@ -192,7 +192,7 @@ exports.read_application = async (req, res, next) => {
     const cypher = `
             // Find application
             MATCH (application:ApplicationForm {_id: $application_id})
-            WHERE application.deleted IS NOT NULL
+            WHERE application.deleted IS NULL OR NOT application.deleted
 
             // Dummy application_count because following query uses it
             WITH application, 1 as application_count
