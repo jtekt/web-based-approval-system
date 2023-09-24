@@ -40,10 +40,10 @@ test:
   stage: test
   only:
     - tags
+    - master
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
   tags:
     - dind
-    - master
   before_script:
     # Registry login
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
