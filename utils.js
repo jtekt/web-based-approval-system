@@ -120,6 +120,7 @@ exports.return_application_and_related_nodes = `
     application.private
     AND NOT (application)-[:SUBMITTED_BY]->(user)
     AND NOT (application)-[:SUBMITTED_TO]->(user)
+    AND NOT (application)-[:VISIBLE_TO]->(user)
     AND NOT (application)-[:VISIBLE_TO]->(:Group)<-[:BELONGS_TO]-(user)
   AS forbidden
 
