@@ -2,7 +2,7 @@ require("express-async-errors")
 const express = require("express")
 const cors = require("cors")
 const dotenv = require("dotenv")
-const apiMetrics = require("prometheus-api-metrics")
+const promBundle = require("express-prom-bundle")
 const auth = require("@moreillon/express_identification_middleware")
 const { version, author } = require("./package.json")
 const { loki_url } = require("./logger")
@@ -20,16 +20,15 @@ console.log(`Shinsei manager v${version}`)
 
 db_init()
 
-// Reading environment variables
 const { APP_PORT = 80, IDENTIFICATION_URL, TZ } = process.env
-
 process.env.TZ = TZ || "Asia/Tokyo"
+const promOptions = { includeMethod: true, includePath: true }
 
 const app = express()
 
 app.use(express.json())
 app.use(cors())
-app.use(apiMetrics())
+app.use(promBundle(promOptions))
 
 app.get("/", (req, res) => {
   res.send({

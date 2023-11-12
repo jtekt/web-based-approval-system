@@ -4,3 +4,4 @@ credentials.js
 secrets.js
 .env
 .nyc_output
+build
