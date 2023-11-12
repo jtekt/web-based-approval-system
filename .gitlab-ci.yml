@@ -69,7 +69,7 @@ test:
       --env NEO4J_USERNAME=neo4j
       --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
-      moreillon/user-manager:v4.5.3
+      moreillon/user-manager:v4.7.4
   script:
     - >
       docker run
