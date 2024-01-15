@@ -13,24 +13,24 @@ spec:
         app: ${APPLICATION_NAME}
     spec:
       volumes:
-      - name: ${APPLICATION_NAME}
-        persistentVolumeClaim:
-          claimName: ${APPLICATION_NAME}
+        - name: ${APPLICATION_NAME}
+          persistentVolumeClaim:
+            claimName: ${APPLICATION_NAME}
       containers:
-      - name: ${APPLICATION_NAME}
-        image: ${CONTAINER_IMAGE_TAGGED}
-        # Backup
-        #image: moreillon/shinsei-manager:042e6d83
-        ports:
-        - containerPort: 80
-        # Get environment variables from K8s
-        envFrom:
-        - secretRef:
-           name: environment-variables
-        env:
-        - name: IDENTIFICATION_URL
-          value: http://10.115.1.100:30097/v3/users/self
-        # Mount storage to the PVC
-        volumeMounts:
-        - mountPath: "/usr/share/pv"
-          name: ${APPLICATION_NAME}
+        - name: ${APPLICATION_NAME}
+          image: ${CONTAINER_IMAGE_TAGGED}
+          # Backup
+          #image: moreillon/shinsei-manager:042e6d83
+          ports:
+            - containerPort: 80
+          # Get environment variables from K8s
+          envFrom:
+            - secretRef:
+                name: environment-variables
+          env:
+            - name: IDENTIFICATION_URL
+              value: http://employee-manager/v3/users/self
+          # Mount storage to the PVC
+          volumeMounts:
+            - mountPath: "/usr/share/pv"
+              name: ${APPLICATION_NAME}
