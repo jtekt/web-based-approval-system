@@ -7,6 +7,28 @@ const { v4: uuidv4 } = require("uuid")
 const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 const { uploads_path } = require("../config")
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
+const { addProxyToClient } = require("aws-sdk-v3-proxy")
+
+const {
+  S3_REGION,
+  S3_ACCESS_KEY_ID = "",
+  S3_SECRET_ACCESS_KEY = "",
+  S3_ENDPOINT,
+  S3_BUCKET = "",
+  HTTPS_PROXY,
+} = process.env
+
+let s3 = new S3Client({
+  region: S3_REGION,
+  credentials: {
+    accessKeyId: S3_ACCESS_KEY_ID,
+    secretAccessKey: S3_SECRET_ACCESS_KEY,
+  },
+  endpoint: S3_ENDPOINT,
+})
+
+if (HTTPS_PROXY) s3 = addProxyToClient(s3)
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {
@@ -18,7 +40,7 @@ const parse_form = (req) =>
     })
   })
 
-const store_file = (file_to_upload) =>
+const store_file_locally = (file_to_upload) =>
   new Promise((resolve, reject) => {
     // Store file in the uploads directory
 
@@ -33,6 +55,18 @@ const store_file = (file_to_upload) =>
       resolve(file_id)
     })
   })
+
+const store_file_on_s3 = async (file_to_upload) => {
+  const file_id = uuidv4()
+  const Key = `${file_id}/${file_to_upload.name}`
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Body: fs.readFileSync(file_to_upload.path),
+    Key,
+  })
+  await s3.send(command)
+  return file_id
+}
 
 const get_dir_files = (directory_path, file_id) =>
   new Promise((resolve, reject) => {
@@ -49,7 +83,11 @@ exports.file_upload = async (req, res, next) => {
   try {
     const { file_to_upload } = await parse_form(req)
     if (!file_to_upload) throw createHttpError(400, "Missing file")
-    const file_id = await store_file(file_to_upload)
+
+    let file_id
+    if (S3_BUCKET) file_id = await store_file_on_s3(file_to_upload)
+    else file_id = await store_file_locally(file_to_upload)
+
     console.log(`File ${file_id} uploaded`)
     res.send({ file_id })
   } catch (error) {
