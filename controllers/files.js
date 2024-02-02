@@ -7,7 +7,12 @@ const { v4: uuidv4 } = require("uuid")
 const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 const { uploads_path } = require("../config")
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
+const {
+  S3Client,
+  PutObjectCommand,
+  ListObjectsCommand,
+  GetObjectCommand,
+} = require("@aws-sdk/client-s3")
 const { addProxyToClient } = require("aws-sdk-v3-proxy")
 
 const {
@@ -19,16 +24,18 @@ const {
   HTTPS_PROXY,
 } = process.env
 
-let s3 = new S3Client({
+const s3ClientOptions = {
   region: S3_REGION,
   credentials: {
     accessKeyId: S3_ACCESS_KEY_ID,
     secretAccessKey: S3_SECRET_ACCESS_KEY,
   },
   endpoint: S3_ENDPOINT,
-})
+}
 
-if (HTTPS_PROXY) s3 = addProxyToClient(s3)
+const s3 = HTTPS_PROXY
+  ? addProxyToClient(new S3Client(s3ClientOptions))
+  : new S3Client(s3ClientOptions)
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {
@@ -95,6 +102,53 @@ exports.file_upload = async (req, res, next) => {
   }
 }
 
+const download_file_from_local_folder = async (res, file_id) => {
+  const directory_path = path.join(uploads_path, file_id)
+  const files = await get_dir_files(directory_path, file_id)
+
+  const file_to_download = files[0]
+  if (!file_to_download) throw createHttpError(500, `Could not open file`)
+  console.log(
+    `File ${file_id} of application ${application_id} downloaded by user ${user_id}`
+  )
+
+  // NOTE: Why not sendFile?
+  res.download(path.join(directory_path, file_to_download), file_to_download)
+}
+
+const download_file_from_s3 = async (res, file_id) => {
+  const listObjectsresult = await s3.send(
+    new ListObjectsCommand({
+      Bucket: S3_BUCKET,
+      Prefix: file_id,
+    })
+  )
+  // TODO: check if object found
+  const { Key } = listObjectsresult.Contents[0]
+  const getObjectResult = await s3.send(
+    new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key,
+    })
+  )
+
+  const filename = Key.split("/").at(-1)
+
+  getObjectResult.Body.transformToWebStream().pipeTo(
+    new WritableStream({
+      start() {
+        res.setHeader("Content-Disposition", `attachment; filename=${filename}`)
+      },
+      write(chunk) {
+        res.write(chunk)
+      },
+      close() {
+        res.end()
+      },
+    })
+  )
+}
+
 exports.get_file = async (req, res, next) => {
   const session = driver.session()
 
@@ -148,17 +202,8 @@ exports.get_file = async (req, res, next) => {
       )
 
     // Now download the file
-    const directory_path = path.join(uploads_path, file_id)
-    const files = await get_dir_files(directory_path, file_id)
-
-    const file_to_download = files[0]
-    if (!file_to_download) throw createHttpError(500, `Could not open file`)
-    console.log(
-      `File ${file_id} of application ${application_id} downloaded by user ${user_id}`
-    )
-
-    // NOTE: Why not sendFile?
-    res.download(path.join(directory_path, file_to_download), file_to_download)
+    if (S3_BUCKET) await download_file_from_s3(res, file_id)
+    else await download_file_from_local_folder(res, file_id)
   } catch (error) {
     next(error)
   } finally {
@@ -169,6 +214,7 @@ exports.get_file = async (req, res, next) => {
 exports.get_file_name = async (req, res, next) => {
   // Used by GET /applications/:application_id/files/:file_id/filename'
 
+  // TODO: figure out if this can be removed
   const { file_id } = req.params
 
   if (!file_id) throw createError(400, `File ID not specified`)

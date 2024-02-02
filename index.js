@@ -1,5 +1,5 @@
-require("express-async-errors")
 const express = require("express")
+require("express-async-errors")
 const cors = require("cors")
 const dotenv = require("dotenv")
 const promBundle = require("express-prom-bundle")
