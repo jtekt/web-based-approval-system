@@ -123,7 +123,10 @@ const download_file_from_s3 = async (res, file_id) => {
       Prefix: file_id,
     })
   )
-  // TODO: check if object found
+
+  if (!listObjectsresult.Contents || !listObjectsresult.Contents.length)
+    throw `File ${file_id} does not exist`
+
   const { Key } = listObjectsresult.Contents[0]
   const getObjectResult = await s3.send(
     new GetObjectCommand({
@@ -137,7 +140,11 @@ const download_file_from_s3 = async (res, file_id) => {
   getObjectResult.Body.transformToWebStream().pipeTo(
     new WritableStream({
       start() {
-        res.setHeader("Content-Disposition", `attachment; filename=${filename}`)
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename=${encodeURIComponent(filename)}`
+        )
+        // TODO: add size
       },
       write(chunk) {
         res.write(chunk)

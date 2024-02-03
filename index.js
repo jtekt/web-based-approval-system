@@ -1,10 +1,14 @@
+const { version, author } = require("./package.json")
+console.log(`Shinsei manager v${version}`)
+
+const dotenv = require("dotenv")
+dotenv.config()
+
 const express = require("express")
 require("express-async-errors")
 const cors = require("cors")
-const dotenv = require("dotenv")
 const promBundle = require("express-prom-bundle")
 const auth = require("@moreillon/express_identification_middleware")
-const { version, author } = require("./package.json")
 const { loki_url } = require("./logger")
 const {
   url: neo4j_url,
@@ -13,10 +17,6 @@ const {
 } = require("./db")
 const { uploads_path } = require("./config")
 const router = require("./routes")
-
-dotenv.config()
-
-console.log(`Shinsei manager v${version}`)
 
 db_init()
 
