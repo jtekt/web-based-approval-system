@@ -95,7 +95,6 @@ exports.file_upload = async (req, res, next) => {
     if (S3_BUCKET) file_id = await store_file_on_s3(file_to_upload)
     else file_id = await store_file_locally(file_to_upload)
 
-    console.log(`File ${file_id} uploaded`)
     res.send({ file_id })
   } catch (error) {
     next(error)
@@ -108,11 +107,8 @@ const download_file_from_local_folder = async (res, file_id) => {
 
   const file_to_download = files[0]
   if (!file_to_download) throw createHttpError(500, `Could not open file`)
-  console.log(
-    `File ${file_id} of application ${application_id} downloaded by user ${user_id}`
-  )
 
-  // NOTE: Why not sendFile?
+  // NOTE: Not using sendfile because specifying file name
   res.download(path.join(directory_path, file_to_download), file_to_download)
 }
 
@@ -140,11 +136,11 @@ const download_file_from_s3 = async (res, file_id) => {
   getObjectResult.Body.transformToWebStream().pipeTo(
     new WritableStream({
       start() {
+        // TODO: add size
         res.setHeader(
           "Content-Disposition",
           `attachment; filename=${encodeURIComponent(filename)}`
         )
-        // TODO: add size
       },
       write(chunk) {
         res.write(chunk)
@@ -219,9 +215,10 @@ exports.get_file = async (req, res, next) => {
 }
 
 exports.get_file_name = async (req, res, next) => {
-  // Used by GET /applications/:application_id/files/:file_id/filename'
-
   // TODO: figure out if this can be removed
+  // Used by GET /applications/:application_id/files/:file_id/filename'
+  // Used by PDF only GUI in PDF viewer
+
   const { file_id } = req.params
 
   if (!file_id) throw createError(400, `File ID not specified`)

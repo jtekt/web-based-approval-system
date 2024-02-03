@@ -89,10 +89,6 @@ exports.create_application = async (req, res, next) => {
       throw createHttpError(500, `Failed to create the application`)
     const application = records[0].get("application")
 
-    logger.info({
-      message: `Application ${application._id} created by user ${user_id}`,
-    })
-
     res.send(application)
   } catch (error) {
     next(error)
@@ -124,24 +120,23 @@ exports.read_applications = async (req, res, next) => {
     } = req.query
 
     const cypher = `
-            MATCH (user:User {_id: $user_id})
-            WITH user
-            MATCH (application:ApplicationForm)
-            ${query_with_relationship_and_state(relationship, state)}
+      MATCH (user:User {_id: $user_id})
+      WITH user
+      MATCH (application:ApplicationForm)
+      ${query_with_relationship_and_state(relationship, state)}
 
-            // from here on, no need for user anymore
-            // gets requeried later on
-            ${query_deleted(deleted)}
-            ${filter_by_type(type)}
-            ${query_with_date(start_date, end_date)}
-            ${query_with_group(group_id)}
-            ${query_with_hanko_id(hanko_id)}
+      // from here on, no need for user anymore
+      // gets requeried later on
+      ${query_deleted(deleted)}
+      ${filter_by_type(type)}
+      ${query_with_date(start_date, end_date)}
+      ${query_with_group(group_id)}
+      ${query_with_hanko_id(hanko_id)}
 
-            // batching
-            ${application_batching}
-            ${return_application_and_related_nodes_v2}
-
-            `
+      // batching
+      ${application_batching}
+      ${return_application_and_related_nodes_v2}
+      `
 
     const params = {
       user_id,
@@ -190,14 +185,14 @@ exports.read_application = async (req, res, next) => {
       throw createHttpError(400, "Application ID not defined")
 
     const cypher = `
-            // Find application
-            MATCH (application:ApplicationForm {_id: $application_id})
-            WHERE application.deleted IS NULL OR NOT application.deleted
+      // Find application
+      MATCH (application:ApplicationForm {_id: $application_id})
+      WHERE application.deleted IS NULL OR NOT application.deleted
 
-            // Dummy application_count because following query uses it
-            WITH application, 1 as application_count
-            ${return_application_and_related_nodes_v2}
-            `
+      // Dummy application_count because following query uses it
+      WITH application, 1 as application_count
+      ${return_application_and_related_nodes_v2}
+      `
 
     const params = { user_id, application_id }
 
@@ -224,9 +219,9 @@ exports.get_application_types = async (req, res, next) => {
 
   try {
     const cypher = `
-        MATCH (application:ApplicationForm)
-        RETURN DISTINCT(application.type) as application_type
-        `
+      MATCH (application:ApplicationForm)
+      RETURN DISTINCT(application.type) as application_type
+      `
 
     const { records } = await session.run(cypher, {})
     const types = records.map((record) => record.get("application_type"))
@@ -253,16 +248,16 @@ exports.delete_application = async (req, res, next) => {
       throw createHttpError(400, "Application ID not defined")
 
     const cypher = `
-            // Find application
-            MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm )
-            WHERE applicant._id = $user_id
-                AND application._id = $application_id
+      // Find application
+      MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm )
+      WHERE applicant._id = $user_id
+          AND application._id = $application_id
 
-            // flag as deleted
-            SET application.deleted = True
+      // flag as deleted
+      SET application.deleted = True
 
-            RETURN properties(application) as application
-            `
+      RETURN properties(application) as application
+      `
 
     const params = { user_id, application_id }
 
@@ -299,25 +294,25 @@ exports.approve_application = async (req, res, next) => {
       : ""
 
     const cypher = `
-            // Find the application and get oneself at the same time
-            MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-            WHERE application._id = $application_id
-            AND recipient._id = $user_id
+      // Find the application and get oneself at the same time
+      MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
+      WHERE application._id = $application_id
+      AND recipient._id = $user_id
 
-            // TODO: Add check if flow is respected
+      // TODO: Add check if flow is respected
 
-            // Mark as approved
-            WITH application, recipient
-            MERGE (application)<-[approval:APPROVED]-(recipient)
-            ON CREATE SET approval.date = date()
-            ON CREATE SET approval._id = randomUUID()
-            SET approval.comment = $comment
-            ${attachment_hankos_query}
+      // Mark as approved
+      WITH application, recipient
+      MERGE (application)<-[approval:APPROVED]-(recipient)
+      ON CREATE SET approval.date = date()
+      ON CREATE SET approval._id = randomUUID()
+      SET approval.comment = $comment
+      ${attachment_hankos_query}
 
-            RETURN PROPERTIES(approval) as approval,
-                PROPERTIES(recipient) as recipient, 
-                PROPERTIES(application) as application
-            `
+      RETURN PROPERTIES(approval) as approval,
+          PROPERTIES(recipient) as recipient, 
+          PROPERTIES(application) as application
+      `
 
     const params = {
       user_id,
@@ -359,23 +354,23 @@ exports.reject_application = async (req, res, next) => {
       throw createHttpError(400, "Application ID not defined")
 
     const cypher = `
-            MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
-            WHERE application._id = $application_id
-            AND recipient._id = $user_id
+      MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)
+      WHERE application._id = $application_id
+      AND recipient._id = $user_id
 
-            // TODO: Add check if flow is respected
+      // TODO: Add check if flow is respected
 
-            // Mark as REJECTED
-            WITH application, recipient
-            MERGE (application)<-[rejection:REJECTED]-(recipient)
-            ON CREATE SET rejection._id = randomUUID()
-            ON CREATE SET rejection.date = date()
-            SET rejection.comment = $comment
+      // Mark as REJECTED
+      WITH application, recipient
+      MERGE (application)<-[rejection:REJECTED]-(recipient)
+      ON CREATE SET rejection._id = randomUUID()
+      ON CREATE SET rejection.date = date()
+      SET rejection.comment = $comment
 
-            RETURN PROPERTIES(rejection) as rejection,
-                PROPERTIES(recipient) as recipient, 
-                PROPERTIES(application) as application
-            `
+      RETURN PROPERTIES(rejection) as rejection,
+          PROPERTIES(recipient) as recipient, 
+          PROPERTIES(application) as application
+      `
 
     const params = {
       user_id,

@@ -1,8 +1,8 @@
-const { version, author } = require("./package.json")
-console.log(`Shinsei manager v${version}`)
-
 const dotenv = require("dotenv")
 dotenv.config()
+
+const { version, author } = require("./package.json")
+console.log(`Shinsei manager v${version}`)
 
 const express = require("express")
 require("express-async-errors")
@@ -22,12 +22,15 @@ db_init()
 
 const { APP_PORT = 80, IDENTIFICATION_URL, TZ } = process.env
 process.env.TZ = TZ || "Asia/Tokyo"
+const corsOptions = {
+  exposedHeaders: "Content-Disposition",
+}
 const promOptions = { includeMethod: true, includePath: true }
 
 const app = express()
 
 app.use(express.json())
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(promBundle(promOptions))
 
 app.get("/", (req, res) => {
