@@ -44,11 +44,16 @@ app.get("/", (req, res) => {
       connected: get_neo4j_connection_status(),
     },
     identification: IDENTIFICATION_URL,
-    uploads_path,
-    loki_url,
-    s3: {
-      bucket: S3_BUCKET,
+    attachments: {
+      uploads_path: S3_BUCKET ? uploads_path : undefined,
+      s3: S3_BUCKET
+        ? {
+            bucket: S3_BUCKET,
+          }
+        : undefined,
     },
+
+    loki_url,
   })
 })
 
