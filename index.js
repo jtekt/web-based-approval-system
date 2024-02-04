@@ -45,7 +45,7 @@ app.get("/", (req, res) => {
     },
     identification: IDENTIFICATION_URL,
     attachments: {
-      uploads_path: S3_BUCKET ? uploads_path : undefined,
+      uploads_path: !S3_BUCKET ? uploads_path : undefined,
       s3: S3_BUCKET
         ? {
             bucket: S3_BUCKET,
