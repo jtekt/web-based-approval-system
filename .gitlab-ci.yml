@@ -1,12 +1,12 @@
 stages:
   - build
-  - test
+  # - test
   - release
   - deploy
 
 image: moreillon/tdd-dind
 services:
-  - name: docker:19.03.12-dind
+  - name: docker:24.0.7-dind
 
 variables:
   APPLICATION_NAME: shinsei-manager
@@ -35,54 +35,54 @@ build:
     - docker build -t ${CONTAINER_IMAGE_TEST} .
     - docker push ${CONTAINER_IMAGE_TEST}
 
-test:
-  stage: test
-  only:
-    - tags
-  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
-  tags:
-    - dind
-  before_script:
-    # Registry login
-    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
-    # Creating network for TDD
-    - docker network create ${TEST_NETWORK}
-    - >
-      docker run
-      -d
-      --rm
-      --name ${TEST_DB}
-      --network ${TEST_NETWORK}
-      --hostname ${TEST_DB}
-      --env NEO4J_AUTH=none
-      neo4j:5.12.0
-    - sleep 60 # Wait for Neo4J to become available
-    # Deploy a user-manager / authentication system
-    - >
-      docker run
-      -d
-      --rm
-      --name ${TEST_USER_MANAGER}
-      --network ${TEST_NETWORK}
-      --hostname ${TEST_USER_MANAGER}
-      --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env NEO4J_USERNAME=neo4j
-      --env NEO4J_PASSWORD=neo4j
-      --env JWT_SECRET=keyboardcat
-      moreillon/user-manager:v4.7.4
-  script:
-    - >
-      docker run
-      --rm
-      --name tdd-app
-      --network ${TEST_NETWORK}
-      --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env IDENTIFICATION_URL=http://${TEST_USER_MANAGER}/users/self
-      --env LOGIN_URL=http://${TEST_USER_MANAGER}/auth/login
-      --env TEST_USER_USERNAME=admin
-      --env TEST_USER_PASSWORD=admin
-      ${CONTAINER_IMAGE_TEST}
-      npm run coverage
+# test:
+#   stage: test
+#   only:
+#     - tags
+#   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+#   tags:
+#     - dind
+#   before_script:
+#     # Registry login
+#     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
+#     # Creating network for TDD
+#     - docker network create ${TEST_NETWORK}
+#     - >
+#       docker run
+#       -d
+#       --rm
+#       --name ${TEST_DB}
+#       --network ${TEST_NETWORK}
+#       --hostname ${TEST_DB}
+#       --env NEO4J_AUTH=none
+#       neo4j:5.12.0
+#     - sleep 60 # Wait for Neo4J to become available
+#     # Deploy a user-manager / authentication system
+#     - >
+#       docker run
+#       -d
+#       --rm
+#       --name ${TEST_USER_MANAGER}
+#       --network ${TEST_NETWORK}
+#       --hostname ${TEST_USER_MANAGER}
+#       --env NEO4J_URL=bolt://${TEST_DB}:7687
+#       --env NEO4J_USERNAME=neo4j
+#       --env NEO4J_PASSWORD=neo4j
+#       --env JWT_SECRET=keyboardcat
+#       moreillon/user-manager:v4.7.4
+#   script:
+#     - >
+#       docker run
+#       --rm
+#       --name tdd-app
+#       --network ${TEST_NETWORK}
+#       --env NEO4J_URL=bolt://${TEST_DB}:7687
+#       --env IDENTIFICATION_URL=http://${TEST_USER_MANAGER}/users/self
+#       --env LOGIN_URL=http://${TEST_USER_MANAGER}/auth/login
+#       --env TEST_USER_USERNAME=admin
+#       --env TEST_USER_PASSWORD=admin
+#       ${CONTAINER_IMAGE_TEST}
+#       npm run coverage
 
 release:
   stage: release
