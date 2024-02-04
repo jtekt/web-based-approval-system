@@ -30,8 +30,8 @@ spec:
           env:
             - name: IDENTIFICATION_URL
               value: http://employee-manager/v3/users/self
-            - name: S3_BUCKET
-              value: approval-workflow-attachments
+            # - name: S3_BUCKET
+            #   value: approval-workflow-attachments
           # Mount storage to the PVC
           volumeMounts:
             - mountPath: "/usr/share/pv"
