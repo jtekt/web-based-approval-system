@@ -131,7 +131,7 @@ const download_file_from_s3 = async (res, file_id) => {
     })
   )
 
-  const filename = Key.split("/").at(-1)
+  const { base: filename } = path.parse(Key)
 
   getObjectResult.Body.transformToWebStream().pipeTo(
     new WritableStream({
