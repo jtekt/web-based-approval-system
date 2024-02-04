@@ -48,7 +48,7 @@ const store_file_on_s3 = async (file_to_upload) => {
     Body: fs.readFileSync(file_to_upload.path),
     Key,
   })
-  await s3.send(command)
+  await s3Client.send(command)
   return file_id
 }
 
