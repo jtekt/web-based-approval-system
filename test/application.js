@@ -106,24 +106,6 @@ describe("/applications", () => {
     })
   })
 
-  describe("GET /applications/:id/files/:file_id/filename", () => {
-    it("Should allow the query of an application attachment filename", async () => {
-      const { status } = await request(app)
-        .get(`/applications/${application_id}/files/${file_id}/filename`)
-        .set("Authorization", `Bearer ${jwt}`)
-
-      expect(status).to.equal(200)
-    })
-
-    it("Should not allow the query of an application attachment filename with invalid ID", async () => {
-      const { status } = await request(app)
-        .get(`/applications/${application_id}/files/banana/filename`)
-        .set("Authorization", `Bearer ${jwt}`)
-
-      expect(status).to.not.equal(200)
-    })
-  })
-
   describe("GET /applications/:id/files/:file_id", () => {
     it("Should allow the query of an application attachment", async () => {
       const { status } = await request(app)

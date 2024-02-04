@@ -16,6 +16,7 @@ const {
   init: db_init,
 } = require("./db")
 const { uploads_path } = require("./config")
+const { S3_BUCKET } = requirte("s3")
 const router = require("./routes")
 
 db_init()
@@ -45,6 +46,9 @@ app.get("/", (req, res) => {
     identification: IDENTIFICATION_URL,
     uploads_path,
     loki_url,
+    s3: {
+      bucket: S3_BUCKET,
+    },
   })
 })
 
