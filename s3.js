@@ -1,5 +1,6 @@
 const path = require("path")
 const { addProxyToClient } = require("aws-sdk-v3-proxy")
+const { v4: uuidv4 } = require("uuid")
 const {
   S3Client,
   PutObjectCommand,
