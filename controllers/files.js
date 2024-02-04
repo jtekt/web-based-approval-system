@@ -4,38 +4,10 @@ const fs = require("fs")
 const path = require("path")
 const formidable = require("formidable")
 const { v4: uuidv4 } = require("uuid")
-const { driver } = require("../db.js")
-const { get_current_user_id } = require("../utils.js")
+const { driver } = require("../db")
+const { get_current_user_id } = require("../utils")
 const { uploads_path } = require("../config")
-const {
-  S3Client,
-  PutObjectCommand,
-  ListObjectsCommand,
-  GetObjectCommand,
-} = require("@aws-sdk/client-s3")
-const { addProxyToClient } = require("aws-sdk-v3-proxy")
-
-const {
-  S3_REGION,
-  S3_ACCESS_KEY_ID = "",
-  S3_SECRET_ACCESS_KEY = "",
-  S3_ENDPOINT,
-  S3_BUCKET = "",
-  HTTPS_PROXY,
-} = process.env
-
-const s3ClientOptions = {
-  region: S3_REGION,
-  credentials: {
-    accessKeyId: S3_ACCESS_KEY_ID,
-    secretAccessKey: S3_SECRET_ACCESS_KEY,
-  },
-  endpoint: S3_ENDPOINT,
-}
-
-const s3 = HTTPS_PROXY
-  ? addProxyToClient(new S3Client(s3ClientOptions))
-  : new S3Client(s3ClientOptions)
+const { s3Client, store_file_on_s3, download_file_from_s3 } = require("../s3")
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {
@@ -63,18 +35,6 @@ const store_file_locally = (file_to_upload) =>
     })
   })
 
-const store_file_on_s3 = async (file_to_upload) => {
-  const file_id = uuidv4()
-  const Key = `${file_id}/${file_to_upload.name}`
-  const command = new PutObjectCommand({
-    Bucket: S3_BUCKET,
-    Body: fs.readFileSync(file_to_upload.path),
-    Key,
-  })
-  await s3.send(command)
-  return file_id
-}
-
 const get_dir_files = (directory_path, file_id) =>
   new Promise((resolve, reject) => {
     // Read files of a directory
@@ -92,7 +52,7 @@ exports.file_upload = async (req, res, next) => {
     if (!file_to_upload) throw createHttpError(400, "Missing file")
 
     let file_id
-    if (S3_BUCKET) file_id = await store_file_on_s3(file_to_upload)
+    if (s3Client) file_id = await store_file_on_s3(file_to_upload)
     else file_id = await store_file_locally(file_to_upload)
 
     res.send({ file_id })
@@ -110,46 +70,6 @@ const download_file_from_local_folder = async (res, file_id) => {
 
   // NOTE: Not using sendfile because specifying file name
   res.download(path.join(directory_path, file_to_download), file_to_download)
-}
-
-const download_file_from_s3 = async (res, file_id) => {
-  const listObjectsresult = await s3.send(
-    new ListObjectsCommand({
-      Bucket: S3_BUCKET,
-      Prefix: file_id,
-    })
-  )
-
-  if (!listObjectsresult.Contents || !listObjectsresult.Contents.length)
-    throw `File ${file_id} does not exist`
-
-  const { Key } = listObjectsresult.Contents[0]
-  const getObjectResult = await s3.send(
-    new GetObjectCommand({
-      Bucket: S3_BUCKET,
-      Key,
-    })
-  )
-
-  const { base: filename } = path.parse(Key)
-
-  getObjectResult.Body.transformToWebStream().pipeTo(
-    new WritableStream({
-      start() {
-        // TODO: add size
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename=${encodeURIComponent(filename)}`
-        )
-      },
-      write(chunk) {
-        res.write(chunk)
-      },
-      close() {
-        res.end()
-      },
-    })
-  )
 }
 
 exports.get_file = async (req, res, next) => {
@@ -205,7 +125,7 @@ exports.get_file = async (req, res, next) => {
       )
 
     // Now download the file
-    if (S3_BUCKET) await download_file_from_s3(res, file_id)
+    if (s3Client) await download_file_from_s3(res, file_id)
     else await download_file_from_local_folder(res, file_id)
   } catch (error) {
     next(error)
