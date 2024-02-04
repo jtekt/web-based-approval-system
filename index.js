@@ -16,7 +16,7 @@ const {
   init: db_init,
 } = require("./db")
 const { uploads_path } = require("./config")
-const { S3_BUCKET } = requirte("s3")
+const { S3_BUCKET } = require("./s3")
 const router = require("./routes")
 
 db_init()
