@@ -1,10 +1,14 @@
-require("express-async-errors")
-const express = require("express")
-const cors = require("cors")
 const dotenv = require("dotenv")
+dotenv.config()
+
+const { version, author } = require("./package.json")
+console.log(`Shinsei manager v${version}`)
+
+const express = require("express")
+require("express-async-errors")
+const cors = require("cors")
 const promBundle = require("express-prom-bundle")
 const auth = require("@moreillon/express_identification_middleware")
-const { version, author } = require("./package.json")
 const { loki_url } = require("./logger")
 const {
   url: neo4j_url,
@@ -12,22 +16,22 @@ const {
   init: db_init,
 } = require("./db")
 const { uploads_path } = require("./config")
+const { S3_BUCKET } = requirte("s3")
 const router = require("./routes")
-
-dotenv.config()
-
-console.log(`Shinsei manager v${version}`)
 
 db_init()
 
 const { APP_PORT = 80, IDENTIFICATION_URL, TZ } = process.env
 process.env.TZ = TZ || "Asia/Tokyo"
+const corsOptions = {
+  exposedHeaders: "Content-Disposition",
+}
 const promOptions = { includeMethod: true, includePath: true }
 
 const app = express()
 
 app.use(express.json())
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(promBundle(promOptions))
 
 app.get("/", (req, res) => {
@@ -42,6 +46,9 @@ app.get("/", (req, res) => {
     identification: IDENTIFICATION_URL,
     uploads_path,
     loki_url,
+    s3: {
+      bucket: S3_BUCKET,
+    },
   })
 })
 

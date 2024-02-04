@@ -14,14 +14,13 @@ exports.update_hankos = async (req, res, next) => {
       throw createHttpError(400, "attachment_hankos not defined")
 
     const cypher = `
-            MATCH (user:User)-[approval:APPROVED]->(application:ApplicationForm)
-            WHERE user._id = $user_id
-                AND application._id = $application_id
+      MATCH (user:User)-[approval:APPROVED]->(application:ApplicationForm)
+      WHERE user._id = $user_id AND application._id = $application_id
 
-            SET approval.attachment_hankos = $attachment_hankos
+      SET approval.attachment_hankos = $attachment_hankos
 
-            RETURN PROPERTIES(approval) as approval
-            `
+      RETURN PROPERTIES(approval) as approval
+      `
 
     const params = {
       user_id,

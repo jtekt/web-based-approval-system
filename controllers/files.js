@@ -4,9 +4,10 @@ const fs = require("fs")
 const path = require("path")
 const formidable = require("formidable")
 const { v4: uuidv4 } = require("uuid")
-const { driver } = require("../db.js")
-const { get_current_user_id } = require("../utils.js")
+const { driver } = require("../db")
+const { get_current_user_id } = require("../utils")
 const { uploads_path } = require("../config")
+const { s3Client, store_file_on_s3, download_file_from_s3 } = require("../s3")
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {
@@ -18,7 +19,7 @@ const parse_form = (req) =>
     })
   })
 
-const store_file = (file_to_upload) =>
+const store_file_locally = (file_to_upload) =>
   new Promise((resolve, reject) => {
     // Store file in the uploads directory
 
@@ -49,12 +50,26 @@ exports.file_upload = async (req, res, next) => {
   try {
     const { file_to_upload } = await parse_form(req)
     if (!file_to_upload) throw createHttpError(400, "Missing file")
-    const file_id = await store_file(file_to_upload)
-    console.log(`File ${file_id} uploaded`)
+
+    let file_id
+    if (s3Client) file_id = await store_file_on_s3(file_to_upload)
+    else file_id = await store_file_locally(file_to_upload)
+
     res.send({ file_id })
   } catch (error) {
     next(error)
   }
+}
+
+const download_file_from_local_folder = async (res, file_id) => {
+  const directory_path = path.join(uploads_path, file_id)
+  const files = await get_dir_files(directory_path, file_id)
+
+  const file_to_download = files[0]
+  if (!file_to_download) throw createHttpError(500, `Could not open file`)
+
+  // NOTE: Not using sendfile because specifying file name
+  res.download(path.join(directory_path, file_to_download), file_to_download)
 }
 
 exports.get_file = async (req, res, next) => {
@@ -110,17 +125,8 @@ exports.get_file = async (req, res, next) => {
       )
 
     // Now download the file
-    const directory_path = path.join(uploads_path, file_id)
-    const files = await get_dir_files(directory_path, file_id)
-
-    const file_to_download = files[0]
-    if (!file_to_download) throw createHttpError(500, `Could not open file`)
-    console.log(
-      `File ${file_id} of application ${application_id} downloaded by user ${user_id}`
-    )
-
-    // NOTE: Why not sendFile?
-    res.download(path.join(directory_path, file_to_download), file_to_download)
+    if (s3Client) await download_file_from_s3(res, file_id)
+    else await download_file_from_local_folder(res, file_id)
   } catch (error) {
     next(error)
   } finally {
@@ -129,7 +135,9 @@ exports.get_file = async (req, res, next) => {
 }
 
 exports.get_file_name = async (req, res, next) => {
+  // TODO: figure out if this can be removed
   // Used by GET /applications/:application_id/files/:file_id/filename'
+  // Used by PDF only GUI in PDF viewer
 
   const { file_id } = req.params
 

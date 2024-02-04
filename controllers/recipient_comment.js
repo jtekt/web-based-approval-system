@@ -14,18 +14,18 @@ exports.update_comment = async (req, res, next) => {
     if (!comment) throw createHttpError(400, `Missing comment`)
 
     const cypher = `
-            // Find current user to check for authorization
-            // WARNING: decision could be SUBMITTED_BY or SUBMITTED_TO couldn't it?
-            MATCH (user:User)-[decision]->(application:ApplicationForm)
-            WHERE user._id = $user_id
-            AND application._id = $application_id
+      // Find current user to check for authorization
+      // WARNING: decision could be SUBMITTED_BY or SUBMITTED_TO couldn't it?
+      MATCH (user:User)-[decision]->(application:ApplicationForm)
+      WHERE user._id = $user_id
+      AND application._id = $application_id
 
-            // Set the attached hankos
-            SET decision.comment = $comment
+      // Set the attached hankos
+      SET decision.comment = $comment
 
-            // Return
-            RETURN decision.comment as comment
-            `
+      // Return
+      RETURN decision.comment as comment
+      `
 
     const params = {
       user_id,
