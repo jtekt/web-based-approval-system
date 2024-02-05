@@ -31,7 +31,7 @@ let s3Client
 
 if (S3_BUCKET) {
   console.log(
-    `[S3] S3_BUCKET is set, uploading attachment to S3 bucket "${S3_BUCKET}"`
+    `[S3] S3_BUCKET is set, uploading attachment to S3 bucket "${S3_BUCKET}" in region ${S3_REGION}`
   )
   s3Client = HTTPS_PROXY
     ? addProxyToClient(new S3Client(s3ClientOptions))
