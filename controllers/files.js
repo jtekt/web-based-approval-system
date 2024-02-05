@@ -133,18 +133,3 @@ exports.get_file = async (req, res, next) => {
     session.close()
   }
 }
-
-exports.get_file_name = async (req, res, next) => {
-  // TODO: figure out if this can be removed
-  // Used by GET /applications/:application_id/files/:file_id/filename'
-  // Used by PDF only GUI in PDF viewer
-
-  const { file_id } = req.params
-
-  if (!file_id) throw createError(400, `File ID not specified`)
-
-  const directory_path = path.join(uploads_path, file_id)
-  const files = await get_dir_files(directory_path, file_id)
-  const filename = files[0]
-  res.send({ filename })
-}
