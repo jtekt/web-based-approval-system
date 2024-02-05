@@ -54,7 +54,6 @@ exports.create_template = async (req, res, next) => {
     if (!records.length)
       throw createHttpError(500, `Failed to create the template`)
     const template = records[0].get("template")
-    console.log(`Application template ${template._id} created`)
     res.send(template)
   } catch (error) {
     next(error)
@@ -224,7 +223,6 @@ exports.update_template = async (req, res, next) => {
       throw createHttpError(500, `Failed to update template ${template_id}`)
 
     const template = records[0].get("template")
-    console.log(`Template ${template_id} updated`)
     res.send(template)
   } catch (error) {
     next(error)
@@ -255,7 +253,6 @@ exports.delete_template = async (req, res, next) => {
       throw createHttpError(500, `Failed to delete template ${template_id}`)
 
     const deleted_template_id = records[0].get("template_id")
-    console.log(`Template ${template_id} deleted`)
     res.send({ deleted_template_id })
   } catch (error) {
     next(error)

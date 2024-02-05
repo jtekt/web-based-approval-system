@@ -267,7 +267,6 @@ exports.delete_application = async (req, res, next) => {
 
     const application = records[0].get("application")
 
-    console.log(`Application ${application_id} deleted`)
     res.send(application)
   } catch (error) {
     next(error)

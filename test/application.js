@@ -1,10 +1,10 @@
+const dotenv = require("dotenv")
+dotenv.config()
+
 const request = require("supertest")
 const { expect } = require("chai")
 const { app } = require("../index.js")
 const axios = require("axios")
-const dotenv = require("dotenv")
-
-dotenv.config()
 
 const {
   LOGIN_URL,
@@ -59,7 +59,7 @@ describe("/applications", () => {
         recipients_ids: [user._id], // self as recipient
       }
 
-      const { body, status, text } = await request(app)
+      const { body, status } = await request(app)
         .post("/applications")
         .send(application)
         .set("Authorization", `Bearer ${jwt}`)

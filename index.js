@@ -16,7 +16,7 @@ const {
   init: db_init,
 } = require("./db")
 const { uploads_path } = require("./config")
-const { S3_BUCKET, S3_REGION } = require("./s3")
+const { S3_BUCKET, S3_REGION, S3_ENDPOINT } = require("./s3")
 const router = require("./routes")
 
 db_init()
@@ -50,6 +50,7 @@ app.get("/", (req, res) => {
         ? {
             bucket: S3_BUCKET,
             region: S3_REGION,
+            endpoint: S3_ENDPOINT,
           }
         : undefined,
     },

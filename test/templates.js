@@ -1,3 +1,6 @@
+const dotenv = require("dotenv")
+dotenv.config()
+
 const request = require("supertest")
 const { expect } = require("chai")
 const { app } = require("../index.js")
@@ -39,12 +42,22 @@ describe("/templates", () => {
         label: "tdd",
       }
 
-      const { body, status, text } = await request(app)
+      const { body, status } = await request(app)
         .post("/templates")
         .send(template)
         .set("Authorization", `Bearer ${jwt}`)
 
-      template_id = body.identity
+      template_id = body._id
+
+      expect(status).to.equal(200)
+    })
+  })
+
+  describe("DELETE /templates/:template_id", () => {
+    it("Should allow the deletion of a template", async () => {
+      const { status } = await request(app)
+        .delete(`/templates/${template_id}`)
+        .set("Authorization", `Bearer ${jwt}`)
 
       expect(status).to.equal(200)
     })

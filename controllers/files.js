@@ -1,46 +1,20 @@
 const createHttpError = require("http-errors")
-const mv = require("mv")
-const fs = require("fs")
-const path = require("path")
+
 const formidable = require("formidable")
-const { v4: uuidv4 } = require("uuid")
 const { driver } = require("../db")
 const { get_current_user_id } = require("../utils")
-const { uploads_path } = require("../config")
 const { s3Client, store_file_on_s3, download_file_from_s3 } = require("../s3")
+const {
+  store_file_locally,
+  download_file_from_local_folder,
+} = require("../localFilesHandling")
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {
-    // Parse multipart/form-data
     const form = new formidable.IncomingForm()
     form.parse(req, (err, fields, files) => {
       if (err) reject(err)
       resolve(files)
-    })
-  })
-
-const store_file_locally = (file_to_upload) =>
-  new Promise((resolve, reject) => {
-    // Store file in the uploads directory
-
-    const { path: old_path, name: file_name } = file_to_upload
-
-    const file_id = uuidv4()
-    const new_directory_path = path.join(uploads_path, file_id)
-    const new_file_path = path.join(new_directory_path, file_name)
-
-    mv(old_path, new_file_path, { mkdirp: true }, (err) => {
-      if (err) reject(err)
-      resolve(file_id)
-    })
-  })
-
-const get_dir_files = (directory_path, file_id) =>
-  new Promise((resolve, reject) => {
-    // Read files of a directory
-    fs.readdir(directory_path, (err, items) => {
-      if (err) reject(err)
-      resolve(items)
     })
   })
 
@@ -59,17 +33,6 @@ exports.file_upload = async (req, res, next) => {
   } catch (error) {
     next(error)
   }
-}
-
-const download_file_from_local_folder = async (res, file_id) => {
-  const directory_path = path.join(uploads_path, file_id)
-  const files = await get_dir_files(directory_path, file_id)
-
-  const file_to_download = files[0]
-  if (!file_to_download) throw createHttpError(500, `Could not open file`)
-
-  // NOTE: Not using sendfile because specifying file name
-  res.download(path.join(directory_path, file_to_download), file_to_download)
 }
 
 exports.get_file = async (req, res, next) => {
