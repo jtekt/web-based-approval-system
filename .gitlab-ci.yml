@@ -81,6 +81,7 @@ test:
       --env LOGIN_URL=http://${TEST_USER_MANAGER}/auth/login
       --env TEST_USER_USERNAME=admin
       --env TEST_USER_PASSWORD=admin
+      --env S3_BUCKET=approval-workflow-attachments
       ${CONTAINER_IMAGE_TEST}
       npm run coverage
 
