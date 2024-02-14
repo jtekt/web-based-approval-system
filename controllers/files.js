@@ -3,11 +3,15 @@ const createHttpError = require("http-errors")
 const formidable = require("formidable")
 const { driver } = require("../db")
 const { get_current_user_id } = require("../utils")
-const { s3Client, store_file_on_s3, download_file_from_s3 } = require("../s3")
+const {
+  s3Client,
+  store_file_on_s3,
+  download_file_from_s3,
+} = require("../attachmentsStorage/s3")
 const {
   store_file_locally,
   download_file_from_local_folder,
-} = require("../localFilesHandling")
+} = require("../attachmentsStorage/local")
 
 const parse_form = (req) =>
   new Promise((resolve, reject) => {

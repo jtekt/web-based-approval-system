@@ -15,8 +15,9 @@ const {
   get_connected: get_neo4j_connection_status,
   init: db_init,
 } = require("./db")
-const { uploads_path } = require("./config")
-const { S3_BUCKET, S3_REGION, S3_ENDPOINT } = require("./s3")
+const { S3_BUCKET, S3_REGION, S3_ENDPOINT } = require("./attachmentsStorage/s3")
+const { UPLOADS_PATH } = require("./attachmentsStorage/local")
+
 const router = require("./routes")
 
 db_init()
@@ -45,7 +46,7 @@ app.get("/", (req, res) => {
     },
     identification: IDENTIFICATION_URL,
     attachments: {
-      uploads_path: !S3_BUCKET ? uploads_path : undefined,
+      uploads_path: !S3_BUCKET ? UPLOADS_PATH : undefined,
       s3: S3_BUCKET
         ? {
             bucket: S3_BUCKET,
