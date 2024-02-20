@@ -3,7 +3,6 @@ const { driver } = require("../db.js")
 const { get_current_user_id } = require("../utils.js")
 
 exports.create_template = async (req, res, next) => {
-  // Create application form template
   const session = driver.session()
 
   try {
@@ -164,7 +163,6 @@ exports.read_template = async (req, res, next) => {
 }
 
 exports.update_template = async (req, res, next) => {
-  // Update single application form template
   const session = driver.session()
 
   try {
@@ -173,19 +171,8 @@ exports.update_template = async (req, res, next) => {
 
     const user_id = get_current_user_id(res)
 
-    const cypher = `
-      // Find template
-      MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED_BY]->(creator:User {_id: $user_id})
-
-      // set properties
-      SET aft.fields=$fields
-      SET aft.label=$label
-      SET aft.description=$description
-
-      // update visibility (shared with)
-      // first delete everything
-      // THIS IS A PROBLEM IF NOT VISIBLE TO ANY GROUP
-      WITH aft
+    const groupUpdateQuery = `
+      // first delete everything      
       OPTIONAL MATCH (aft)-[vis:VISIBLE_TO]->(:Group)
       DETACH DELETE vis
 
@@ -203,8 +190,21 @@ exports.update_template = async (req, res, next) => {
       WHERE group._id = group_id
       WITH collect(group) as groups, aft
       FOREACH(group IN groups | MERGE (aft)-[:VISIBLE_TO]->(group))
+    `
 
-      // RETURN
+    const cypher = `
+      MATCH (aft: ApplicationFormTemplate {_id: $template_id})-[:MANAGED_BY]->(creator:User {_id: $user_id})
+
+      // set properties
+      // DIRTY
+      ${label ? "SET aft.label=$label" : ""}
+      ${description ? "SET aft.description=$description" : ""}
+      ${fields ? "SET aft.fields=$fields" : ""}
+      
+      // update visibility (shared with)
+      WITH aft
+      ${group_ids ? groupUpdateQuery : ""}
+      
       RETURN PROPERTIES(aft) AS template
       `
 
@@ -232,7 +232,6 @@ exports.update_template = async (req, res, next) => {
 }
 
 exports.delete_template = async (req, res, next) => {
-  // Delete single application form template
   const session = driver.session()
 
   try {

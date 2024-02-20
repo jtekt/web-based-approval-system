@@ -29,6 +29,7 @@ const whoami = async (jwt) => {
 
 describe("/templates", () => {
   let user, jwt, template_id
+  const label = "tdd"
 
   before(async () => {
     //console.log = () => {} // silence the console
@@ -38,9 +39,7 @@ describe("/templates", () => {
 
   describe("POST /templates", () => {
     it("Should allow the creation of a template", async () => {
-      const template = {
-        label: "tdd",
-      }
+      const template = { label }
 
       const { body, status } = await request(app)
         .post("/templates")
@@ -50,6 +49,44 @@ describe("/templates", () => {
       template_id = body._id
 
       expect(status).to.equal(200)
+    })
+  })
+
+  describe("GET /templates", () => {
+    it("Should allow the query of templates", async () => {
+      const { status, body } = await request(app)
+        .get("/templates")
+        .set("Authorization", `Bearer ${jwt}`)
+
+      expect(status).to.equal(200)
+      expect(body.length).to.above(0)
+    })
+  })
+
+  describe("GET /templates/:template_id", () => {
+    it("Should allow the query of a single template", async () => {
+      const { status, body } = await request(app)
+        .get(`/templates/${template_id}`)
+        .set("Authorization", `Bearer ${jwt}`)
+
+      expect(status).to.equal(200)
+      expect(body.label).to.equal(label)
+    })
+  })
+
+  describe("PATCH /templates/:template_id", () => {
+    it("Should allow the update of template", async () => {
+      const description = "a test template"
+      const { status, body } = await request(app)
+        .patch(`/templates/${template_id}`)
+        .send({ description })
+        .set("Authorization", `Bearer ${jwt}`)
+
+      console.log(body)
+
+      expect(status).to.equal(200)
+      expect(body.label).to.equal(label)
+      expect(body.description).to.equal(description)
     })
   })
 
