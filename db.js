@@ -1,7 +1,4 @@
 const neo4j = require("neo4j-driver")
-const dotenv = require("dotenv")
-
-dotenv.config()
 
 const {
   NEO4J_URL = "bolt://neo4j:7687",

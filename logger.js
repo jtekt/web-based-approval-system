@@ -1,8 +1,5 @@
 const { createLogger, transports, format } = require("winston")
 const LokiTransport = require("winston-loki")
-const dotenv = require("dotenv")
-
-dotenv.config()
 
 const { LOKI_URL } = process.env
 
