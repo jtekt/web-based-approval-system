@@ -248,15 +248,14 @@ exports.delete_application = async (req, res, next) => {
       throw createHttpError(400, "Application ID not defined")
 
     const cypher = `
-      // Find application
       MATCH (applicant:User)<-[:SUBMITTED_BY]-(application:ApplicationForm )
       WHERE applicant._id = $user_id
           AND application._id = $application_id
 
-      // flag as deleted
-      SET application.deleted = True
+      WITH application, properties(application) as applicationProperties
+      DETACH DELETE application 
 
-      RETURN properties(application) as application
+      RETURN applicationProperties
       `
 
     const params = { user_id, application_id }
@@ -265,7 +264,7 @@ exports.delete_application = async (req, res, next) => {
     if (!records.length)
       throw createHttpError(404, `Application ${application_id} not found`)
 
-    const application = records[0].get("application")
+    const application = records[0].get("applicationProperties")
 
     res.send(application)
   } catch (error) {
