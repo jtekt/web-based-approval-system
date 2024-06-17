@@ -1,6 +1,5 @@
 const createHttpError = require("http-errors")
 const { driver } = require("../db.js")
-const { logger } = require("../logger.js")
 const {
   get_current_user_id,
   application_batching,
@@ -326,9 +325,6 @@ exports.approve_application = async (req, res, next) => {
     const application = records[0].get("application")
     const { _id: recipient_id } = records[0].get("recipient")
 
-    logger.info({
-      message: `Application ${application_id} approved by user ${recipient_id}`,
-    })
 
     res.send(application)
   } catch (error) {
@@ -383,9 +379,6 @@ exports.reject_application = async (req, res, next) => {
     const application = records[0].get("application")
     const { _id: recipient_id } = records[0].get("recipient")
 
-    logger.info({
-      message: `Application ${application_id} rejected by user ${recipient_id}`,
-    })
 
     res.send(application)
   } catch (error) {
