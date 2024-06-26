@@ -12,10 +12,6 @@ spec:
       labels:
         app: ${APPLICATION_NAME}
     spec:
-      # volumes:
-      #   - name: ${APPLICATION_NAME}
-      #     persistentVolumeClaim:
-      #       claimName: ${APPLICATION_NAME}
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
@@ -29,6 +25,3 @@ spec:
               value: http://employee-manager/v3/users/self
             - name: S3_BUCKET
               value: approval-workflow-attachments
-          # volumeMounts:
-          #   - mountPath: "/usr/share/pv"
-          #     name: ${APPLICATION_NAME}
