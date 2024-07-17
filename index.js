@@ -19,6 +19,7 @@ const { S3_BUCKET, S3_REGION, S3_ENDPOINT } = require("./attachmentsStorage/s3")
 const { UPLOADS_PATH } = require("./attachmentsStorage/local")
 
 const router = require("./routes")
+const statsRouter = require("./routes/usage_statistics")
 
 db_init()
 
@@ -59,6 +60,8 @@ app.get("/", (req, res) => {
     loki_url,
   })
 })
+
+app.use("/stats", statsRouter)
 
 // Require authentication for all following routes
 app.use(auth({ url: IDENTIFICATION_URL }))
