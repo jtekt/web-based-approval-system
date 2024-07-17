@@ -54,11 +54,11 @@ exports.get_types_usage = async (req, res, next) => {
     const month = today.getMonth() + 1
     const query = `
         MATCH (application:ApplicationForm)
-        WHERE application.creation_date >= date($start_date)
-            AND application.creation_date <= date($end_date)
         WITH COLLECT(DISTINCT application.type) as types
         UNWIND types AS type
         MATCH (application:ApplicationForm {type: type})
+        WHERE application.creation_date >= date($start_date)
+            AND application.creation_date <= date($end_date)
         WITH COUNT(application) AS application_count, type
         RETURN { type: type, application_count: application_count} as types
       `
