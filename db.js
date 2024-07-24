@@ -50,6 +50,29 @@ const set_ids = async () => {
   }
 }
 
+const allowedConstraintErrorCodes = [
+  "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+  "Neo.ClientError.Schema.ConstraintAlreadyExists",
+]
+
+const create_id_constraint = async () => {
+  const session = driver.session()
+
+  try {
+    console.log(`[Neo4J] Creating ID constraint...`)
+    await session.run(
+      `CREATE CONSTRAINT FOR (a:ApplicationForm) REQUIRE a._id IS UNIQUE`
+    )
+    console.log(`[Neo4J] Created ID constraint`)
+  } catch (error) {
+    if (allowedConstraintErrorCodes.includes(error.code))
+      console.log(`[Neo4j] Constraint or index already exists`)
+    else throw error
+  } finally {
+    session.close()
+  }
+}
+
 const init = async () => {
   if (await get_connection_status()) {
     connected = true
@@ -57,6 +80,7 @@ const init = async () => {
     try {
       console.log("[Neo4J] Initializing DB")
       await set_ids()
+      await create_id_constraint()
     } catch (error) {
       console.log(error)
     }
