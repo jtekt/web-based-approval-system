@@ -9,6 +9,7 @@ require("express-async-errors")
 const cors = require("cors")
 const promBundle = require("express-prom-bundle")
 const auth = require("@moreillon/express_identification_middleware")
+const router = require("./routes")
 const { loki_url } = require("./logger")
 const {
   url: neo4j_url,
@@ -17,9 +18,6 @@ const {
 } = require("./db")
 const { S3_BUCKET, S3_REGION, S3_ENDPOINT } = require("./attachmentsStorage/s3")
 const { UPLOADS_PATH } = require("./attachmentsStorage/local")
-
-const router = require("./routes")
-const statsRouter = require("./routes/usage_statistics")
 
 db_init()
 
@@ -60,8 +58,6 @@ app.get("/", (req, res) => {
     loki_url,
   })
 })
-
-app.use("/stats", statsRouter)
 
 // Require authentication for all following routes
 app.use(auth({ url: IDENTIFICATION_URL }))

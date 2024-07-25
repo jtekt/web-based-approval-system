@@ -50,12 +50,12 @@ const set_ids = async () => {
   }
 }
 
-const allowedConstraintErrorCodes = [
-  "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
-  "Neo.ClientError.Schema.ConstraintAlreadyExists",
-]
-
 const create_id_constraint = async () => {
+  const allowedConstraintErrorCodes = [
+    "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+    "Neo.ClientError.Schema.ConstraintAlreadyExists",
+  ]
+
   const session = driver.session()
 
   try {
