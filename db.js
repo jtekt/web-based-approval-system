@@ -56,20 +56,41 @@ const create_id_constraint = async () => {
     "Neo.ClientError.Schema.ConstraintAlreadyExists",
   ]
 
-  const session = driver.session()
+  // Nodes
+  for await (const label of ["ApplicationForm", "ApplicationFormTemplate"]) {
+    const session = driver.session()
+    try {
+      console.log(`[Neo4J] Creating ID constraint...`)
+      await session.run(
+        `CREATE CONSTRAINT FOR (a:${label}) REQUIRE a._id IS UNIQUE`
+      )
+      console.log(`[Neo4J] Created ID constraint`)
+    } catch (error) {
+      if (allowedConstraintErrorCodes.includes(error.code))
+        console.log(`[Neo4j] Constraint or index already exists`)
+      else throw error
+    } finally {
+      session.close()
+    }
+  }
 
-  try {
-    console.log(`[Neo4J] Creating ID constraint...`)
-    await session.run(
-      `CREATE CONSTRAINT FOR (a:ApplicationForm) REQUIRE a._id IS UNIQUE`
-    )
-    console.log(`[Neo4J] Created ID constraint`)
-  } catch (error) {
-    if (allowedConstraintErrorCodes.includes(error.code))
-      console.log(`[Neo4j] Constraint or index already exists`)
-    else throw error
-  } finally {
-    session.close()
+  // Relationships
+  for await (const relLabel of ["APPROVED", "REJECTED"]) {
+    const session = driver.session()
+
+    try {
+      console.log(`[Neo4J] Creating ${relLabel} ID constraint...`)
+      await session.run(
+        `CREATE CONSTRAINT FOR ()<-[r:${relLabel}]-() REQUIRE r._id IS UNIQUE`
+      )
+      console.log(`[Neo4J] Created ${relLabel} ID constraint`)
+    } catch (error) {
+      if (allowedConstraintErrorCodes.includes(error.code))
+        console.log(`[Neo4j] Constraint or index already exists`)
+      else throw error
+    } finally {
+      session.close()
+    }
   }
 }
 
@@ -77,13 +98,10 @@ const init = async () => {
   if (await get_connection_status()) {
     connected = true
 
-    try {
-      console.log("[Neo4J] Initializing DB")
-      await set_ids()
-      await create_id_constraint()
-    } catch (error) {
-      console.log(error)
-    }
+    console.log("[Neo4J] Initializing DB...")
+    await set_ids()
+    await create_id_constraint()
+    console.log("[Neo4J] DB initialized")
   } else {
     setTimeout(init, 10000)
   }
