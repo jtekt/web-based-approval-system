@@ -51,46 +51,30 @@ const set_ids = async () => {
 }
 
 const create_id_constraint = async () => {
-  const allowedConstraintErrorCodes = [
-    "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
-    "Neo.ClientError.Schema.ConstraintAlreadyExists",
-  ]
-
-  // Nodes
-  for await (const label of ["ApplicationForm", "ApplicationFormTemplate"]) {
-    const session = driver.session()
-    try {
-      console.log(`[Neo4J] Creating ID constraint...`)
+  const session = driver.session()
+  try {
+    // Nodes
+    for await (const label of ["ApplicationForm", "ApplicationFormTemplate"]) {
+      console.log(`[Neo4J] Creating ${label} ID constraint...`)
       await session.run(
-        `CREATE CONSTRAINT FOR (a:${label}) REQUIRE a._id IS UNIQUE`
+        `CREATE CONSTRAINT IF NOT EXISTS FOR (a:${label}) REQUIRE a._id IS UNIQUE`
       )
-      console.log(`[Neo4J] Created ID constraint`)
-    } catch (error) {
-      if (allowedConstraintErrorCodes.includes(error.code))
-        console.log(`[Neo4j] Constraint or index already exists`)
-      else throw error
-    } finally {
-      session.close()
+      console.log(`[Neo4J] Created ${label} ID constraint`)
     }
-  }
+    // Relationships
+    for await (const relLabel of ["APPROVED", "REJECTED"]) {
+      const session = driver.session()
 
-  // Relationships
-  for await (const relLabel of ["APPROVED", "REJECTED"]) {
-    const session = driver.session()
-
-    try {
       console.log(`[Neo4J] Creating ${relLabel} ID constraint...`)
       await session.run(
-        `CREATE CONSTRAINT FOR ()<-[r:${relLabel}]-() REQUIRE r._id IS UNIQUE`
+        `CREATE CONSTRAINT IF NOT EXISTS FOR ()<-[r:${relLabel}]-() REQUIRE r._id IS UNIQUE`
       )
       console.log(`[Neo4J] Created ${relLabel} ID constraint`)
-    } catch (error) {
-      if (allowedConstraintErrorCodes.includes(error.code))
-        console.log(`[Neo4j] Constraint or index already exists`)
-      else throw error
-    } finally {
-      session.close()
     }
+  } catch (error) {
+    throw error
+  } finally {
+    session.close()
   }
 }
 
