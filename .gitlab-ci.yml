@@ -4,9 +4,7 @@ stages:
   - release
   - deploy
 
-# image: moreillon/tdd-dind
-# services:
-#   - name: docker:24.0.7-dind
+image: moreillon/tdd-dind
 
 variables:
   APPLICATION_NAME: shinsei-manager
@@ -22,8 +20,7 @@ variables:
 
 build:
   stage: build
-  # tags:
-  #   - dind
+
   only:
     - tags
   before_script:
@@ -40,8 +37,7 @@ test:
   only:
     - tags
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
-  # tags:
-  #   - dind
+
   before_script:
     # Registry login
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
@@ -90,10 +86,10 @@ test:
 
 release:
   stage: release
+  image: public.ecr.aws/jtekt-corporation/cicd:c27e1e66
   only:
     - tags
-  # tags:
-  #   - dind
+
   before_script:
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
   script:
