@@ -86,7 +86,7 @@ test:
 
 release:
   stage: release
-  image: public.ecr.aws/jtekt-corporation/cicd:c27e1e66
+
   only:
     - tags
 
@@ -103,6 +103,7 @@ release:
 
 deploy:
   stage: deploy
+  image: public.ecr.aws/jtekt-corporation/cicd:c27e1e66
   only:
     - tags
   script:
