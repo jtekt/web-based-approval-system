@@ -1,0 +1,6 @@
+spec: src/test/**/*.test.ts
+require:
+  - tsx/cjs
+  - dotenv/config
+timeout: 10000
+exit: true

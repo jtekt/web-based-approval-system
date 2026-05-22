@@ -1,6 +1,14 @@
-FROM node:20
+FROM node:24-slim AS builder
 WORKDIR /usr/src/app
-COPY . .
-RUN npm install
+COPY package*.json tsconfig.json .mocharc.yml ./
+RUN npm ci
+COPY src/ ./src/
+RUN npm run build
+
+FROM node:24-slim
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /usr/src/app/dist ./dist
 EXPOSE 80
-CMD [ "node", "index.js" ]
+CMD ["node", "dist/index.js"]
