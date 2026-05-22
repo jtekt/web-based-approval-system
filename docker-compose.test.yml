@@ -36,7 +36,6 @@ services:
   app:
     build:
       context: .
-      target: builder
     environment:
       NEO4J_URL: bolt://neo4j:7687
       IDENTIFICATION_URL: http://user-manager/users/self
