@@ -74,8 +74,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 
 app.listen(env.APP_PORT, () => {
   console.log(`[Express] listening on port ${env.APP_PORT}`);
-
-  console.log(`Access development server at http://localhost:${env.APP_PORT}`);
 });
 
 export { app };

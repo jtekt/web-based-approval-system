@@ -2,7 +2,7 @@ import z from 'zod';
 
 const envSchema = z.object({
   // App configuration
-  APP_PORT: z.string().default('8000'),
+  APP_PORT: z.string().default('80'),
   TZ: z.string().default('Asia/Tokyo'),
 
   // Legacy identification service

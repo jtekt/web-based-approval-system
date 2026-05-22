@@ -76,7 +76,7 @@ All routes (except `GET /`) are protected by `@moreillon/express_identification_
 
 | Variable | Description |
 |---|---|
-| `APP_PORT` | HTTP listen port (default: `8000`) |
+| `APP_PORT` | HTTP listen port (default: `80`) |
 | `NEO4J_URL` | Neo4J bolt URL (default: `bolt://neo4j:7687`) |
 | `NEO4J_USERNAME` / `NEO4J_PASSWORD` | Neo4J credentials |
 | `IDENTIFICATION_URL` | Auth service endpoint |
