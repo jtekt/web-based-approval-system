@@ -60,7 +60,7 @@ export const create_application = async (
         MATCH (recipient:User {_id: recipients_ids[i]})
         CREATE (recipient)<-[submission:SUBMITTED_TO {date: date(), flow_index: i} ]-(application)
 
-        // Groups to which the aplication is visible
+        // Groups to which the application is visible
         // Note: can be an empty set so the logic to deal with it looks terrible
         WITH application
         UNWIND
@@ -135,7 +135,7 @@ export const read_applications = async (
       ${query_with_relationship_and_state(relationship, state)}
 
       // from here on, no need for user anymore
-      // gets requeried later on
+      // gets required later on
       ${query_deleted(deleted)}
       ${filter_by_type(type)}
       ${query_with_date(start_date, end_date)}

@@ -5,7 +5,7 @@ export const get_current_user_id = (res: Response): string => {
   const user = res.locals?.user;
   if (!user) throw `User is not authenticated`;
 
-  const user_id = res.locals.user!._id ?? res.locals.user!.properties?._id;
+  const user_id = user._id ?? user.properties?._id;
 
   if (!user_id) throw `User does not have an ID`;
 

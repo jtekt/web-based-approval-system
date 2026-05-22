@@ -52,17 +52,17 @@ export const download_file_from_s3 = async (
   res: Response,
   file_id: string
 ): Promise<void> => {
-  const listObjectsresult = await s3Client!.send(
+  const listObjectsResult = await s3Client!.send(
     new ListObjectsCommand({
       Bucket: env.S3_BUCKET,
       Prefix: file_id,
     })
   );
 
-  if (!listObjectsresult.Contents || !listObjectsresult.Contents.length)
+  if (!listObjectsResult.Contents || !listObjectsResult.Contents.length)
     throw `File ${file_id} does not exist`;
 
-  const { Key } = listObjectsresult.Contents[0];
+  const { Key } = listObjectsResult.Contents[0];
   const getObjectResult = await s3Client!.send(
     new GetObjectCommand({
       Bucket: env.S3_BUCKET,

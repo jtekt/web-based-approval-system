@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pkg from '../package.json';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
 import auth from '@moreillon/express_identification_middleware';
@@ -54,14 +54,16 @@ app.get('/', (_req: Request, res: Response) => {
 
 // Require authentication for all following routes
 if (env.IDENTIFICATION_URL) {
-  // TODO: add oidc and error if no authentication method is available
+  // TODO: add oidc
   app.use(auth({ url: env.IDENTIFICATION_URL }));
+} else {
+  throw new Error("No authentication method is available")
 }
 
 app.use('/', router);
 
 // error handling
-app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, _: Request, res: Response) => {
   console.error(err);
   res.status(err.statusCode || 500).send(err.message);
 });

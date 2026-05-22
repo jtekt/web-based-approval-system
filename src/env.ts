@@ -6,15 +6,15 @@ const envSchema = z.object({
   TZ: z.string().default('Asia/Tokyo'),
 
   // Legacy identification service
-  IDENTIFICATION_URL: z.url().optional(),
+  IDENTIFICATION_URL: z.url(),
 
   // Local file storage
   UPLOADS_PATH: z.string().default('/usr/share/pv'),
 
   // S3 storage
   S3_REGION: z.string().optional(),
-  S3_ACCESS_KEY_ID: z.string().default(''),
-  S3_SECRET_ACCESS_KEY: z.string().default(''),
+  S3_ACCESS_KEY_ID: z.string(),
+  S3_SECRET_ACCESS_KEY: z.string(),
   S3_ENDPOINT: z.string().optional(),
   S3_BUCKET: z.string().optional(),
   HTTPS_PROXY: z.string().optional(),
