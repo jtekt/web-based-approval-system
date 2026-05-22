@@ -295,7 +295,7 @@ export const approve_application = async (
 
     const { attachment_hankos, comment } = validate(
       approveApplicationSchema,
-      req.body
+      req.body ?? {}
     );
 
     const attachment_hankos_query = attachment_hankos
@@ -354,7 +354,7 @@ export const reject_application = async (
 
     const { application_id } = validate(applicationIdParamsSchema, req.params);
 
-    const { comment } = validate(rejectApplicationSchema, req.body);
+    const { comment } = validate(rejectApplicationSchema, req.body ?? {});
 
     const cypher = `
       MATCH (application:ApplicationForm)-[submission:SUBMITTED_TO]->(recipient:User)

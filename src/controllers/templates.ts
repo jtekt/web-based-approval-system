@@ -155,7 +155,7 @@ export const read_template = async (
 
     const { records } = await session.run(cypher, params);
     if (!records.length)
-      throw createHttpError(400, `Template ${template_id} not found`);
+      throw createHttpError(404, `Template ${template_id} not found`);
 
     const record = records[0];
 

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import {
   S3Client,
+  S3ClientConfig,
   PutObjectCommand,
   ListObjectsCommand,
   GetObjectCommand,
@@ -11,12 +12,16 @@ import {
 import { Response } from 'express';
 import { env } from '../env';
 
-const s3ClientOptions = {
+const s3ClientOptions: S3ClientConfig = {
   region: env.S3_REGION,
-  credentials: {
-    accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-  },
+  ...(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
+    ? {
+        credentials: {
+          accessKeyId: env.S3_ACCESS_KEY_ID,
+          secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+        },
+      }
+    : {}),
   endpoint: env.S3_ENDPOINT,
 };
 

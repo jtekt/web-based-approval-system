@@ -1,6 +1,6 @@
-FROM node:24 AS builder
+FROM node:24-slim AS builder
 WORKDIR /usr/src/app
-COPY package*.json tsconfig.json ./
+COPY package*.json tsconfig.json .mocharc.yml ./
 RUN npm ci
 COPY src/ ./src/
 RUN npm run build

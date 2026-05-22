@@ -24,7 +24,7 @@ export const readApplicationsQuerySchema = z.object({
 });
 
 export const applicationIdParamsSchema = z.object({
-  application_id: z.uuid(),
+  application_id: z.string().min(1),
 });
 
 export const approveApplicationSchema = z.object({

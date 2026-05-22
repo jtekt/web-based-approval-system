@@ -151,7 +151,7 @@ const query_received_rejected_applications = `
 
   // Get the current user
   // Also filter out rejected applications
-  MATCH (application)<-[:REJECTED]->(user:User {_id: $user_id})
+  MATCH (application)<-[:REJECTED]-(user:User {_id: $user_id})
   `;
 
 const query_received_approved_applications = `
@@ -160,7 +160,7 @@ const query_received_approved_applications = `
 
   // Get the current user
   // Also filter out rejected applications
-  MATCH (application)<-[:APPROVED]->(user:User {_id: $user_id})
+  MATCH (application)<-[:APPROVED]-(user:User {_id: $user_id})
   `;
 
 export const application_batching = `
@@ -218,7 +218,7 @@ export const query_with_group = (group_id: string | undefined): string => {
     `;
 };
 
-export const query_deleted = (deleted: any): string => {
+export const query_deleted = (deleted: boolean): string => {
   if (deleted) return ``;
   return `
     WITH application

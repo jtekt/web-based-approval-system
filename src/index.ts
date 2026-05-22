@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pkg from '../package.json';
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
 import auth from '@moreillon/express_identification_middleware';
@@ -10,6 +10,7 @@ import {
   init as db_init,
 } from './db';
 import { env } from './env';
+import { logger } from './logger';
 
 const { version, author } = pkg;
 
@@ -61,10 +62,13 @@ if (env.IDENTIFICATION_URL) {
 }
 
 app.use('/', router);
+app.use('/v1', router);
+app.use('/v2', router);
 
 // error handling
-app.use((err: any, _: Request, res: Response) => {
-  console.error(err);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error(err);
   res.status(err.statusCode || 500).send(err.message);
 });
 

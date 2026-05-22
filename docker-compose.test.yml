@@ -1,0 +1,53 @@
+services:
+  neo4j:
+    image: neo4j:5.12.0
+    environment:
+      NEO4J_AUTH: none
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  user-manager:
+    image: moreillon/user-manager:v4.7.4
+    environment:
+      NEO4J_URL: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: neo4j
+      DEFAULT_ADMIN_USERNAME: administrator
+      DEFAULT_ADMIN_PASSWORD: administrator
+      JWT_SECRET: keyboardcat
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      # Login with the admin account — only succeeds once DB init is complete
+      test: ["CMD", "wget", "-qO-", "--post-data",
+        "{\"username\":\"administrator\",\"password\":\"administrator\"}",
+        "--header", "Content-Type:application/json",
+        "http://localhost/auth/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      target: builder
+    environment:
+      NEO4J_URL: bolt://neo4j:7687
+      IDENTIFICATION_URL: http://user-manager/users/self
+      LOGIN_URL: http://user-manager/auth/login
+      TEST_USER_USERNAME: administrator
+      TEST_USER_PASSWORD: administrator
+      # S3 is disabled by default for local testing (set S3_BUCKET to enable)
+      S3_BUCKET: ""
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      user-manager:
+        condition: service_healthy
+    command: npm run test-local

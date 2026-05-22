@@ -5,14 +5,14 @@ export const updateApplicationPrivacySchema = z.object({
 });
 
 export const applicationIdParamsSchema = z.object({
-  application_id: z.uuid(),
+  application_id: z.string().min(1),
 });
 
 export const groupVisibilityBodySchema = z.object({
-  group_id: z.uuid(),
+  group_id: z.string().min(1),
 });
 
 export const applicationGroupParamsSchema = z.object({
-  application_id: z.uuid(),
-  group_id: z.uuid(),
+  application_id: z.string().min(1),
+  group_id: z.string().min(1),
 });

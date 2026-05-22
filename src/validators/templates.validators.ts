@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const templateIdParamsSchema = z.object({
-  template_id: z.uuid(),
+  template_id: z.string().min(1),
 });
 
 export const createTemplateSchema = z.object({
@@ -19,5 +19,5 @@ export const updateTemplateSchema = z.object({
 });
 
 export const addTemplateManagerSchema = z.object({
-  user_id: z.string().uuid(),
+  user_id: z.string().min(1),
 });
