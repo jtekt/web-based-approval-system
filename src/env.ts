@@ -6,7 +6,8 @@ const envSchema = z.object({
   TZ: z.string().default('Asia/Tokyo'),
 
   // Legacy identification service
-  IDENTIFICATION_URL: z.url(),
+  IDENTIFICATION_URL: z.string().optional(),
+  JWT_DECODE_SECRET: z.string().optional(),
 
   // Local file storage
   UPLOADS_PATH: z.string().default('/usr/share/pv'),
