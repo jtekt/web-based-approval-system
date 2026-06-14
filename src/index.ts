@@ -58,32 +58,30 @@ app.get('/', (_req: Request, res: Response) => {
 
 // Require authentication for all following routes
 // Strategies
-const strategies: Options["strategies"] = {};
+const options: Options = {
+  strategies: {},
+  identifierFieldName: '_id',
+};
 
 if (env.IDENTIFICATION_URL) {
-  strategies.identification = {
+  options.strategies.identification = {
     url: env.IDENTIFICATION_URL,
-    identifierField: "_id",
+    identifierField: '_id',
   };
 }
 
 if (env.JWT_DECODE_SECRET) {
-  strategies.local = {
+  options.strategies.local = {
     secret: env.JWT_DECODE_SECRET,
-    identifierField: "user_id"
+    identifierField: 'user_id',
   };
 }
 
-if (Object.keys(strategies).length === 0) {
+if (Object.keys(options.strategies).length === 0) {
   throw new Error(
-    "At least one authentication strategy must be configured. Set IDENTIFICATION_URL or JWT_DECODE_SECRET."
+    'At least one authentication strategy must be configured. Set IDENTIFICATION_URL or JWT_DECODE_SECRET.'
   );
 }
-
-const options: Options = {
-  strategies,
-  identifierFieldName: "_id"
-};
 
 app.use(middleware(options));
 
