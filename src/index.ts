@@ -68,8 +68,8 @@ if (env.IDENTIFICATION_URL) {
 }
 
 if (env.JWT_DECODE_SECRET) {
-  strategies.localJwt = {
-    jwtSecret: env.JWT_DECODE_SECRET,
+  strategies.local = {
+    secret: env.JWT_DECODE_SECRET,
     identifierField: "user_id"
   };
 }
