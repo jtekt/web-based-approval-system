@@ -76,7 +76,7 @@ if (env.JWT_DECODE_SECRET) {
 
 if (Object.keys(strategies).length === 0) {
   throw new Error(
-    "At least one authentication strategy must be configured. Set AUTH_IDENTIFICATION_URL or AUTH_JWT_DECODE_SECRET."
+    "At least one authentication strategy must be configured. Set IDENTIFICATION_URL or JWT_DECODE_SECRET."
   );
 }
 
