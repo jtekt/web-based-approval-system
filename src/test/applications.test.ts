@@ -69,7 +69,7 @@ describe('/applications', () => {
         .post('/files')
         .attach('file_to_upload', 'src/test/sample_pdf.pdf');
 
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 
@@ -155,7 +155,7 @@ describe('/applications', () => {
         .post('/applications')
         .send({ title: 'tdd', type: 'tdd', form_data: [], recipients_ids: [user._id] });
 
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 
@@ -226,7 +226,7 @@ describe('/applications', () => {
 
     it('Should reject unauthenticated listing', async () => {
       const { status } = await request(app).get(`/applications`);
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 

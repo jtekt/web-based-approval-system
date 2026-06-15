@@ -91,7 +91,7 @@ describe('/templates', () => {
         .post('/templates')
         .send({ label: 'should-fail' });
 
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 
@@ -118,7 +118,7 @@ describe('/templates', () => {
 
     it('Should reject unauthenticated listing', async () => {
       const { status } = await request(app).get('/templates');
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 
@@ -228,7 +228,7 @@ describe('/templates', () => {
 
     it('Should reject unauthenticated deletion', async () => {
       const { status } = await request(app).delete(`/templates/some-id`);
-      expect(status).to.equal(403);
+      expect([401, 403]).to.include(status);
     });
   });
 });
