@@ -3,7 +3,6 @@ import pkg from '../package.json';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
-import auth from '@moreillon/express_identification_middleware';
 import router from './routes/index';
 import {
   get_connected as get_neo4j_connection_status,
@@ -11,6 +10,7 @@ import {
 } from './db';
 import { env } from './env';
 import { logger } from './logger';
+import middleware, { Options } from '@jtekt/express-authentication-middleware';
 
 const { version, author } = pkg;
 
@@ -38,7 +38,10 @@ app.get('/', (_req: Request, res: Response) => {
       url: env.NEO4J_URL,
       connected: get_neo4j_connection_status(),
     },
-    identification: env.IDENTIFICATION_URL,
+    auth: {
+      identification_url: env.IDENTIFICATION_URL,
+      local_jwt: !!env.JWT_DECODE_SECRET,
+    },
     attachments: {
       uploads_path: !env.S3_BUCKET ? env.UPLOADS_PATH : undefined,
       s3: env.S3_BUCKET
@@ -54,12 +57,33 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 // Require authentication for all following routes
+// Strategies
+const options: Options = {
+  strategies: {},
+  identifierFieldName: '_id'
+};
+
 if (env.IDENTIFICATION_URL) {
-  // TODO: add oidc
-  app.use(auth({ url: env.IDENTIFICATION_URL }));
-} else {
-  throw new Error("No authentication method is available")
+  options.strategies.identification = {
+    url: env.IDENTIFICATION_URL,
+    identifierField: '_id',
+  };
 }
+
+if (env.JWT_DECODE_SECRET) {
+  options.strategies.local = {
+    secret: env.JWT_DECODE_SECRET,
+    identifierField: 'user_id',
+  };
+}
+
+if (Object.keys(options.strategies).length === 0) {
+  throw new Error(
+    'At least one authentication strategy must be configured. Set IDENTIFICATION_URL or JWT_DECODE_SECRET.'
+  );
+}
+
+app.use(middleware(options));
 
 app.use('/', router);
 app.use('/v1', router);
