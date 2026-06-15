@@ -60,7 +60,7 @@ app.get('/', (_req: Request, res: Response) => {
 // Strategies
 const options: Options = {
   strategies: {},
-  identifierFieldName: '_id',
+  identifierFieldName: '_id'
 };
 
 if (env.IDENTIFICATION_URL) {
