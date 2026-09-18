@@ -12,9 +12,9 @@ import { env } from './env';
 import { logger } from './logger';
 import middleware, { Options } from '@jtekt/express-authentication-middleware';
 
-const { version, author } = pkg;
+const { author } = pkg;
 
-console.log(`Shinsei manager v${version}`);
+console.log(`Shinsei manager v${env.APP_VERSION}`);
 
 db_init();
 
@@ -33,7 +33,7 @@ app.get('/', (_req: Request, res: Response) => {
   res.send({
     application_name: 'Shinsei-manager',
     author,
-    version,
+    version: env.APP_VERSION,
     neo4j: {
       url: env.NEO4J_URL,
       connected: get_neo4j_connection_status(),

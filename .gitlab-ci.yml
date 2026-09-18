@@ -29,7 +29,7 @@ build:
       aws ecr-public create-repository --region us-east-1 --repository-name ${APPLICATION_NAME}
       || echo "Repository might have already existed"
   script:
-    - docker build -t ${CONTAINER_IMAGE_TEST} .
+    - docker build --build-arg APP_VERSION=${CI_COMMIT_TAG} -t ${CONTAINER_IMAGE_TEST} .
     - docker push ${CONTAINER_IMAGE_TEST}
 
 test:
