@@ -1,5 +1,5 @@
 import createHttpError from 'http-errors';
-import formidable, { Files } from 'formidable';
+import formidable, { Files, File as FormidableFile } from 'formidable';
 import { Request, Response, NextFunction } from 'express';
 import { driver } from '../db';
 import { get_current_user_id } from '../utils';
@@ -7,7 +7,7 @@ import { validate } from '../utils/validate';
 import { fileParamsSchema } from '../validators/files.validators';
 import {
   s3Client,
-  store_file_on_s3,
+  create_s3_upload_stream,
   download_file_from_s3,
 } from '../attachmentsStorage/s3';
 import {
@@ -15,10 +15,34 @@ import {
   download_file_from_local_folder,
 } from '../attachmentsStorage/local';
 
-const parse_form = async (req: Request): Promise<Files> => {
-  const form = formidable();
+type S3Upload = { file_id: string; done: Promise<unknown> };
+
+const parse_form = async (
+  req: Request
+): Promise<{ files: Files; s3_uploads: Map<string, S3Upload> }> => {
+  const s3_uploads = new Map<string, S3Upload>();
+
+  // When S3 is configured, stream uploaded files straight to S3 instead of
+  // buffering them to a local temp file first
+  const options: formidable.Options = s3Client
+    ? {
+        fileWriteStreamHandler: (file) => {
+          // @types/formidable's VolatileFile class omits the fields it is
+          // actually constructed with (see formidable's VolatileFile.js)
+          const { originalFilename, newFilename } =
+            file as unknown as FormidableFile;
+          const { file_id, stream, done } = create_s3_upload_stream(
+            originalFilename ?? ''
+          );
+          s3_uploads.set(newFilename, { file_id, done });
+          return stream;
+        },
+      }
+    : {};
+
+  const form = formidable(options);
   const [_fields, files] = await form.parse(req);
-  return files;
+  return { files, s3_uploads };
 };
 
 export const file_upload = async (
@@ -27,18 +51,22 @@ export const file_upload = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const files = await parse_form(req);
+    const { files, s3_uploads } = await parse_form(req);
     const uploaded = files.file_to_upload?.[0];
     if (!uploaded) throw createHttpError(400, 'Missing file');
 
-    const file_to_upload = {
-      path: uploaded.filepath,
-      name: uploaded.originalFilename ?? '',
-    };
-
     let file_id: string;
-    if (s3Client) file_id = await store_file_on_s3(file_to_upload);
-    else file_id = await store_file_locally(file_to_upload);
+    if (s3Client) {
+      const upload = s3_uploads.get(uploaded.newFilename);
+      if (!upload) throw createHttpError(500, 'File upload failed');
+      await upload.done;
+      file_id = upload.file_id;
+    } else {
+      file_id = await store_file_locally({
+        path: uploaded.filepath,
+        name: uploaded.originalFilename ?? '',
+      });
+    }
 
     res.send({ file_id });
   } catch (error) {

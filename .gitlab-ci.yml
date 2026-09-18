@@ -21,8 +21,8 @@ variables:
 build:
   stage: build
 
-  only:
-    - tags
+  rules:
+    - if: $CI_COMMIT_TAG
   before_script:
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
     - >
@@ -34,8 +34,8 @@ build:
 
 test:
   stage: test
-  only:
-    - tags
+  rules:
+    - if: $CI_COMMIT_TAG
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
 
   before_script:
@@ -87,8 +87,8 @@ test:
 release:
   stage: release
 
-  only:
-    - tags
+  rules:
+    - if: $CI_COMMIT_TAG
 
   before_script:
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
@@ -104,11 +104,9 @@ release:
 deploy:
   stage: deploy
   image: public.ecr.aws/jtekt-corporation/cicd:c27e1e66
-  only:
-    - tags
+  rules:
+    - if: $CI_COMMIT_TAG
   script:
+    - kubectl config use-context eks/gitlab-agent-for-kubernetes:eks
+    - kubectl config set-context --current --namespace=${KUBERNETES_NAMESPACE}
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
-  environment:
-    name: production
-    kubernetes:
-      namespace: ${KUBERNETES_NAMESPACE}

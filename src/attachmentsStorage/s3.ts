@@ -1,14 +1,15 @@
 import path from 'path';
 import { addProxyToClient } from 'aws-sdk-v3-proxy';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
+import { PassThrough, Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import {
   S3Client,
   S3ClientConfig,
-  PutObjectCommand,
   ListObjectsCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { Response } from 'express';
 import { env } from '../env';
 
@@ -38,19 +39,19 @@ if (env.S3_BUCKET) {
   console.log(`[S3] S3_BUCKET not set, storing attachments locally`);
 }
 
-export const store_file_on_s3 = async (file_to_upload: {
-  path: string;
-  name: string;
-}): Promise<string> => {
+export const create_s3_upload_stream = (
+  name: string
+): { file_id: string; stream: PassThrough; done: Promise<unknown> } => {
   const file_id = uuidv4();
-  const Key = `${file_id}/${file_to_upload.name}`;
-  const command = new PutObjectCommand({
-    Bucket: env.S3_BUCKET,
-    Body: fs.readFileSync(file_to_upload.path),
-    Key,
+  const Key = `${file_id}/${name}`;
+  const stream = new PassThrough();
+
+  const upload = new Upload({
+    client: s3Client!,
+    params: { Bucket: env.S3_BUCKET, Key, Body: stream },
   });
-  await s3Client!.send(command);
-  return file_id;
+
+  return { file_id, stream, done: upload.done() };
 };
 
 export const download_file_from_s3 = async (
@@ -77,22 +78,12 @@ export const download_file_from_s3 = async (
 
   const { base: filename } = path.parse(Key!);
 
-  getObjectResult.Body!.transformToWebStream().pipeTo(
-    new WritableStream({
-      start() {
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename=${encodeURIComponent(filename)}`
-        );
-      },
-      write(chunk) {
-        res.write(chunk);
-      },
-      close() {
-        res.end();
-      },
-    })
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename=${encodeURIComponent(filename)}`
   );
+
+  await pipeline(getObjectResult.Body as Readable, res);
 };
 
 export { s3Client };
