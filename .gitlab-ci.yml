@@ -63,10 +63,10 @@ test:
       --env NEO4J_USERNAME=neo4j
       --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
-      --health-cmd "node -e \"fetch('http://localhost/').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))\""
+      --health-cmd "node -e \"fetch('http://localhost/health/ready').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))\""
       --health-interval 2s
       732469118990.dkr.ecr.ap-northeast-1.amazonaws.com/employee-manager:latest
-    # Wait until the account manager is ready (fail after 2 minutes)
+    # Wait until the account manager is ready (setup done, admin account created; fail after 2 minutes)
     - timeout 120 sh -c 'until [ "$(docker inspect -f {{.State.Health.Status}} ${TEST_USER_MANAGER})" = healthy ]; do sleep 2; done'
   script:
     - >
