@@ -4,6 +4,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
 import router from './routes/index';
+import healthRouter from './routes/health';
 import {
   get_connected as get_neo4j_connection_status,
   init as db_init,
@@ -82,6 +83,8 @@ if (Object.keys(options.strategies).length === 0) {
     'At least one authentication strategy must be configured. Set IDENTIFICATION_URL or JWT_DECODE_SECRET.'
   );
 }
+
+app.use('/health', healthRouter);
 
 app.use(middleware(options));
 
