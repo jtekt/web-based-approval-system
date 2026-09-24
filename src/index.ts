@@ -6,7 +6,8 @@ import promBundle from 'express-prom-bundle';
 import router from './routes/index';
 import healthRouter from './routes/health';
 import {
-  get_connected as get_neo4j_connection_status,
+  get_connection_status as get_neo4j_connection_status,
+  get_initialized as get_neo4j_initialized,
   init as db_init,
 } from './db';
 import { env } from './env';
@@ -30,14 +31,15 @@ app.use(express.json());
 app.use(cors(corsOptions));
 app.use(promBundle(promOptions));
 
-app.get('/', (_req: Request, res: Response) => {
+app.get('/', async (_req: Request, res: Response) => {
   res.send({
     application_name: 'Shinsei-manager',
     author,
     version: env.APP_VERSION,
     neo4j: {
       url: env.NEO4J_URL,
-      connected: get_neo4j_connection_status(),
+      connected: await get_neo4j_connection_status(),
+      initialized: get_neo4j_initialized(),
     },
     auth: {
       identification_url: env.IDENTIFICATION_URL,
