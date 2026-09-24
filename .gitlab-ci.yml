@@ -46,8 +46,11 @@ test:
       --network ${TEST_NETWORK}
       --hostname ${TEST_DB}
       --env NEO4J_AUTH=none
+      --health-cmd "cypher-shell 'RETURN 1'"
+      --health-interval 2s
       neo4j:5.12.0
-    - sleep 60 # Wait for Neo4J to become available
+    # Wait until Neo4J is ready (fail after 2 minutes)
+    - timeout 120 sh -c 'until [ "$(docker inspect -f {{.State.Health.Status}} ${TEST_DB})" = healthy ]; do sleep 2; done'
     # Deploy a user-manager / authentication system
     - >
       docker run
@@ -60,7 +63,11 @@ test:
       --env NEO4J_USERNAME=neo4j
       --env NEO4J_PASSWORD=neo4j
       --env JWT_SECRET=keyboardcat
-      moreillon/user-manager:v4.7.4
+      --health-cmd "curl -fs http://localhost/ > /dev/null"
+      --health-interval 2s
+      732469118990.dkr.ecr.ap-northeast-1.amazonaws.com/employee-manager:latest
+    # Wait until the account manager is ready (fail after 2 minutes)
+    - timeout 120 sh -c 'until [ "$(docker inspect -f {{.State.Health.Status}} ${TEST_USER_MANAGER})" = healthy ]; do sleep 2; done'
   script:
     - >
       docker run
@@ -68,10 +75,10 @@ test:
       --name tdd-app
       --network ${TEST_NETWORK}
       --env NEO4J_URL=bolt://${TEST_DB}:7687
-      --env IDENTIFICATION_URL=http://${TEST_USER_MANAGER}/users/self
-      --env LOGIN_URL=http://${TEST_USER_MANAGER}/auth/login
-      --env TEST_USER_USERNAME=admin
-      --env TEST_USER_PASSWORD=admin
+      --env IDENTIFICATION_URL=http://${TEST_USER_MANAGER}/v3/users/self
+      --env LOGIN_URL=http://${TEST_USER_MANAGER}/v3/auth/login
+      --env TEST_USER_USERNAME=administrator
+      --env TEST_USER_PASSWORD=administrator
       --env S3_BUCKET=jtekt-moreillon
       --env S3_REGION=$S3_REGION
       --env S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
