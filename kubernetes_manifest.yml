@@ -17,9 +17,17 @@ spec:
           image: ${CONTAINER_IMAGE_TAGGED}
           readinessProbe:
             httpGet:
-              path: /
+              path: /health/ready
               port: 80
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 2
           envFrom:
             - secretRef:
                 name: environment-variables
