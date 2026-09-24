@@ -5,20 +5,16 @@ const auth = neo4j.auth.basic(env.NEO4J_USERNAME, env.NEO4J_PASSWORD);
 const options = { disableLosslessIntegers: true };
 export const driver = neo4j.driver(env.NEO4J_URL, auth, options);
 
-let connected = false;
+// Set once the DB setup (IDs, constraints) has completed
+let initialized = false;
 
-const get_connection_status = async () => {
-  const session = driver.session();
+// Live check: whether Neo4J can be reached right now
+export const get_connection_status = async () => {
   try {
-    console.log(`[Neo4J] Testing connection...`);
-    await session.run('RETURN 1');
-    console.log(`[Neo4J] Connection successful`);
+    await driver.verifyConnectivity();
     return true;
-  } catch (e) {
-    console.log(`[Neo4J] Connection failed`);
+  } catch {
     return false;
-  } finally {
-    await session.close();
   }
 };
 
@@ -71,17 +67,18 @@ const create_id_constraint = async () => {
   }
 };
 
+// Retries until the setup succeeds, so a DB that is not up yet never crashes the app
 export const init = async () => {
-  if (await get_connection_status()) {
-    connected = true;
-
+  try {
     console.log('[Neo4J] Initializing DB...');
     await set_ids();
     await create_id_constraint();
+    initialized = true;
     console.log('[Neo4J] DB initialized');
-  } else {
+  } catch (error) {
+    console.error('[Neo4J] DB initialization failed, retrying in 10s', error);
     setTimeout(init, 10000);
   }
 };
 
-export const get_connected = () => connected;
+export const get_initialized = () => initialized;
