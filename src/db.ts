@@ -67,7 +67,10 @@ const create_id_constraint = async () => {
   }
 };
 
-// Retries until the setup succeeds, so a DB that is not up yet never crashes the app
+// Retries until the setup succeeds, so a DB that is not up yet never crashes the app.
+// Not strictly needed: init() could let the error propagate and the process exit,
+// and Kubernetes would restart the pod (with backoff) until the DB is up. Retrying
+// here recovers faster once the DB is back and avoids CrashLoopBackOff.
 export const init = async () => {
   try {
     console.log('[Neo4J] Initializing DB...');
