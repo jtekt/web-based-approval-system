@@ -15,6 +15,11 @@ spec:
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5
           envFrom:
             - secretRef:
                 name: environment-variables

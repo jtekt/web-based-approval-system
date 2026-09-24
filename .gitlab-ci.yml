@@ -109,3 +109,4 @@ deploy:
     - kubectl config use-context eks/gitlab-agent-for-kubernetes:eks
     - kubectl config set-context --current --namespace=${KUBERNETES_NAMESPACE}
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
+    - kubectl rollout status deployment/${APPLICATION_NAME} --timeout=120s
