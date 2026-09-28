@@ -241,6 +241,8 @@ export const update_template = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(500, `Failed to update template ${template_id}`);
 
@@ -274,6 +276,8 @@ export const delete_template = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(500, `Failed to delete template ${template_id}`);
 
@@ -312,6 +316,8 @@ export const add_template_manager = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(
         500,

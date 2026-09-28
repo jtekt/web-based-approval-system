@@ -44,6 +44,8 @@ export const update_application_privacy = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(404, `Application ${application_id} not found`);
 
@@ -99,6 +101,8 @@ export const make_application_visible_to_group = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(404, `Application ${application_id} not found`);
 
@@ -157,6 +161,8 @@ export const remove_application_visibility_to_group = async (
 
     const { records } = await session.run(cypher, params);
 
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(404, `Application ${application_id} not found`);
 

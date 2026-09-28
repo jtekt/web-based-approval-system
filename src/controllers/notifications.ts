@@ -43,6 +43,8 @@ export const mark_recipient_as_notified = async (
     };
 
     const { records } = await session.run(cypher, params);
+    // FIXME: when the user lacks permission, the query above matches nothing, so
+    // the refusal is answered like this instead of with a 403
     if (!records.length)
       throw createHttpError(404, `Application ${application_id} not found`);
 
