@@ -10,7 +10,8 @@
     "test-local": "S3_BUCKET= npm test",
     "test-s3": "S3_BUCKET=jtekt-moreillon npm test",
     "test-all": "npm run test-local && npm run test-s3",
-    "coverage": "c8 npm run test-all"
+    "coverage": "c8 npm run test-all",
+    "coverage-local": "c8 npm run test-local"
   },
   "keywords": [],
   "author": "Maxime Moreillon",
