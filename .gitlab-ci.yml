@@ -48,7 +48,7 @@ test:
       --env NEO4J_AUTH=none
       --health-cmd "cypher-shell 'RETURN 1'"
       --health-interval 2s
-      neo4j:5.12.0
+      neo4j:5.26.31
     # Wait until Neo4J is ready (fail after 2 minutes)
     - timeout 120 sh -c 'until [ "$(docker inspect -f {{.State.Health.Status}} ${TEST_DB})" = healthy ]; do sleep 2; done'
     # Deploy a user-manager / authentication system
