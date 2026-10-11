@@ -80,7 +80,7 @@ test:
       --env TEST_USER_USERNAME=administrator
       --env TEST_USER_PASSWORD=administrator
       ${CONTAINER_IMAGE_TEST}
-      npm run coverage
+      npm run coverage-local
 
 release:
   stage: release
