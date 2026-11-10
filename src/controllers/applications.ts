@@ -21,6 +21,7 @@ import {
   rejectApplicationSchema,
 } from '../validators/application.validators';
 import { validate } from '../utils/validate';
+import { generate_short_id } from '../utils/ids';
 
 export const create_application = async (
   req: Request,
@@ -314,7 +315,7 @@ export const approve_application = async (
       WITH application, recipient
       MERGE (application)<-[approval:APPROVED]-(recipient)
       ON CREATE SET approval.date = date()
-      ON CREATE SET approval._id = randomUUID()
+      ON CREATE SET approval._id = $approval_id
       SET approval.comment = $comment
       ${attachment_hankos_query}
 
@@ -327,6 +328,7 @@ export const approve_application = async (
       user_id,
       application_id,
       comment,
+      approval_id: generate_short_id(),
       attachment_hankos: JSON.stringify(attachment_hankos),
     };
 
@@ -368,7 +370,7 @@ export const reject_application = async (
       // Mark as REJECTED
       WITH application, recipient
       MERGE (application)<-[rejection:REJECTED]-(recipient)
-      ON CREATE SET rejection._id = randomUUID()
+      ON CREATE SET rejection._id = $rejection_id
       ON CREATE SET rejection.date = date()
       SET rejection.comment = $comment
 
@@ -381,6 +383,7 @@ export const reject_application = async (
       user_id,
       application_id,
       comment,
+      rejection_id: generate_short_id(),
     };
 
     const { records } = await session.run(cypher, params);
